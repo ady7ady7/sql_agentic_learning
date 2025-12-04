@@ -1,18 +1,20 @@
-This file is a general overview of my agentic teaching repository for SQL.
+To keep it simple, this file presents a concise overview of my agentic teaching repository for SQL.
+-----------------------------------
+The agent will generate questions about my database, that will require me to practice SQL queries to maintain my intermediate SQL level (certified as Intermediate on Hackerrank) + hopefully allow me to pass the advanced SQL certification after 8-12 weeks of daily practising.
+------------------------------------
+The agent's main instructions are in CLAUDE.md (hidden from the public view).
 
-The main goal of this repo is to cooperate with my LLM on daily basis to serve as my teacher. 
-The agent will generate valid questions about my database, that will require me to write and run SQL queries and therefore practice SQL to maintain my intermediate SQL level (as right now I'm holding an Intermediate SQL cert@Hackerrank) + pass the advanced SQL certification soon (I didn't try yet, but as of 4.12.25 I honestly feel like I did not master all of the advanced concepts YET, like ALL OF THE WINDOW FUNCTIONS, etc.). 
+ENVIRONMENT
 
-The agent will also provide me with feedback (whenever possible) so that I can improve my SQL gradually.
-The agent's main instruction is in CLAUDE.md (hidden from the public view).
+As for data and the environment for running the actual SQL queries, I am using a local Postgres db (you can find the database schema in schema.md (contains tables + data examples)). If necessary, I can also share my screen to show the actual database.
 
-As for data and the environment for running the actual SQL queries, I am using a local Postgres db (you can find the database schema in schema.md (contains tables + data examples)).
+FILES
 
-Files:
 - schema.md - database schema - tables + data examples
 - question_examples.md - 10 examples of good questions (currently - 4.12) + code snippets that would be used to find the answers (POTENTIAL ANSWERS)
 
-TO DO:
+- tasks.md / tasks_archive.md - the first file is for the present tasks (for the current day), after we're finished with a given day, they're moved to the tasks_archive.md, so that we won't clutter the agent's memory + it's simply cleaner
 
-- Instructions for the agent
-- A file structure which will contain feedback/tasks archive and current tasks - I'm aiming for brevity and clarity here (memory saving)
+- feedback.md / feedback_archive.md - same idea, but it's worth adding that the feedback is bidirectional - I will rate the agent for the tasks, give feedback and assess the logic of the tasks as well; the agent will obviously give me constructive feedback in terms of my SQL proficiency and best practices
+
+- good_q_examples/bad_q_examples - I thought it might be a good way of introducing RAG to our agent's work, as based on my previous experience in agentic learning of Python, this might be useful for the agent to check sometimes

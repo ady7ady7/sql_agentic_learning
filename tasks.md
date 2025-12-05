@@ -1,134 +1,146 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2025-12-04
-**Week 1 Focus:** Advanced JOINs, Window Functions, CTEs, Aggregations
+**Generated:** 2025-12-05
+**Week 1, Day 2 Focus:** Advanced Aggregations, LAG/LEAD, Cross Joins, CTEs
 
 ---
 
-## Task 1: Self-Join — Session Buddies
+## Task 1: Customer Churn Analysis — LAG Function
 
 **Scenario:**
-The product analytics team wants to identify "session buddies" — pairs of users who had the exact same number of sessions on at least 3 different dates. This helps understand synchronized user behavior patterns.
-
-**Expected Output Columns:**
-- `user_id_1` (integer) — first user ID (should be less than user_id_2)
-- `user_id_2` (integer) — second user ID
-- `matching_days` (bigint) — count of dates where they had identical session counts
-
-**Requirements:**
-- Use `user_sessions_daily` table
-- Self-join to compare users
-- Only include pairs where matching_days >= 3
-- Ensure user_id_1 < user_id_2 to avoid duplicate pairs
-- Order by `matching_days` DESC, then `user_id_1` ASC
-
-**Difficulty Rating:** 3/5
-
----
-
-## Task 2: First vs. Last Transaction Type Per User
-
-**Scenario:**
-The finance team wants to analyze user transaction journey patterns. Find all users whose first transaction type differs from their last transaction type, and show how many transactions they made in total.
+The business analytics team needs to identify users who are at risk of churning. Calculate the gap (in days) between consecutive orders for each user, then find users whose most recent order gap is more than 2x their average gap between orders.
 
 **Expected Output Columns:**
 - `user_id` (integer)
 - `first_name` (varchar)
 - `last_name` (varchar)
-- `first_transaction_type` (text)
-- `last_transaction_type` (text)
-- `total_transactions` (bigint)
+- `avg_days_between_orders` (numeric) — average gap between all consecutive orders
+- `most_recent_gap_days` (numeric) — days since their last order
+- `churn_risk_ratio` (numeric) — most_recent_gap / avg_gap
 
 **Requirements:**
-- Use `transactions` and `users` tables
-- Apply window functions: FIRST_VALUE and LAST_VALUE
-- Include only users with at least 2 transactions
-- Filter for cases where first_transaction_type != last_transaction_type
-- Order by `total_transactions` DESC
+- Use `orders` and `users` tables
+- Apply LAG() window function to calculate gaps between consecutive orders
+- Only include users with at least 3 orders (to calculate meaningful averages)
+- Filter for users where `churn_risk_ratio > 2.0`
+- Order by `churn_risk_ratio` DESC
+
+**Difficulty Rating:** 4/5
+
+---
+
+## Task 2: Product Category Performance Matrix — Cross Join
+
+**Scenario:**
+The product team wants a complete matrix showing revenue for each product category in each month of 2025, including months where a category had zero sales. This helps visualize seasonal trends.
+
+**Expected Output Columns:**
+- `category_name` (varchar)
+- `month` (integer) — 1-12
+- `total_revenue` (numeric) — total revenue for that category in that month (0 if no sales)
+- `order_count` (bigint) — number of orders containing that category (0 if none)
+
+**Requirements:**
+- Use `product_categories`, `products`, `orders_products`, `orders` tables
+- Use CROSS JOIN to create all category × month combinations
+- LEFT JOIN actual sales data
+- Use COALESCE to show 0 for months with no sales
+- Only include data from year 2025
+- Order by `category_name` ASC, `month` ASC
+
+**Difficulty Rating:** 4/5
+
+---
+
+## Task 3: Transaction Patterns — LEAD and LAG Together
+
+**Scenario:**
+The fraud detection team wants to identify unusual transaction patterns. For each transaction, show the previous and next transaction amounts for the same user, along with the time gaps.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `transaction_id` (integer) — current transaction id
+- `amount` (numeric) — current transaction amount
+- `prev_amount` (numeric) — previous transaction amount (NULL if first)
+- `next_amount` (numeric) — next transaction amount (NULL if last)
+- `time_since_prev` (interval) — time gap from previous transaction
+- `time_until_next` (interval) — time gap to next transaction
+
+**Requirements:**
+- Use `transactions` table
+- Apply both LAG() and LEAD() window functions partitioned by user_id
+- Order transactions by created_at within each user
+- Only include transactions from users with at least 3 transactions
+- Order final output by `user_id` ASC, transaction `created_at` ASC
 
 **Difficulty Rating:** 3/5
 
 ---
 
-## Task 3: Rolling 7-Day Order Revenue
+## Task 4: Support Ticket Escalation Analysis
 
 **Scenario:**
-Calculate a 7-day rolling average of daily order revenue. For each date, compute the average order amount over that date plus the 6 preceding days. Include all dates from the dates table, even if there were no orders.
-
-**Expected Output Columns:**
-- `date` (date)
-- `daily_revenue` (numeric) — total order amount for that specific date (NULL if no orders)
-- `rolling_7day_avg` (numeric) — average daily revenue over 7-day window
-
-**Requirements:**
-- Use `dates` table as base (to include all dates)
-- LEFT JOIN with aggregated orders data
-- Window frame: ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
-- Only return dates from year 2025
-- Order by date ASC
-
-**Difficulty Rating:** 4/5
-
----
-
-## Task 4: Anti-Join — Users Who Never Bought Travel Products
-
-**Scenario:**
-The marketing team wants to launch a travel campaign targeting users who have made purchases but have NEVER bought anything from the "travel" category. Find these users.
-
-**Expected Output Columns:**
-- `user_id` (integer)
-- `email` (varchar)
-- `city` (varchar)
-- `total_orders` (bigint) — count of all orders made by this user
-
-**Requirements:**
-- Use `users`, `orders`, `orders_products`, `products`, `product_categories` tables
-- Use an anti-join pattern (NOT EXISTS or LEFT JOIN ... WHERE NULL)
-- Exclude users who have purchased ANY product from category "travel"
-- Include only users with at least 1 order
-- Order by `total_orders` DESC
-
-**Difficulty Rating:** 4/5
-
----
-
-## Task 5: Ticket Resolution Time Ranking
-
-**Scenario:**
-For each priority level, rank support tickets by their resolution time (from creation to the timestamp of the last message). Use DENSE_RANK so that tickets with identical resolution times receive the same rank.
+The customer support manager wants to identify tickets that required escalation (multiple status changes). Find tickets that changed status at least 3 times and calculate the average time between status changes.
 
 **Expected Output Columns:**
 - `ticket_id` (bigint)
+- `user_id` (bigint)
 - `priority` (text)
-- `resolution_time` (interval) — time from ticket creation to last message
-- `rank_in_priority` (bigint) — dense rank within priority group (1 = fastest)
+- `status_change_count` (bigint) — number of status changes
+- `avg_time_between_changes` (interval) — average time between status changes
+- `final_status` (text) — most recent status
 
 **Requirements:**
 - Use `chat_tickets` and `chat_messages` tables
-- Only include tickets with status = 'resolved' OR status = 'closed'
-- Calculate resolution_time as: MAX(chat_messages.created_at) - chat_tickets.created_at
-- Apply DENSE_RANK() OVER (PARTITION BY priority ORDER BY resolution_time ASC)
-- Order final output by `priority` ASC, then `rank_in_priority` ASC
+- Filter for messages where `message_type = 'statuschange'`
+- Count status changes per ticket
+- Calculate time gaps between consecutive status changes using LAG()
+- Only include tickets with `status_change_count >= 3`
+- Order by `status_change_count` DESC, then `ticket_id` ASC
 
-**Difficulty Rating:** 4/5
+**Difficulty Rating:** 5/5
+
+---
+
+## Task 5: Monthly Revenue Growth Percentage
+
+**Scenario:**
+The finance team needs a monthly revenue report showing month-over-month growth percentages. Calculate total order revenue for each month in 2025 and compare it to the previous month.
+
+**Expected Output Columns:**
+- `year` (integer)
+- `month` (integer)
+- `monthly_revenue` (numeric) — total revenue for the month
+- `prev_month_revenue` (numeric) — previous month's revenue (NULL for January)
+- `growth_percentage` (numeric) — ((current - prev) / prev) * 100
+
+**Requirements:**
+- Use `orders` table
+- Extract year and month from created_at
+- Aggregate revenue by month
+- Use LAG() to get previous month's revenue
+- Calculate growth percentage (handle division by zero with NULLIF)
+- Only include months from 2025
+- Order by `year` ASC, `month` ASC
+
+**Difficulty Rating:** 3/5
 
 ---
 
 ## Submission Instructions
 
-When you're ready, submit your SQL solutions one at a time or all together. I'll provide detailed feedback including:
-- Correctness of logic and syntax
-- Efficiency and performance considerations
-- Best practice suggestions
-- Advanced alternatives (if applicable)
+Submit your SQL solutions when ready. I'll provide detailed feedback on:
+- Logic correctness and syntax
+- Efficiency and performance
+- Best practices
+- Alternative approaches
 
 ## Tips
 
-- Build your queries incrementally — start simple, then add complexity
-- Use CTEs to break down multi-step logic for readability
-- Always check the schema.md file for exact column names and data types
-- Consider NULL handling in your joins and aggregations
-- Test window function frames carefully (ROWS vs RANGE)
+- Remember to use `FIRST_VALUE(...ORDER BY ... DESC)` pattern for getting last values
+- Pay attention to required output columns — include ALL specified columns
+- Use CTEs to break down complex multi-step logic
+- Consider NULL handling in calculations (COALESCE, NULLIF)
+- Test LAG/LEAD with appropriate PARTITION BY and ORDER BY clauses
 
 Good luck!

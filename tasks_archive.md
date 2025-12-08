@@ -373,3 +373,355 @@ Good luck!
 
 ---
 
+# Daily SQL Practice Tasks
+
+**Generated:** 2025-12-05
+**Week 1, Day 2 Focus:** Advanced Aggregations, LAG/LEAD, Cross Joins, CTEs
+
+---
+
+## Task 1: Customer Churn Analysis — LAG Function
+
+**Scenario:**
+The business analytics team needs to identify users who are at risk of churning. Calculate the gap (in days) between consecutive orders for each user, then find users whose most recent order gap is more than 2x their average gap between orders.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `first_name` (varchar)
+- `last_name` (varchar)
+- `avg_days_between_orders` (numeric) — average gap between all consecutive orders
+- `most_recent_gap_days` (numeric) — days since their last order
+- `churn_risk_ratio` (numeric) — most_recent_gap / avg_gap
+
+**Requirements:**
+- Use `orders` and `users` tables
+- Apply LAG() window function to calculate gaps between consecutive orders
+- Only include users with at least 3 orders (to calculate meaningful averages)
+- Filter for users where `churn_risk_ratio > 2.0`
+- Order by `churn_risk_ratio` DESC
+
+**Difficulty Rating:** 4/5
+
+WITH users_order_gaps AS (
+	SELECT
+		user_id,
+		date(created_at) AS order_date,
+		COUNT(*) AS orders_cnt,
+		LAG(date(created_at)) OVER (PARTITION BY user_id ORDER BY date(created_at)) AS prev_user_order_day
+	FROM orders
+	GROUP BY user_id, date(created_at)
+	ORDER BY user_id
+	),
+users_day_diffs AS (
+SELECT
+	user_id,
+	order_date,
+	prev_user_order_day,
+	order_date - prev_user_order_day AS days_diff
+FROM users_order_gaps
+	),
+users_avg_diffs AS (
+	SELECT 
+		user_id,
+		COUNT(*) AS orders_cnt,
+		ROUND(AVG(days_diff),2) AS avg_diff
+	FROM users_day_diffs
+	GROUP BY user_id
+	HAVING COUNT(*) >= 3
+	),
+users_above_the_threshold AS (
+	SELECT
+		udd.user_id,
+		udd.days_diff,
+		uad.avg_diff,
+		FIRST_VALUE(udd.order_date) OVER (PARTITION BY uad.user_id ORDER BY udd.order_date DESC) AS last_order_date
+	FROM users_avg_diffs uad
+	JOIN users_day_diffs udd ON uad.user_id = udd.user_id
+	WHERE udd.days_diff > 2 * (uad.avg_diff)
+	)
+SELECT
+uatt.user_id,
+u.first_name,
+u.last_name,
+uatt.avg_diff,
+uatt.last_order_date,
+DATE(NOW()) -  uatt.last_order_date AS most_recent_gap_days,
+ROUND((DATE(NOW()) -  uatt.last_order_date) / uatt.avg_diff, 2) AS churn_risk_ratio
+FROM users_above_the_threshold uatt
+JOIN users u ON uatt.user_id  = u.id
+ORDER BY churn_risk_ratio DESC
+
+
+This was probably the longest task I've worked on so far - I followed your requirements precisely this time, although IMO it's a bit unnecessary to expect me to show first_name, last_name etc. Of course I  can extract these without any issues, but that's just makes the whole code base longer without adding real learning value to that - this is a trivial task, I obviously know how to do it and I don't think it's necessary. Note that for future reference and certainly improve on that!
+
+
+
+---
+
+## Task 2: Product Category Performance Matrix — Cross Join
+
+**Scenario:**
+The product team wants a complete matrix showing revenue for each product category in each month of 2025, including months where a category had zero sales. This helps visualize seasonal trends.
+
+**Expected Output Columns:**
+- `category_name` (varchar)
+- `month` (integer) — 1-12
+- `total_revenue` (numeric) — total revenue for that category in that month (0 if no sales)
+- `order_count` (bigint) — number of orders containing that category (0 if none)
+
+**Requirements:**
+- Use `product_categories`, `products`, `orders_products`, `orders` tables
+- Use CROSS JOIN to create all category × month combinations
+- LEFT JOIN actual sales data
+- Use COALESCE to show 0 for months with no sales
+- Only include data from year 2025
+- Order by `category_name` ASC, `month` ASC
+
+**Difficulty Rating:** 4/5
+
+
+WITH months_years AS (
+SELECT
+	DISTINCT(EXTRACT('Month' FROM date)) AS month_
+	FROM dates
+	WHERE EXTRACT('YEAR' FROM date) = 2025
+	),
+orders_months_join AS (
+	SELECT
+		my.month_,
+		COALESCE(o.id, NULL) AS order_id,
+		o.created_at AS order_date,
+		COALESCE(op.quantity, 0) AS product_quantity,
+		COALESCE(p.price, 0) AS product_price,
+		COALESCE(pc.name, 'Empty') AS category_name
+	FROM months_years my
+	LEFT JOIN orders o ON my.month_= EXTRACT('Month' FROM o.created_at) AND EXTRACT('Year' FROM o.created_at) = 2025
+	LEFT JOIN orders_products op ON o.id = op.order_id
+	LEFT JOIN products p ON p.id = op.product_id
+	LEFT JOIN product_categories pc ON pc.id = p.category_id
+	ORDER BY month_
+	)
+SELECT 
+	month_,
+	category_name,
+	SUM(product_quantity * product_price) AS total_revenue,
+	COUNT(DISTINCT CASE WHEN order_id IS NOT NULL THEN order_id END) AS cnt_orders
+FROM orders_months_join
+GROUP BY month_, category_name
+ORDER BY category_name, month_
+
+
+
+---
+
+## Task 3: Transaction Patterns — LEAD and LAG Together
+
+**Scenario:**
+The fraud detection team wants to identify unusual transaction patterns. For each transaction, show the previous and next transaction amounts for the same user, along with the time gaps.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `transaction_id` (integer) — current transaction id
+- `amount` (numeric) — current transaction amount
+- `prev_amount` (numeric) — previous transaction amount (NULL if first)
+- `next_amount` (numeric) — next transaction amount (NULL if last)
+- `time_since_prev` (interval) — time gap from previous transaction
+- `time_until_next` (interval) — time gap to next transaction
+
+**Requirements:**
+- Use `transactions` table
+- Apply both LAG() and LEAD() window functions partitioned by user_id
+- Order transactions by created_at within each user
+- Only include transactions from users with at least 3 transactions
+- Order final output by `user_id` ASC, transaction `created_at` ASC
+
+**Difficulty Rating:** 3/5
+
+WITH users_transactions_amts_times AS (
+	SELECT
+		*,
+		LAG(amount) OVER (PARTITION BY user_id ORDER BY created_at) AS prev_transaction_amt,
+		LEAD(amount) OVER (PARTITION BY user_id ORDER BY created_at) AS next_transaction_amt,
+		LAG(created_at) OVER (PARTITION BY user_id ORDER BY created_at) AS prev_transaction_time,
+		LEAD(created_at) OVER (PARTITION BY user_id ORDER BY created_at) AS next_transaction_time
+	FROM transactions
+	),
+users_transaction_cnts AS (
+	SELECT 
+		user_id,
+		COUNT(id) AS cnt_transactions
+	FROM transactions
+	GROUP BY user_id
+	)
+SELECT 
+	uta.user_id,
+	uta.created_at,
+	uta.prev_transaction_amt,
+	uta.next_transaction_amt,
+	uta.created_at - uta.prev_transaction_time AS time_since_prev,
+	uta.next_transaction_time - uta.created_at AS time_until_next
+	FROM users_transactions_amts_times uta
+	JOIN users_transaction_cnts utc ON uta.user_id = utc.user_id
+	WHERE utc.cnt_transactions >= 3
+	ORDER BY uta.user_id, uta.created_at
+
+
+---
+
+## Task 4: Support Ticket Escalation Analysis
+
+**Scenario:**
+The customer support manager wants to identify tickets that required escalation (multiple status changes). Find tickets that changed status at least 3 times and calculate the average time between status changes.
+
+**Expected Output Columns:**
+- `ticket_id` (bigint)
+- `user_id` (bigint)
+- `priority` (text)
+- `status_change_count` (bigint) — number of status changes
+- `avg_time_between_changes` (interval) — average time between status changes
+- `final_status` (text) — most recent status
+
+**Requirements:**
+- Use `chat_tickets` and `chat_messages` tables
+- Filter for messages where `message_type = 'statuschange'`
+- Count status changes per ticket
+- Calculate time gaps between consecutive status changes using LAG()
+- Only include tickets with `status_change_count >= 3`
+- Order by `status_change_count` DESC, then `ticket_id` ASC
+
+**Difficulty Rating:** 5/5
+
+WITH statuses_changes AS (
+	SELECT 
+		*,
+		LEAD(created_at) OVER (PARTITION BY ticket_id ORDER BY created_at) AS next_status_change_time,
+		LAG(created_at) OVER (PARTITION BY ticket_id ORDER BY created_at) AS prev_status_change_time,
+		FIRST_VALUE(status) OVER (PARTITION BY ticket_id ORDER BY created_at DESC) AS last_status
+	FROM chat_messages
+	WHERE status IS NOT NULL
+	),
+last_messages AS (
+	SELECT 
+		DISTINCT(ticket_id),
+		FIRST_VALUE(message_text) OVER (PARTITION BY ticket_id ORDER BY created_at DESC) AS last_message
+	FROM chat_messages cm 
+	WHERE cm.message_text != 'status_change'
+	),
+filtered_tickets AS (
+	SELECT 
+		ticket_id,
+		COUNT(*) AS cnt_status_change
+	FROM statuses_changes
+	GROUP BY ticket_id
+	HAVING COUNT(*) >= 3
+),
+tickets_status_change_times AS (
+	SELECT
+		ticket_id,
+		CASE 
+			WHEN prev_status_change_time IS NULL THEN next_status_change_time - created_at
+			WHEN next_status_change_time IS NULL THEN created_at - prev_status_change_time
+			ELSE next_status_change_time - created_at
+		END AS status_change_time
+	 	FROM statuses_changes
+	 	),
+tickets_avg_changes AS (
+	 SELECT 
+		 ticket_id,
+		 AVG(status_change_time) AS avg_chg_time
+	 FROM tickets_status_change_times
+	 GROUP BY ticket_id
+	 )
+SELECT 
+	DISTINCT(ft.ticket_id),
+	ct.user_id,
+	ct.priority,
+	ft.cnt_status_change,
+	tac.avg_chg_time,
+	sc.last_status,
+	lm.last_message
+FROM filtered_tickets ft 
+JOIN chat_tickets ct ON ft.ticket_id = ct.id
+JOIN tickets_avg_changes tac ON ft.ticket_id = tac.ticket_id
+JOIN statuses_changes sc ON ft.ticket_id = sc.ticket_id
+JOIN last_messages lm ON ft.ticket_id  = lm.ticket_id
+ORDER BY ft.cnt_status_change DESC, ticket_id
+
+I also added the last message.
+
+
+---
+
+## Task 5: Monthly Revenue Growth Percentage
+
+**Scenario:**
+The finance team needs a monthly revenue report showing month-over-month growth percentages. Calculate total order revenue for each month in 2025 and compare it to the previous month.
+
+**Expected Output Columns:**
+- `year` (integer)
+- `month` (integer)
+- `monthly_revenue` (numeric) — total revenue for the month
+- `prev_month_revenue` (numeric) — previous month's revenue (NULL for January)
+- `growth_percentage` (numeric) — ((current - prev) / prev) * 100
+
+**Requirements:**
+- Use `orders` table
+- Extract year and month from created_at
+- Aggregate revenue by month
+- Use LAG() to get previous month's revenue
+- Calculate growth percentage (handle division by zero with NULLIF)
+- Only include months from 2025
+- Order by `year` ASC, `month` ASC
+
+**Difficulty Rating:** 3/5
+
+WITH orders_monthly_rev AS (
+	SELECT
+		SUM(amount) AS monthly_revenue,
+		EXTRACT('Month' FROM created_at) AS month_show,
+		EXTRACT('Year' FROM created_at) AS year_show
+	FROM orders
+	WHERE EXTRACT('Year' FROM created_at) = 2025
+	GROUP BY EXTRACT('Month' FROM created_at), EXTRACT('Year' FROM created_at)
+	),
+prev_revenues AS (
+	SELECT
+		month_show,
+		year_show,
+		monthly_revenue,
+		LAG(monthly_revenue) OVER (ORDER BY month_show) AS prev_month_revenue
+	FROM orders_monthly_rev
+	)
+SELECT 
+	month_show,
+	year_show,
+	monthly_revenue,
+	(monthly_revenue / NULLIF(prev_month_revenue, 0)) * 100 AS growth_percent
+FROM prev_revenues
+ORDER BY year_show, month_show
+
+Quite easy, but useful tasks.
+
+
+---
+
+## Submission Instructions
+
+Submit your SQL solutions when ready. I'll provide detailed feedback on:
+- Logic correctness and syntax
+- Efficiency and performance
+- Best practices
+- Alternative approaches
+
+## Tips
+
+- Remember to use `FIRST_VALUE(...ORDER BY ... DESC)` pattern for getting last values
+- Pay attention to required output columns — include ALL specified columns
+- Use CTEs to break down complex multi-step logic
+- Consider NULL handling in calculations (COALESCE, NULLIF)
+- Test LAG/LEAD with appropriate PARTITION BY and ORDER BY clauses
+
+Good luck!
+
+---
+

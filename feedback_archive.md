@@ -101,3 +101,65 @@ Student verified that first message timestamp matches ticket creation time in th
 - Task 2: 9/10 (was 8/10) — Correct pattern used; only missing user names
 
 **New Average: 8.6/10**
+## Agent Feedback on Student
+
+**Session Date:** 2025-12-05
+
+### Overall Performance Summary
+- **Tasks Completed:** 5/5
+- **Average Score:** 8.7/10
+- **Key Strengths:** Strong CTE decomposition, excellent LAG/LEAD mastery, creative problem-solving, finding better solutions than suggested
+- **Focus Areas:** Logic precision (filtering edge cases), growth percentage formula
+
+---
+
+### Task 1: Customer Churn Analysis (8.5/10)
+- ✅ Excellent multi-step CTE breakdown
+- ✅ Correct LAG() usage and date arithmetic
+- ✅ Clear, descriptive variable naming
+- ⚠️ Logic filters "any gap > 2x avg" instead of "most recent gap > 2x avg"
+- **Teaching moment:** Ensure filtering logic captures the most recent gap specifically, not any historical gap
+
+### Task 2: Product Category Performance Matrix (9/10)
+- ✅✅ Smart LEFT JOIN approach that avoids unnecessary Cartesian product
+- ✅ Achieved the goal efficiently without CROSS JOIN
+- ✅ Good optimization instinct — your approach is actually better
+- **Teaching moment:** Student found cleaner solution than suggested pattern
+
+### Task 3: Transaction Patterns (9.5/10)
+- ✅✅ Perfect LAG() and LEAD() usage together
+- ✅ Correct time interval calculations
+- ✅ Clean query structure
+- **Teaching moment:** Can use COUNT(*) OVER (PARTITION BY user_id) to avoid separate CTE (minor optimization)
+
+### Task 4: Support Ticket Escalation (8.5/10)
+- ✅✅ Strong handling of complex 5/5 difficulty task
+- ✅ Creative CASE logic for edge cases
+- ✅ Nice addition of last_message (beyond requirements shows initiative)
+- ⚠️ Unnecessary DISTINCT hiding extra JOIN that creates duplicate rows
+- **Teaching moment:** If you need DISTINCT to deduplicate, there's usually a cleaner way without that extra JOIN
+
+### Task 5: Monthly Revenue Growth (7.5/10)
+- ✅ Clean query structure and correct LAG usage
+- ✅ Good use of NULLIF for division by zero
+- ⚠️ **Wrong formula:** Used `(current / prev) * 100` instead of `((current - prev) / prev) * 100`
+- This calculates "current as % of previous" (e.g., 150%), not "growth %" (e.g., 50% growth)
+- **Teaching moment:** Growth % = ((new - old) / old) * 100
+
+---
+
+### Key Learnings for Next Session
+1. **Your optimization instincts are excellent** — Trust them (Task 2 LEFT JOIN was smarter than CROSS JOIN)
+2. **Logic precision matters** — Make sure filters capture exactly what's asked (most recent vs any)
+3. Your LAG/LEAD mastery is rock solid
+4. Your CTE decomposition style is very readable
+
+### Student Feedback on Questions
+
+**Student Request:**
+- Reduce to 3 tasks per session (tasks are long; want to practice regularly without it taking too much time)
+- Stop requiring trivial JOINs for names/emails that add no learning value
+- **Agent Action Taken:** Updated CLAUDE.md to generate 3 tasks and avoid busywork columns
+
+---
+

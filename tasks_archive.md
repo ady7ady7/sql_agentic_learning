@@ -725,3 +725,191 @@ Good luck!
 
 ---
 
+# Daily SQL Practice Tasks
+
+**Generated:** 2025-12-06
+**Week 1, Day 3 Focus:** Recursive CTEs, RANK vs ROW_NUMBER, Advanced Aggregations
+
+---
+
+## Task 1: Category Hierarchy with Recursive CTE
+
+**Scenario:**
+The product team wants to analyze the total revenue for each product category. However, some categories might be related hierarchically (though not in current schema). For this exercise, find all distinct product categories and rank them by total revenue, showing cumulative revenue as you go down the ranking.
+
+**Expected Output Columns:**
+- `category_id` (integer)
+- `category_name` (varchar)
+- `total_revenue` (numeric) — total revenue from this category
+- `revenue_rank` (bigint) — rank by revenue (1 = highest)
+- `cumulative_revenue` (numeric) — running total of revenue from rank 1 to current
+
+**Requirements:**
+- Use `product_categories`, `products`, `orders_products`, `orders` tables
+- Apply RANK() for revenue ranking
+- Use window function with frame for cumulative sum
+- Only include orders from 2025
+- Order by `revenue_rank` ASC
+
+**Difficulty Rating:** 4/5
+
+WITH orders_products_categories_2025 AS (
+	SELECT 
+		pc.id AS category_id,
+		pc.name AS category_name,
+		op.order_id,
+		op.product_id,
+		op.quantity,
+		p.price
+	FROM orders o
+	JOIN orders_products op ON op.order_id = o.id
+	JOIN products p ON op.product_id = p.id
+	JOIN product_categories pc ON p.category_id = pc.id
+	WHERE EXTRACT ('Year' FROM o.created_at) = 2025
+	),
+categories_revenue AS (
+	SELECT 
+		category_id,
+		category_name,
+		SUM(quantity * price) AS total_revenue
+	FROM orders_products_categories_2025
+	GROUP BY category_id, category_name
+	)
+SELECT
+	category_id,
+	category_name,
+	total_revenue,
+	RANK() OVER (ORDER BY total_revenue DESC) AS revenue_rank,
+	SUM(total_revenue) OVER (ORDER BY total_revenue) AS cumulative_revenue
+FROM categories_revenue
+ORDER BY revenue_rank
+
+
+---
+
+## Task 2: User Cohort Analysis — First Order Month
+
+**Scenario:**
+The growth team wants to perform cohort analysis. For each user, determine which month they made their first order (their "cohort"), then calculate how many orders that cohort has made in total and what their average order value is.
+
+**Expected Output Columns:**
+- `cohort_month` (date) — first day of the month when users made their first order
+- `user_count` (bigint) — number of users in this cohort
+- `total_orders` (bigint) — total orders made by this cohort (all time)
+- `avg_order_value` (numeric) — average order amount across all cohort orders
+
+**Requirements:**
+- Use `orders` table
+- Determine each user's first order month using window functions
+- Group by cohort month to aggregate metrics
+- Only include cohorts from 2025
+- Order by `cohort_month` ASC
+
+**Difficulty Rating:** 4/5
+
+WITH users_first_orders AS (
+	SELECT
+		user_id, 
+		created_at,
+		EXTRACT('Month' FROM created_at) AS transaction_month,
+		FIRST_VALUE(created_at) OVER (PARTITION BY user_id ORDER BY created_at) AS first_order_time,
+		amount
+	FROM orders
+	WHERE EXTRACT('Year' FROM created_at) = 2025
+	),
+cohorts_avg_orders AS (
+	SELECT
+		transaction_month,
+		AVG(amount) AS avg_cohort_order
+	FROM users_first_orders
+	WHERE transaction_month = EXTRACT('Month' FROM first_order_time)
+	GROUP BY transaction_month
+	),
+users_counted_orders_by_months AS (
+	SELECT 
+		user_id,
+		EXTRACT('Month' FROM first_order_time) AS fo_month,
+		COUNT(*) AS cnt_orders
+	FROM users_first_orders
+	GROUP BY user_id, first_order_time
+	),
+cohorts_total_orders_users AS (
+	SELECT
+		fo_month,
+		SUM(cnt_orders) AS total_orders,
+		COUNT(user_id) AS user_count
+	FROM users_counted_orders_by_months
+	GROUP BY fo_month
+	)
+SELECT 
+	cao.transaction_month AS cohort_month,
+	ROUND(cao.avg_cohort_order::NUMERIC, 2) AS avg_order_value,
+	ctou.total_orders,
+	ctou.user_count
+FROM cohorts_total_orders_users ctou
+JOIN cohorts_avg_orders cao ON ctou.fo_month = cao.transaction_month
+ORDER BY cohort_month
+
+---
+
+## Task 3: ROW_NUMBER vs RANK — Handling Ties in Top Products
+
+**Scenario:**
+The inventory team needs two different views of top-selling products: one that breaks ties arbitrarily (ROW_NUMBER) and one that gives tied products the same rank (RANK). For each product, calculate total quantity sold and show both ranking methods.
+
+**Expected Output Columns:**
+- `product_id` (integer)
+- `product_name` (varchar)
+- `total_quantity_sold` (numeric) — sum of quantity from orders_products
+- `row_number_rank` (bigint) — unique sequential number (breaks ties by product_id)
+- `rank_with_ties` (bigint) — rank that gives same value for ties
+
+**Requirements:**
+- Use `products` and `orders_products` tables
+- Calculate total quantity sold per product
+- Apply both ROW_NUMBER() and RANK() ordered by total_quantity_sold DESC
+- Include all products even if they haven't been ordered (show 0 quantity)
+- Order by `total_quantity_sold` DESC
+
+**Difficulty Rating:** 3/5
+
+---
+
+WITH products_qties_sold AS (
+	SELECT 
+		op.product_id,
+		p.name AS product_name,
+		SUM(quantity) AS total_quantity_sold
+	FROM orders_products op 
+	JOIN products p ON op.product_id = p.id
+	GROUP BY op.product_id, p.name
+	)
+SELECT
+	*,
+	RANK() OVER (ORDER BY total_quantity_sold DESC) AS rank_with_ties,
+	ROW_NUMBER() OVER (ORDER BY total_quantity_sold DESC) AS row_number_rank
+FROM products_qties_sold
+
+That was a very simple query to write.
+Also, please mind that the orders_product/products table contains products with the same names yet different product_id/price - as in Packing Cubes (ids 6, 5, 18, 29, 19), but I didn't group them by name, assuming that this is the level of aggregation we want, and that we want to distinguish product ids.
+
+
+## Submission Instructions
+
+Submit your SQL solutions when ready. I'll provide detailed feedback on:
+- Logic correctness and query structure
+- Window function usage
+- Efficiency considerations
+- Alternative approaches
+
+## Tips
+
+- For cumulative sums, use: `SUM(column) OVER (ORDER BY ... ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`
+- DATE_TRUNC('month', timestamp) gives you the first day of the month
+- ROW_NUMBER() assigns unique numbers; RANK() allows ties
+- LEFT JOIN to include products with zero sales
+
+Good luck!
+
+---
+

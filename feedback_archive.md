@@ -163,3 +163,55 @@ Student verified that first message timestamp matches ticket creation time in th
 
 ---
 
+## Agent Feedback on Student
+
+**Session Date:** 2025-12-06
+
+### Overall Performance Summary
+- **Tasks Completed:** 3/3
+- **Average Score:** 9.3/10
+- **Key Strengths:** Excellent CTE decomposition, strong window function mastery, data-driven decisions, practical interpretations
+- **Focus Areas:** None—solid session overall
+
+---
+
+### Task 1: Category Revenue Ranking (10/10)
+- ✅✅ Perfect CTE structure and revenue calculation
+- ✅ Correct RANK() and cumulative SUM() usage
+- ✅ Clean, readable query
+- ✅ Student corrected ordering to DESC after review
+- **Perfect execution**
+
+### Task 2: User Cohort Analysis (9/10)
+- ✅✅ Strong CTE decomposition
+- ✅ Correct use of FIRST_VALUE to identify cohorts
+- ✅ Valid interpretation: calculating average for orders in the cohort month (not all-time orders)
+- ✅ Integer month format is practical and clear
+- **Teaching moment:** Agent's requirement was ambiguous. Student's interpretation was valid.
+
+### Task 3: ROW_NUMBER vs RANK (9/10)
+- ✅✅ Perfect understanding of RANK vs ROW_NUMBER difference
+- ✅ Excellent data observation about duplicate product names
+- ✅ Correct decision to group by product_id
+- ✅ Data-driven decision: verified no products have zero sales, so LEFT JOIN unnecessary
+- **Teaching moment:** Student avoids over-engineering—excellent judgment
+
+---
+
+### Key Learnings for Next Session
+1. Your window function mastery is rock solid
+2. Your data verification before decisions shows maturity
+3. Your CTE decomposition makes complex queries readable
+4. You catch ambiguous requirements and make sensible interpretations
+
+### Agent Self-Correction
+1. **Task 2:** Requirement was ambiguous about "cohort orders" (all-time vs cohort month). Student's interpretation is valid.
+2. **Task 3:** Student verified data first—no products with zero sales exist, so LEFT JOIN would be over-engineering.
+3. Agent needs to write clearer, more precise requirements.
+
+## Student Feedback on Questions
+
+(Students should add comments about which questions were good/bad and why.)
+
+---
+

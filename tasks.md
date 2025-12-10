@@ -1,69 +1,75 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2025-12-07
-**Week 2, Day 1 Focus:** NTILE, Percentiles, String Functions, Complex Filtering
+**Generated:** 2025-12-10
+**Week 1, Day 5 Focus:** String Functions, Complex Date Logic, Multiple Window Functions
 
 ---
 
-## Task 1: Customer Segmentation with NTILE
+## Task 1: Email Domain Analysis with String Functions
 
 **Scenario:**
-The marketing team wants to segment users into 5 equal groups (quintiles) based on their total order spending. Calculate each user's total spend and assign them to a quintile (1-5, where 1 = lowest spenders, 5 = highest spenders).
+The marketing team wants to analyze user email domains to understand which email providers are most common. Extract the domain from each user's email address, count users per domain, and calculate what percentage of total users each domain represents.
+
+**Expected Output Columns:**
+- `email_domain` (text) — the domain extracted from email (e.g., 'gmail.com')
+- `user_count` (bigint) — number of users with this domain
+- `percentage_of_total` (numeric) — percentage of all users with email addresses
+
+**Requirements:**
+- Use `users` table
+- Extract domain using string functions (SUBSTRING, POSITION, or SPLIT_PART)
+- Exclude users with NULL emails
+- Calculate percentage rounded to 2 decimal places
+- Order by `user_count` DESC
+
+**Difficulty Rating:** 3/5
+
+---
+
+## Task 2: Transaction Streaks — Consecutive Days
+
+**Scenario:**
+The analytics team wants to identify users who made transactions on consecutive days and find the longest streak for each user. A "streak" is a sequence of consecutive calendar days with at least one transaction.
 
 **Expected Output Columns:**
 - `user_id` (integer)
-- `total_spent` (numeric) — sum of all order amounts for this user
-- `spending_quintile` (bigint) — quintile ranking (1-5)
-- `users_in_quintile` (bigint) — count of users in the same quintile
+- `longest_streak` (integer) — maximum number of consecutive days with transactions
+- `streak_start_date` (date) — first day of their longest streak
+- `streak_end_date` (date) — last day of their longest streak
 
 **Requirements:**
-- Use `orders` table
-- Apply NTILE(5) window function to create quintiles
-- Calculate total spending per user
-- Only include users with at least 1 order
-- Group to count users per quintile
-- Order by `spending_quintile` ASC
+- Use `transactions` table
+- Extract date from created_at timestamp
+- Use window functions and CTEs to identify streaks
+- Only include users with at least one streak of 3+ consecutive days
+- Order by `longest_streak` DESC, then `user_id` ASC
 
-**Difficulty Rating:** 3/5
+**Difficulty Rating:** 5/5
 
 ---
 
-## Task 2: Products Never Purchased Together
+## Task 3: Product Performance — Multiple Rankings
 
 **Scenario:**
-The e-commerce team wants to identify products that have NEVER been purchased together in the same order. For a specific product (e.g., product_id = 1), find all other products that have never appeared in any order containing that product.
+The product team wants to see products ranked by three different metrics simultaneously: total quantity sold, total revenue generated, and number of distinct orders. Create a comprehensive view showing all three rankings side by side.
 
 **Expected Output Columns:**
-- `product_id` (integer) — ID of product never bought with product 1
-- `product_name` (varchar)
-- `times_sold` (bigint) — how many times this product has been sold (in any order)
+- `product_id` (integer)
+- `total_quantity` (numeric) — sum of quantity sold
+- `total_revenue` (numeric) — sum of (quantity * price)
+- `distinct_orders` (bigint) — count of distinct orders containing this product
+- `rank_by_quantity` (bigint) — rank by total quantity
+- `rank_by_revenue` (bigint) — rank by total revenue
+- `rank_by_orders` (bigint) — rank by distinct orders
 
 **Requirements:**
-- Use `orders_products` and `products` tables
-- Use anti-join pattern to find products never in same orders as product_id = 1
-- Exclude product_id = 1 itself from results
-- Calculate how many times each product has been sold
-- Order by `times_sold` DESC
+- Use `products`, `orders_products` tables
+- Calculate all three metrics per product
+- Apply RANK() three times with different ORDER BY clauses
+- Include all products that have been sold at least once
+- Order by `rank_by_revenue` ASC
 
 **Difficulty Rating:** 4/5
-
----
-
-## Task 3: Median Session Count Per User
-
-**Scenario:**
-The analytics team wants to find the median number of sessions per user across all users. Calculate the median of total sessions (sum of count_sessions) for each user.
-
-**Expected Output Columns:**
-- `median_sessions` (numeric) — the median total session count across all users
-
-**Requirements:**
-- Use `user_sessions_daily` table
-- Calculate total sessions per user (SUM of count_sessions)
-- Use PERCENTILE_CONT(0.5) to find the median
-- Return a single row with the median value
-
-**Difficulty Rating:** 3/5
 
 ---
 
@@ -71,15 +77,15 @@ The analytics team wants to find the median number of sessions per user across a
 
 Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - Logic correctness and query structure
-- Window function usage
-- Efficiency considerations
+- String function usage and efficiency
+- Window function mastery
 - Alternative approaches
 
 ## Tips
 
-- NTILE(n) divides rows into n equal buckets based on ordering
-- PERCENTILE_CONT(0.5) calculates the median (50th percentile)
-- For "never together" queries, use NOT EXISTS or anti-join patterns
-- Remember to aggregate before applying NTILE
+- For email domains: `SPLIT_PART(email, '@', 2)` extracts everything after '@'
+- For consecutive days: Consider using LAG() to compare dates, then use a "gaps and islands" pattern
+- For percentage: `(count * 100.0 / total)` ensures decimal division
+- You can apply multiple RANK() functions with different ORDER BY in the same SELECT
 
 Good luck!

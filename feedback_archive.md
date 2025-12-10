@@ -215,3 +215,53 @@ Student verified that first message timestamp matches ticket creation time in th
 
 ---
 
+### Session: 2025-12-07 (Week 1, Day 4)
+
+## Agent Feedback on Student
+
+**Session Date:** 2025-12-07
+
+### Overall Performance Summary
+- **Tasks Completed:** 3/3
+- **Average Score:** 9.8/10
+- **Key Strengths:** Excellent NTILE usage, strong anti-join logic, perfect PERCENTILE_CONT execution, clean CTE decomposition
+- **Focus Areas:** Minor edge case handling (excluding self in anti-joins)
+
+---
+
+### Task 1: Customer Segmentation with NTILE (10/10)
+- ✅✅ Perfect NTILE(5) implementation
+- ✅ Clean CTE structure with logical naming
+- ✅ Correct window function for counting users per quintile
+- ✅ Proper aggregation before applying NTILE
+- **Perfect execution**
+
+### Task 2: Products Never Purchased Together (9.5/10)
+- ✅✅ Excellent anti-join pattern with NOT IN
+- ✅ Strong CTE decomposition to identify orders with product 1
+- ✅ Correct logic to find products never appearing with product 1
+- ✅ Good note about counting orders vs quantities
+- ⚠️ Minor: Could add explicit `AND op.product_id != 1` in final WHERE clause for clarity (though logic already excludes it)
+- **Teaching moment:** Your anti-join pattern is solid; the edge case is already handled by your CTE logic
+
+### Task 3: Median Session Count Per User (10/10)
+- ✅✅ Perfect PERCENTILE_CONT(0.5) usage
+- ✅ Correct WITHIN GROUP syntax
+- ✅ Clean aggregation before percentile calculation
+- ✅ Good note about unusual syntax for this function
+- **Perfect execution**
+
+---
+
+### Key Learnings for Next Session
+1. Your window function mastery continues to improve (NTILE, PERCENTILE_CONT)
+2. Your anti-join logic is strong and creative
+3. Your CTE decomposition remains excellent for readability
+4. You're catching nuances like "orders vs quantities" - shows attention to detail
+
+## Student Feedback on Questions
+
+(Students should add comments about which questions were good/bad and why.)
+
+---
+

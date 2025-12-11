@@ -1,75 +1,72 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2025-12-10
-**Week 1, Day 5 Focus:** String Functions, Complex Date Logic, Multiple Window Functions
+**Generated:** 2025-12-11
+**Week 2, Day 1 Focus:** Recursive CTEs, Advanced Aggregations, Grouping Sets
 
 ---
 
-## Task 1: Email Domain Analysis with String Functions
+## Task 1: Running Balance with Window Functions
 
 **Scenario:**
-The marketing team wants to analyze user email domains to understand which email providers are most common. Extract the domain from each user's email address, count users per domain, and calculate what percentage of total users each domain represents.
+The finance team needs to see each user's running balance over time. For each transaction, calculate the cumulative sum of transaction amounts (partitioned by user, ordered by transaction timestamp).
 
 **Expected Output Columns:**
-- `email_domain` (text) — the domain extracted from email (e.g., 'gmail.com')
-- `user_count` (bigint) — number of users with this domain
-- `percentage_of_total` (numeric) — percentage of all users with email addresses
+- `user_id` (integer)
+- `transaction_id` (integer)
+- `created_at` (timestamp)
+- `amount` (numeric)
+- `running_balance` (numeric) — cumulative sum of amounts for this user up to this transaction
 
 **Requirements:**
-- Use `users` table
-- Extract domain using string functions (SUBSTRING, POSITION, or SPLIT_PART)
-- Exclude users with NULL emails
-- Calculate percentage rounded to 2 decimal places
-- Order by `user_count` DESC
+- Use `transactions` table
+- Use SUM() OVER with proper window frame
+- Partition by user_id, order by created_at
+- Exclude transactions with NULL user_id or NULL amount
+- Order by `user_id` ASC, `created_at` ASC
 
 **Difficulty Rating:** 3/5
 
 ---
 
-## Task 2: Transaction Streaks — Consecutive Days
+## Task 2: Category Rollup — Total and Subtotals
 
 **Scenario:**
-The analytics team wants to identify users who made transactions on consecutive days and find the longest streak for each user. A "streak" is a sequence of consecutive calendar days with at least one transaction.
+The product team wants a report showing revenue by product category with subtotals. Show individual category revenues AND a grand total row using ROLLUP or GROUPING SETS.
 
 **Expected Output Columns:**
-- `user_id` (integer)
-- `longest_streak` (integer) — maximum number of consecutive days with transactions
-- `streak_start_date` (date) — first day of their longest streak
-- `streak_end_date` (date) — last day of their longest streak
+- `category_name` (varchar) — category name, or NULL for grand total row
+- `total_revenue` (numeric) — sum of (quantity * price)
+- `order_count` (bigint) — count of distinct orders
 
 **Requirements:**
-- Use `transactions` table
-- Extract date from created_at timestamp
-- Use window functions and CTEs to identify streaks
-- Only include users with at least one streak of 3+ consecutive days
-- Order by `longest_streak` DESC, then `user_id` ASC
+- Use `product_categories`, `products`, `orders_products`, `orders` tables
+- Use GROUP BY ROLLUP or GROUPING SETS to generate subtotal row
+- Only include orders from 2025
+- Order by `total_revenue` DESC NULLS LAST (grand total last)
 
-**Difficulty Rating:** 5/5
+**Difficulty Rating:** 4/5
 
 ---
 
-## Task 3: Product Performance — Multiple Rankings
+## Task 3: Self-Join — Users from Same City
 
 **Scenario:**
-The product team wants to see products ranked by three different metrics simultaneously: total quantity sold, total revenue generated, and number of distinct orders. Create a comprehensive view showing all three rankings side by side.
+The marketing team wants to identify pairs of users from the same city for a referral program. Find all unique pairs of users who share the same city (exclude NULL cities).
 
 **Expected Output Columns:**
-- `product_id` (integer)
-- `total_quantity` (numeric) — sum of quantity sold
-- `total_revenue` (numeric) — sum of (quantity * price)
-- `distinct_orders` (bigint) — count of distinct orders containing this product
-- `rank_by_quantity` (bigint) — rank by total quantity
-- `rank_by_revenue` (bigint) — rank by total revenue
-- `rank_by_orders` (bigint) — rank by distinct orders
+- `city` (varchar)
+- `user_id_1` (integer) — first user in pair
+- `user_id_2` (integer) — second user in pair (always > user_id_1 to avoid duplicates)
+- `users_in_city` (bigint) — total count of users in this city
 
 **Requirements:**
-- Use `products`, `orders_products` tables
-- Calculate all three metrics per product
-- Apply RANK() three times with different ORDER BY clauses
-- Include all products that have been sold at least once
-- Order by `rank_by_revenue` ASC
+- Use `users` table with self-join
+- Exclude users with NULL city
+- Ensure user_id_1 < user_id_2 to avoid duplicate pairs
+- Calculate total users per city using window function
+- Order by `city` ASC, `user_id_1` ASC
 
-**Difficulty Rating:** 4/5
+**Difficulty Rating:** 3/5
 
 ---
 
@@ -77,15 +74,16 @@ The product team wants to see products ranked by three different metrics simulta
 
 Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - Logic correctness and query structure
-- String function usage and efficiency
-- Window function mastery
+- Window frame usage
+- GROUPING SETS / ROLLUP implementation
+- Self-join efficiency
 - Alternative approaches
 
 ## Tips
 
-- For email domains: `SPLIT_PART(email, '@', 2)` extracts everything after '@'
-- For consecutive days: Consider using LAG() to compare dates, then use a "gaps and islands" pattern
-- For percentage: `(count * 100.0 / total)` ensures decimal division
-- You can apply multiple RANK() functions with different ORDER BY in the same SELECT
+- For running balance: `SUM(amount) OVER (PARTITION BY user_id ORDER BY created_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`
+- ROLLUP generates subtotal rows automatically: `GROUP BY ROLLUP(category_name)`
+- Self-join deduplication: `FROM users u1 JOIN users u2 ON u1.city = u2.city AND u1.id < u2.id`
+- Filter early in JOIN conditions to reduce result set size
 
 Good luck!

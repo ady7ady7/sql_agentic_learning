@@ -149,3 +149,169 @@ Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - Remember to aggregate before applying NTILE
 
 Good luck!
+
+### Task Archive: 2025-12-10 (Week 1, Day 5)
+
+# Daily SQL Practice Tasks
+
+**Generated:** 2025-12-10
+**Week 1, Day 5 Focus:** String Functions, Complex Date Logic, Multiple Window Functions
+
+---
+
+## Task 1: Email Domain Analysis with String Functions
+
+**Scenario:**
+The marketing team wants to analyze user email domains to understand which email providers are most common. Extract the domain from each user's email address, count users per domain, and calculate what percentage of total users each domain represents.
+
+**Expected Output Columns:**
+- `email_domain` (text) — the domain extracted from email (e.g., 'gmail.com')
+- `user_count` (bigint) — number of users with this domain
+- `percentage_of_total` (numeric) — percentage of all users with email addresses
+
+**Requirements:**
+- Use `users` table
+- Extract domain using string functions (SUBSTRING, POSITION, or SPLIT_PART)
+- Exclude users with NULL emails
+- Calculate percentage rounded to 2 decimal places
+- Order by `user_count` DESC
+
+**Difficulty Rating:** 3/5
+
+WITH users_w_domains AS (
+	SELECT 
+		*,
+		SPLIT_PART(email, '@', 2) AS email_domain
+	FROM users
+	WHERE email IS NOT NULL
+	),
+domains_counts AS (
+	SELECT 
+		email_domain,
+		COUNT(id) AS user_count
+	FROM users_w_domains 
+	GROUP BY email_domain
+	),
+total_user_count AS (
+	SELECT
+	COUNT(*) AS users_total
+	FROM users
+	)
+SELECT 
+	dc.email_domain,
+	dc.user_count,
+	ROUND(dc.user_count::NUMERIC / tuc.users_total * 100, 2) AS percentage_of_total
+FROM domains_counts dc
+CROSS JOIN total_user_count tuc
+
+
+---
+
+## Task 2: Transaction Streaks — Consecutive Days
+
+**Scenario:**
+The analytics team wants to identify users who made transactions on consecutive days and find the longest streak for each user. A "streak" is a sequence of consecutive calendar days with at least one transaction.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `longest_streak` (integer) — maximum number of consecutive days with transactions
+- `streak_start_date` (date) — first day of their longest streak
+- `streak_end_date` (date) — last day of their longest streak
+
+**Requirements:**
+- Use `transactions` table
+- Extract date from created_at timestamp
+- Use window functions and CTEs to identify streaks
+- Only include users with at least one streak of 3+ consecutive days
+- Order by `longest_streak` DESC, then `user_id` ASC
+
+**Difficulty Rating:** 5/5
+
+WITH users_transaction_days AS (
+	SELECT 
+		DISTINCT user_id, (DATE(created_at)) AS transaction_day
+	FROM transactions
+	ORDER BY user_id
+	),
+users_t_days_next AS (
+SELECT 
+	user_id,
+	transaction_day,
+	LEAD(transaction_day) OVER (PARTITION BY user_id ORDER BY transaction_day) AS next_t_day
+FROM users_transaction_days
+)
+SELECT *,
+next_t_day - transaction_day AS days_diff,
+RANK() OVER (PARTITION BY user_id ORDER BY transaction_day) AS streak_duration
+FROM users_t_days_next
+WHERE next_t_day IS NOT NULL
+AND next_t_day - transaction_day = 1
+
+With this code I've found out that THERE WERE NO streaks LONGER THAN 1 day, which simply made me stop trying to go further, as it doesn't make sense. You sohuld understand that.
+
+
+---
+
+## Task 3: Product Performance — Multiple Rankings
+
+**Scenario:**
+The product team wants to see products ranked by three different metrics simultaneously: total quantity sold, total revenue generated, and number of distinct orders. Create a comprehensive view showing all three rankings side by side.
+
+**Expected Output Columns:**
+- `product_id` (integer)
+- `total_quantity` (numeric) — sum of quantity sold
+- `total_revenue` (numeric) — sum of (quantity * price)
+- `distinct_orders` (bigint) — count of distinct orders containing this product
+- `rank_by_quantity` (bigint) — rank by total quantity
+- `rank_by_revenue` (bigint) — rank by total revenue
+- `rank_by_orders` (bigint) — rank by distinct orders
+
+**Requirements:**
+- Use `products`, `orders_products` tables
+- Calculate all three metrics per product
+- Apply RANK() three times with different ORDER BY clauses
+- Include all products that have been sold at least once
+- Order by `rank_by_revenue` ASC
+
+**Difficulty Rating:** 4/5
+
+
+WITH orders_products_summary AS (
+SELECT 
+p.id,
+SUM(op.quantity) AS total_quantity,
+SUM(op.quantity * p.price) AS total_revenue,
+COUNT(op.order_id) AS distinct_orders
+FROM orders_products op
+JOIN products p ON op.product_id = p.id
+GROUP BY p.id
+HAVING COUNT(op.order_id) >= 1
+)
+SELECT 
+	*,
+	RANK() OVER (ORDER BY total_quantity DESC) AS rank_by_quantity,
+	RANK() OVER (ORDER BY total_revenue DESC) AS rank_by_revenue,
+	RANK() OVER (ORDER BY distinct_orders DESC) AS rank_by_orders
+FROM orders_products_summary
+ORDER BY rank_by_revenue
+
+You didn't mention it here, ALTHOUGH YOU SHOULD - that we should ORDER these ranks by DESC values (from top total_quantity to low total_quantity, revenue, distinct_orders etc.). I did it, but please specify it next time. If i didn't do it, you shouldn't also take away points from me later.
+
+---
+
+## Submission Instructions
+
+Submit your SQL solutions when ready. I'll provide detailed feedback on:
+- Logic correctness and query structure
+- String function usage and efficiency
+- Window function mastery
+- Alternative approaches
+
+## Tips
+
+- For email domains: `SPLIT_PART(email, '@', 2)` extracts everything after '@'
+- For consecutive days: Consider using LAG() to compare dates, then use a "gaps and islands" pattern
+- For percentage: `(count * 100.0 / total)` ensures decimal division
+- You can apply multiple RANK() functions with different ORDER BY in the same SELECT
+
+Good luck!

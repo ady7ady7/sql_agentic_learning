@@ -320,3 +320,56 @@ Student verified that first message timestamp matches ticket creation time in th
 ## Student Feedback on Questions
 
 (Students should add comments about which questions were good/bad and why.)
+## Agent Feedback on Student
+
+**Session Date:** 2025-12-11
+
+### Overall Performance Summary
+- **Tasks Completed:** 3/3
+- **Average Score:** 10/10 🎉
+- **Key Strengths:** Perfect window function execution, excellent ROLLUP usage, caught three requirement errors
+- **Focus Areas:** None - perfect session with excellent critical feedback
+
+---
+
+### Task 1: Running Balance with Window Functions (10/10)
+- ✅✅ Perfect cumulative SUM implementation
+- ✅ Correct PARTITION BY user_id and ORDER BY created_at
+- ✅ Proper NULL filtering on both user_id and amount
+- ✅ Clean, concise query - no unnecessary CTEs
+- ✅ Correct output ordering
+- **Perfect execution**
+
+### Task 2: Category Rollup — Total and Subtotals (10/10)
+- ✅✅ Perfect ROLLUP implementation with grand total row
+- ✅ Smart use of COALESCE to label total row as 'Total'
+- ✅ Correct revenue calculation (price * quantity)
+- ✅ Proper COUNT(DISTINCT order_id)
+- ✅ Excellent feedback: identified contradictory sorting requirement
+- **Teaching moment:** Student correctly identified that "ORDER BY DESC" conflicts with "keep total last". Agent requirement was logically flawed. Student's choice (unsorted, total at end) is the correct practical decision.
+
+### Task 3: Self-Join — Users from Same City (10/10)
+- ✅✅ Excellent CTE decomposition for city counts and pairs
+- ✅ Correct CROSS JOIN with filtering
+- ✅ Proper deduplication (u1.id < u2.id)
+- ✅ Correct NULL filtering
+- ✅ Valid criticism: window functions can't COUNT DISTINCT after self-join
+- **Teaching moment:** Student correctly identified Agent error - window functions operate on post-join result set (pairs), can't count distinct original users. CTE pre-aggregation is the correct approach.
+
+---
+
+### Agent Self-Corrections This Session
+1. **Task 2 Sorting:** "ORDER BY total_revenue DESC NULLS LAST (grand total last)" is contradictory - DESC puts highest value (total) first, not last
+2. **Task 3 Window Functions:** Suggesting window COUNT for users per city after self-join was wrong - window functions work on pairs, not original users
+3. **Task 2 Order Count:** Should clarify that orders spanning multiple categories cause SUM(category counts) ≠ DISTINCT total orders
+
+### Key Learnings for Next Session
+1. Second consecutive perfect session (10/10)
+2. Student is now actively catching requirement errors and providing excellent technical feedback
+3. ROLLUP mastery demonstrated
+4. Understanding of when window functions can/cannot be used
+5. Agent needs to validate logical consistency of requirements before task generation
+
+## Student Feedback on Questions
+
+(Students should add comments about which questions were good/bad and why.)

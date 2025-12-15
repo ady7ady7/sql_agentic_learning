@@ -315,3 +315,157 @@ Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - You can apply multiple RANK() functions with different ORDER BY in the same SELECT
 
 Good luck!
+
+### Task Archive: 2025-12-11 (Week 2, Day 1)
+
+# Daily SQL Practice Tasks
+
+**Generated:** 2025-12-11
+**Week 2, Day 1 Focus:** Recursive CTEs, Advanced Aggregations, Grouping Sets
+
+---
+
+## Task 1: Running Balance with Window Functions
+
+**Scenario:**
+The finance team needs to see each user's running balance over time. For each transaction, calculate the cumulative sum of transaction amounts (partitioned by user, ordered by transaction timestamp).
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `transaction_id` (integer)
+- `created_at` (timestamp)
+- `amount` (numeric)
+- `running_balance` (numeric) — cumulative sum of amounts for this user up to this transaction
+
+**Requirements:**
+- Use `transactions` table
+- Use SUM() OVER with proper window frame
+- Partition by user_id, order by created_at
+- Exclude transactions with NULL user_id or NULL amount
+- Order by `user_id` ASC, `created_at` ASC
+
+**Difficulty Rating:** 3/5
+
+SELECT
+user_id,
+id,
+created_at,
+amount,
+SUM(amount) OVER (PARTITION BY user_id ORDER BY created_at) AS cum_sum
+FROM transactions
+WHERE user_id IS NOT NULL
+AND amount IS NOT NULL
+
+
+---
+
+## Task 2: Category Rollup — Total and Subtotals
+
+**Scenario:**
+The product team wants a report showing revenue by product category with subtotals. Show individual category revenues AND a grand total row using ROLLUP or GROUPING SETS.
+
+**Expected Output Columns:**
+- `category_name` (varchar) — category name, or NULL for grand total row
+- `total_revenue` (numeric) — sum of (quantity * price)
+- `order_count` (bigint) — count of distinct orders
+
+**Requirements:**
+- Use `product_categories`, `products`, `orders_products`, `orders` tables
+- Use GROUP BY ROLLUP or GROUPING SETS to generate subtotal row
+- Only include orders from 2025
+- Order by `total_revenue` DESC NULLS LAST (grand total last)
+
+**Difficulty Rating:** 4/5
+
+
+	SELECT
+		COALESCE(pc.name, 'Total') AS category_name,
+		SUM(p.price * op.quantity) AS total_revenue,
+		COUNT(DISTINCT(op.order_id)) AS order_count
+	FROM orders_products op
+	JOIN orders o ON op.order_id = o.id
+	JOIN products p ON op.product_id = p.id
+	JOIN product_categories pc ON p.category_id = pc.id
+	WHERE EXTRACT('YEAR' FROM o.created_at) = 2025
+	GROUP BY ROLLUP (pc.name)
+
+
+    As a note here - I didn't know how to sort these by total_revenue DESC and still keep the grand total last, as it quite doesn't make sense - If I order them DESC, the grand total will automatically become the FIRST value in order - so In the end I've left it unsorted, as it makes the total go to the last position, which is more important IMO - and it's all clear.
+
+    Including the order count is quite weird here, as in Total row we'd expect to also get the total order count, but it doesn't match the total order_count for some reason.
+
+
+---
+
+## Task 3: Self-Join — Users from Same City
+
+**Scenario:**
+The marketing team wants to identify pairs of users from the same city for a referral program. Find all unique pairs of users who share the same city (exclude NULL cities).
+
+**Expected Output Columns:**
+- `city` (varchar)
+- `user_id_1` (integer) — first user in pair
+- `user_id_2` (integer) — second user in pair (always > user_id_1 to avoid duplicates)
+- `users_in_city` (bigint) — total count of users in this city
+
+**Requirements:**
+- Use `users` table with self-join
+- Exclude users with NULL city
+- Ensure user_id_1 < user_id_2 to avoid duplicate pairs
+- Calculate total users per city using window function
+- Order by `city` ASC, `user_id_1` ASC
+
+**Difficulty Rating:** 3/5
+
+
+WITH cities_counts AS (
+SELECT
+ city,
+ COUNT(id) AS users_in_city
+FROM users
+GROUP BY city
+),
+cities_user_pairs AS (
+SELECT 
+	u1.id AS user_id_1,
+	u2.id AS user_id_2,
+	u1.city AS u1_city,
+	u2.city AS u2_city
+FROM users u1
+CROSS JOIN users u2
+WHERE u1.city = u2.city
+AND u1.id < u2.id
+AND u1.city IS NOT NULL
+ORDER BY u1_city, user_id_1
+)
+SELECT 
+	cu.user_id_1,
+	cu.user_id_2,
+	cu.u1_city,
+	cu.u2_city,
+	cc.users_in_city
+FROM cities_user_pairs cu
+JOIN cities_counts cc ON cu.u1_city = cc.city 
+
+Your idea to calculate the number of users with the window function here is fallacious, as we wouldn't be able to do that properly - unless we'd be able to COUNT DISTINCT user_ids using the Window function, BUT WE CAN'T. So I had to use a different approach, and use CTEs and display the users in city count in the final step.
+
+
+---
+
+## Submission Instructions
+
+Submit your SQL solutions when ready. I'll provide detailed feedback on:
+- Logic correctness and query structure
+- Window frame usage
+- GROUPING SETS / ROLLUP implementation
+- Self-join efficiency
+- Alternative approaches
+
+## Tips
+
+- For running balance: `SUM(amount) OVER (PARTITION BY user_id ORDER BY created_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`
+- ROLLUP generates subtotal rows automatically: `GROUP BY ROLLUP(category_name)`
+- Self-join deduplication: `FROM users u1 JOIN users u2 ON u1.city = u2.city AND u1.id < u2.id`
+- Filter early in JOIN conditions to reduce result set size
+
+Good luck!

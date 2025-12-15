@@ -1,72 +1,77 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2025-12-11
-**Week 2, Day 1 Focus:** Recursive CTEs, Advanced Aggregations, Grouping Sets
+**Generated:** 2025-12-12
+**Week 2, Day 2 Focus:** Advanced Date Functions, CASE Expressions, Multiple Aggregations
 
 ---
 
-## Task 1: Running Balance with Window Functions
+## Task 1: Monthly Active Users (MAU) Calculation
 
 **Scenario:**
-The finance team needs to see each user's running balance over time. For each transaction, calculate the cumulative sum of transaction amounts (partitioned by user, ordered by transaction timestamp).
+The analytics team needs to calculate Monthly Active Users (MAU) for each month. A user is "active" in a month if they have at least one session with count_sessions > 0 during that month.
 
 **Expected Output Columns:**
-- `user_id` (integer)
-- `transaction_id` (integer)
-- `created_at` (timestamp)
-- `amount` (numeric)
-- `running_balance` (numeric) — cumulative sum of amounts for this user up to this transaction
+- `year` (integer) — extracted from date
+- `month` (integer) — extracted from date
+- `active_users` (bigint) — count of distinct users with sessions > 0 in that month
+- `total_sessions` (numeric) — sum of all count_sessions for that month
 
 **Requirements:**
-- Use `transactions` table
-- Use SUM() OVER with proper window frame
-- Partition by user_id, order by created_at
-- Exclude transactions with NULL user_id or NULL amount
-- Order by `user_id` ASC, `created_at` ASC
+- Use `user_sessions_daily` table
+- Extract year and month from date column
+- Count distinct users with count_sessions > 0 per month
+- Calculate total sessions per month
+- Order by `year` ASC, `month` ASC
 
 **Difficulty Rating:** 3/5
 
 ---
 
-## Task 2: Category Rollup — Total and Subtotals
+## Task 2: Transaction Type Distribution with CASE
 
 **Scenario:**
-The product team wants a report showing revenue by product category with subtotals. Show individual category revenues AND a grand total row using ROLLUP or GROUPING SETS.
+The finance team wants to analyze transaction types and categorize them into "Income" (deposit, transfer incoming) vs "Expense" (withdrawal, payment, purchase). For each user, show counts and totals for each category.
 
 **Expected Output Columns:**
-- `category_name` (varchar) — category name, or NULL for grand total row
-- `total_revenue` (numeric) — sum of (quantity * price)
-- `order_count` (bigint) — count of distinct orders
+- `user_id` (integer)
+- `income_count` (bigint) — count of deposit/transfer transactions
+- `income_total` (numeric) — sum of amounts for deposit/transfer
+- `expense_count` (bigint) — count of withdrawal/payment/purchase transactions
+- `expense_total` (numeric) — sum of amounts for withdrawal/payment/purchase
+- `net_balance` (numeric) — income_total - expense_total
 
 **Requirements:**
-- Use `product_categories`, `products`, `orders_products`, `orders` tables
-- Use GROUP BY ROLLUP or GROUPING SETS to generate subtotal row
-- Only include orders from 2025
-- Order by `total_revenue` DESC NULLS LAST (grand total last)
+- Use `transactions` table
+- Use CASE expressions to categorize transaction types
+- Consider: "deposit" and "transfer" as income, others as expense
+- Exclude transactions with NULL user_id or NULL amount
+- Only include users with at least one transaction
+- Order by `net_balance` DESC
 
 **Difficulty Rating:** 4/5
 
 ---
 
-## Task 3: Self-Join — Users from Same City
+## Task 3: Support Ticket Response Time Analysis
 
 **Scenario:**
-The marketing team wants to identify pairs of users from the same city for a referral program. Find all unique pairs of users who share the same city (exclude NULL cities).
+The support team wants to analyze response times. For each ticket, calculate the time difference between ticket creation and the first message, then find the average response time per priority level.
 
 **Expected Output Columns:**
-- `city` (varchar)
-- `user_id_1` (integer) — first user in pair
-- `user_id_2` (integer) — second user in pair (always > user_id_1 to avoid duplicates)
-- `users_in_city` (bigint) — total count of users in this city
+- `priority` (varchar) — ticket priority
+- `ticket_count` (bigint) — number of tickets with this priority
+- `avg_response_minutes` (numeric) — average minutes between ticket creation and first message, rounded to 2 decimals
+- `median_response_minutes` (numeric) — median response time in minutes
 
 **Requirements:**
-- Use `users` table with self-join
-- Exclude users with NULL city
-- Ensure user_id_1 < user_id_2 to avoid duplicate pairs
-- Calculate total users per city using window function
-- Order by `city` ASC, `user_id_1` ASC
+- Use `chat_tickets` and `chat_messages` tables
+- Calculate time difference in minutes using EXTRACT(EPOCH FROM (timestamp1 - timestamp2))/60
+- Use window function FIRST_VALUE to get first message per ticket
+- Use PERCENTILE_CONT(0.5) for median
+- Group by priority
+- Order by `avg_response_minutes` ASC
 
-**Difficulty Rating:** 3/5
+**Difficulty Rating:** 4/5
 
 ---
 
@@ -74,16 +79,16 @@ The marketing team wants to identify pairs of users from the same city for a ref
 
 Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - Logic correctness and query structure
-- Window frame usage
-- GROUPING SETS / ROLLUP implementation
-- Self-join efficiency
+- Date extraction and manipulation
+- CASE expression usage
+- Aggregation patterns
 - Alternative approaches
 
 ## Tips
 
-- For running balance: `SUM(amount) OVER (PARTITION BY user_id ORDER BY created_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`
-- ROLLUP generates subtotal rows automatically: `GROUP BY ROLLUP(category_name)`
-- Self-join deduplication: `FROM users u1 JOIN users u2 ON u1.city = u2.city AND u1.id < u2.id`
-- Filter early in JOIN conditions to reduce result set size
+- EXTRACT(YEAR FROM date_column) and EXTRACT(MONTH FROM date_column) extract date parts
+- CASE expressions in aggregations: SUM(CASE WHEN type = 'deposit' THEN amount ELSE 0 END)
+- Time differences: EXTRACT(EPOCH FROM (timestamp1 - timestamp2))/60 gives minutes
+- PERCENTILE_CONT requires WITHIN GROUP(ORDER BY column)
 
 Good luck!

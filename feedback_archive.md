@@ -373,3 +373,55 @@ Student verified that first message timestamp matches ticket creation time in th
 ## Student Feedback on Questions
 
 (Students should add comments about which questions were good/bad and why.)
+## Agent Feedback on Student
+
+**Session Date:** 2025-12-12
+
+### Overall Performance Summary
+- **Tasks Completed:** 3/3
+- **Average Score:** 9.5/10
+- **Key Strengths:** Excellent data quality awareness, clean CTE decomposition, CASE expression mastery, practical judgment on unnecessary complexity
+- **Focus Areas:** Task 1: Unnecessary LEFT JOIN complexity; Task 2: INNER JOIN excludes single-category users
+
+---
+
+### Task 1: Monthly Active Users (MAU) Calculation (9/10)
+- ✅ Correct date extraction with EXTRACT YEAR and MONTH
+- ✅ Correct active user count (COUNT DISTINCT user_id where count_sessions > 0)
+- ✅ Correct total sessions (SUM count_sessions)
+- ✅ Excellent data quality investigation - discovered phantom user_ids in user_sessions_daily
+- ✅ Practical fix: `WHERE user_id IN (SELECT id FROM users)` to filter invalid users
+- ⚠️ Minor inefficiency: LEFT JOIN with dates table and COALESCE unnecessary - requirement was just MAU per month, not including zero-activity months
+- **Teaching moment:** Could simplify to direct query on user_sessions_daily with WHERE filters. However, data quality awareness (phantom users) is more valuable than perfect efficiency.
+
+### Task 2: Transaction Type Distribution with CASE (9.5/10)
+- ✅✅ Excellent CASE expression for income vs expense categorization
+- ✅ Perfect CTE decomposition (separate income/expense summaries)
+- ✅ Correct aggregations (COUNT, SUM) for each category
+- ✅ Correct net balance calculation (income_total - expense_total)
+- ✅ Clean, readable query structure
+- ⚠️ Minor limitation: INNER JOIN excludes users with only income OR only expense (requirement was "at least one transaction", not "both types")
+- **Teaching moment:** FULL OUTER JOIN with COALESCE would include all users. However, INNER JOIN interpretation (users need both types for meaningful net balance) is reasonable.
+
+### Task 3: Support Ticket Response Time Analysis (10/10)
+- ✅✅ Excellent data verification - discovered ticket creation = first message time
+- ✅ Smart CTE decomposition (first messages vs first responses)
+- ✅ Correct FIRST_VALUE with PARTITION BY ticket_id
+- ✅ Perfect PERCENTILE_CONT with WITHIN GROUP syntax
+- ✅ Proper GROUP BY priority for per-priority aggregations
+- ✅ Practical decision: timestamp difference gives interval directly, EPOCH conversion unnecessary
+- ✅ Good domain understanding: distinguished "first message" from "first response"
+- **Perfect execution**
+
+---
+
+### Key Learnings for Next Session
+1. Continued excellent data quality awareness (phantom users, ticket timing patterns)
+2. CASE expression mastery demonstrated
+3. PERCENTILE_CONT expertise continues
+4. Practical judgment on avoiding unnecessary complexity (EPOCH conversion)
+5. CTE decomposition remains clean and logical
+
+## Student Feedback on Questions
+
+(Students should add comments about which questions were good/bad and why.)

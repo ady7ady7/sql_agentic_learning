@@ -469,3 +469,206 @@ Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - Filter early in JOIN conditions to reduce result set size
 
 Good luck!
+
+### Task Archive: 2025-12-12 (Week 2, Day 2)
+
+# Daily SQL Practice Tasks
+
+**Generated:** 2025-12-12
+**Week 2, Day 2 Focus:** Advanced Date Functions, CASE Expressions, Multiple Aggregations
+
+---
+
+## Task 1: Monthly Active Users (MAU) Calculation
+
+**Scenario:**
+The analytics team needs to calculate Monthly Active Users (MAU) for each month. A user is "active" in a month if they have at least one session with count_sessions > 0 during that month.
+
+**Expected Output Columns:**
+- `year` (integer) — extracted from date
+- `month` (integer) — extracted from date
+- `active_users` (bigint) — count of distinct users with sessions > 0 in that month
+- `total_sessions` (numeric) — sum of all count_sessions for that month
+
+**Requirements:**
+- Use `user_sessions_daily` table
+- Extract year and month from date column
+- Count distinct users with count_sessions > 0 per month
+- Calculate total sessions per month
+- Order by `year` ASC, `month` ASC
+
+**Difficulty Rating:** 3/5
+
+
+WITH users_sessions_all_dates AS (
+SELECT
+d.date,
+EXTRACT('YEAR' FROM d.date) AS year_,
+EXTRACT('Month' FROM d.date) AS month_,
+COALESCE(usd.id, 0) AS usd_id,
+COALESCE(usd.user_id, 0) AS user_id,
+COALESCE(usd.count_sessions, 0) AS count_sessions
+FROM dates d 
+LEFT JOIN user_sessions_daily usd ON d.date = usd."date"
+ORDER BY d.date
+)
+SELECT 
+year_,
+month_,
+SUM(count_sessions) AS total_sessions,
+COUNT(DISTINCT(user_id)) AS active_users
+FROM users_sessions_all_dates
+WHERE count_sessions > 0
+AND user_id IN (SELECT id FROM users)
+GROUP BY year_, month_
+ORDER BY year_, month_
+
+First I used LEFT JOIN so that I can include all dates, including the inactive ones.
+Later I had to filter out data with the count_sessions > 0 condition, but after that I also realized that there's more active users than the actual number of users in the database, so I had to filter out users who are not in the database - used a simple subquery for that, as it didn't make sense to write a CTE for such a simple SELECT.
+
+Anyway, I achieved the goal and fulfilled your requirements.
+
+
+---
+
+## Task 2: Transaction Type Distribution with CASE
+
+**Scenario:**
+The finance team wants to analyze transaction types and categorize them into "Income" (deposit, transfer incoming) vs "Expense" (withdrawal, payment, purchase). For each user, show counts and totals for each category.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `income_count` (bigint) — count of deposit/transfer transactions
+- `income_total` (numeric) — sum of amounts for deposit/transfer
+- `expense_count` (bigint) — count of withdrawal/payment/purchase transactions
+- `expense_total` (numeric) — sum of amounts for withdrawal/payment/purchase
+- `net_balance` (numeric) — income_total - expense_total
+
+**Requirements:**
+- Use `transactions` table
+- Use CASE expressions to categorize transaction types
+- Consider: "deposit" and "transfer" as income, others as expense
+- Exclude transactions with NULL user_id or NULL amount
+- Only include users with at least one transaction
+- Order by `net_balance` DESC
+
+**Difficulty Rating:** 4/5
+
+WITH transactions_flow AS (
+	SELECT
+		*,
+		CASE
+			WHEN TYPE IN ('deposit', 'transfer') THEN 'income' ELSE 'expense'
+		END AS flow_type
+	FROM transactions
+	),
+expenses_summary AS (
+	SELECT
+		user_id,
+		COUNT(*) AS expense_count,
+		SUM(amount) AS expense_total
+	FROM transactions_flow
+	WHERE flow_type = 'expense'
+	GROUP BY user_id
+	ORDER BY user_id
+	),
+incomes_summary AS (
+	SELECT
+		user_id,
+		COUNT(*) AS income_count,
+		SUM(amount) AS income_total
+	FROM transactions_flow
+	WHERE flow_type = 'income'
+	GROUP BY user_id
+	ORDER BY user_id
+	)
+SELECT 
+	ins.user_id,
+	ins.income_count,
+	ins.income_total,
+	exs.expense_count,
+	exs.expense_total,
+	ins.income_total - exs.expense_total AS net_balance
+FROM incomes_summary ins
+JOIN expenses_summary exs ON ins.user_id = exs.user_id 
+ORDER BY net_balance DESC
+
+
+
+---
+
+## Task 3: Support Ticket Response Time Analysis
+
+**Scenario:**
+The support team wants to analyze response times. For each ticket, calculate the time difference between ticket creation and the first message, then find the average response time per priority level.
+
+**Expected Output Columns:**
+- `priority` (varchar) — ticket priority
+- `ticket_count` (bigint) — number of tickets with this priority
+- `avg_response_minutes` (numeric) — average minutes between ticket creation and first message, rounded to 2 decimals
+- `median_response_minutes` (numeric) — median response time in minutes
+
+**Requirements:**
+- Use `chat_tickets` and `chat_messages` tables
+- Calculate time difference in minutes using EXTRACT(EPOCH FROM (timestamp1 - timestamp2))/60
+- Use window function FIRST_VALUE to get first message per ticket
+- Use PERCENTILE_CONT(0.5) for median
+- Group by priority
+- Order by `avg_response_minutes` ASC
+
+**Difficulty Rating:** 4/5
+
+WITH tickets_first_messages AS (
+SELECT
+DISTINCT(ticket_id),
+FIRST_VALUE(created_at) OVER (PARTITION BY ticket_id) AS first_message_time
+FROM chat_messages
+),
+tickets_responses AS (
+SELECT 
+	DISTINCT(ticket_id),
+	FIRST_VALUE(created_at) OVER (PARTITION BY ticket_id) AS response_time
+FROM chat_messages
+WHERE author_id IS NOT NULL
+AND message_type = 'text'
+),
+tickets_priorities_response_times AS (
+	SELECT 
+		ct.id,
+		ct.priority,
+		tr.response_time - tf.first_message_time AS response_time,
+		AVG(tr.response_time - tf.first_message_time) OVER (PARTITION BY priority) AS average_response_time
+	FROM chat_tickets ct
+	JOIN tickets_first_messages tf ON ct.id = tf.ticket_id
+	JOIN tickets_responses tr ON ct.id = tr.ticket_id
+	)
+SELECT
+	priority,
+	average_response_time,
+	COUNT(id) AS ticket_count,
+	PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY response_time) AS median_response_times
+FROM tickets_priorities_response_times
+GROUP BY priority, average_response_time
+ORDER BY average_response_time
+
+Note, that the creation time of the ticket was the same as the first_message_time in every single time, so there was no point in calculating that. Also, I didn't use EPOCH as it would only cause more disruption here than it would actually help - the output is perfectly clear.
+
+---
+
+## Submission Instructions
+
+Submit your SQL solutions when ready. I'll provide detailed feedback on:
+- Logic correctness and query structure
+- Date extraction and manipulation
+- CASE expression usage
+- Aggregation patterns
+- Alternative approaches
+
+## Tips
+
+- EXTRACT(YEAR FROM date_column) and EXTRACT(MONTH FROM date_column) extract date parts
+- CASE expressions in aggregations: SUM(CASE WHEN type = 'deposit' THEN amount ELSE 0 END)
+- Time differences: EXTRACT(EPOCH FROM (timestamp1 - timestamp2))/60 gives minutes
+- PERCENTILE_CONT requires WITHIN GROUP(ORDER BY column)
+
+Good luck!

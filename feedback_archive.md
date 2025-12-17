@@ -425,3 +425,60 @@ Student verified that first message timestamp matches ticket creation time in th
 ## Student Feedback on Questions
 
 (Students should add comments about which questions were good/bad and why.)
+## Agent Feedback on Student
+
+**Session Date:** 2025-12-13
+
+### Overall Performance Summary
+- **Tasks Completed:** 3/3
+- **Average Score:** 9.3/10
+- **Key Strengths:** Perfect HAVING usage, excellent scalar subquery, correct identification of genuinely difficult moving average problem
+- **Focus Areas:** Task 1: Missing PARTITION BY product_id; Task 3: Minor data source consistency
+
+---
+
+### Task 1: Product Sales Trend — Moving Average (8.5/10)
+- ✅ Good LEFT JOIN approach to include all dates
+- ✅ Correct CTE decomposition
+- ✅ Correct ROWS BETWEEN 6 PRECEDING AND CURRENT ROW frame
+- ✅ Good COALESCE usage for NULL handling
+- ✅✅ Excellent critical analysis of the fundamental problem
+- ⚠️ Missing PARTITION BY product_id - moving average calculated globally across all products instead of per-product
+- **Teaching moment:** Student correctly identified the genuine challenge: PARTITION BY product_id gives sparse data (only sale dates), but true calendar-day moving averages require CROSS JOIN products with dates first. Agent error: Task needed clearer guidance on this genuinely difficult problem.
+
+### Task 2: High-Value Customers — HAVING Filter (10/10)
+- ✅✅ Perfect HAVING clause filtering on aggregated values
+- ✅ Correct GROUP BY user_id
+- ✅ All required metrics (SUM, COUNT, AVG, MIN, MAX)
+- ✅ Correct aggregation functions (MIN for first, MAX for last)
+- ✅ Proper ORDER BY total_spent DESC
+- ✅ Clean, concise query with no unnecessary complexity
+- **Perfect execution**
+
+### Task 3: Category Market Share — Subquery in SELECT (9.5/10)
+- ✅✅ Perfect scalar subquery in SELECT clause
+- ✅ Correct CTE structure separating aggregation from calculation
+- ✅ Proper GROUP BY category_id and name
+- ✅ Correct market share calculation (revenue / total * 100)
+- ✅ Good ROUND usage
+- ⚠️ Minor data source mismatch: category_revenue uses SUM(quantity * price) from orders_products, but total uses SUM(amount) from orders - may not match if orders.amount ≠ sum of line items
+- **Teaching moment:** For perfect consistency, both should use same calculation source. However, using orders.amount as authoritative total is reasonable interpretation.
+
+---
+
+### Agent Self-Corrections This Session
+1. **Task 1 Moving Average:** Requirement was genuinely difficult and needed either:
+   - Accept sparse data (moving average over sale days only), OR
+   - Provide explicit CROSS JOIN guidance for dense calendar data
+2. Student's technical analysis was completely correct about the partition/date challenge
+
+### Key Learnings for Next Session
+1. HAVING clause mastery demonstrated
+2. Scalar subquery usage perfect
+3. Excellent critical thinking on complex window frame problems
+4. Understanding of data sparsity challenges with PARTITION BY
+5. CTE decomposition continues to be clean
+
+## Student Feedback on Questions
+
+(Students should add comments about which questions were good/bad and why.)

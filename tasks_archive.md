@@ -836,3 +836,160 @@ Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - For dates with no sales, use LEFT JOIN and COALESCE to show 0
 
 Good luck!
+
+### Task Archive: 2025-12-14 (Week 2, Day 4)
+
+# Daily SQL Practice Tasks
+
+**Generated:** 2025-12-14
+**Week 2, Day 4 Focus:** Correlated Subqueries, GREATEST/LEAST Functions, Complex JOINs
+
+---
+
+## Task 1: Users Who Spent Above Their Category Average
+
+**Scenario:**
+Find users whose total spending is above the average for their country. Use a correlated subquery to compare each user's spending against their country's average.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `country` (varchar)
+- `user_total_spent` (numeric) — sum of all order amounts for this user
+- `country_avg_spent` (numeric) — average spending for users in this country, rounded to 2 decimals
+
+**Requirements:**
+- Use `users` and `orders` tables
+- Use correlated subquery in WHERE clause to filter users above their country average
+- Exclude users with NULL country
+- Calculate both user total and country average
+- Order by `user_total_spent` DESC
+
+**Difficulty Rating:** 4/5
+
+WITH users_countries_spend AS (
+SELECT 
+	o.user_id,
+	u.country,
+	SUM(o.amount) AS user_total_spent
+FROM orders o
+JOIN users u ON o.user_id = u.id 
+WHERE u.country IS NOT NULL
+GROUP BY o.user_id, u.country
+),
+users_countries_avg_spend AS (
+	SELECT 
+		*,
+		ROUND(AVG(user_total_spent::NUMERIC) OVER (PARTITION BY country), 2) AS country_avg_spent
+	FROM users_countries_spend
+	ORDER BY user_total_spent DESC
+)
+SELECT 
+	*
+FROM users_countries_avg_spend
+WHERE user_total_spent > country_avg_spent
+
+
+
+---
+
+## Task 2: Latest Transaction Per User with GREATEST
+
+**Scenario:**
+For each user, show their most recent transaction and use GREATEST to find the maximum amount between their last transaction and their average transaction amount.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `last_transaction_date` (timestamp) — most recent transaction timestamp
+- `last_transaction_amount` (numeric) — amount of most recent transaction
+- `avg_transaction_amount` (numeric) — average of all transaction amounts, rounded to 2 decimals
+- `max_of_last_and_avg` (numeric) — GREATEST(last_amount, avg_amount)
+
+**Requirements:**
+- Use `transactions` table
+- Use window function to get last transaction per user
+- Calculate average transaction amount per user
+- Use GREATEST function to compare last vs average
+- Exclude transactions with NULL user_id or NULL amount
+- Order by `user_id` ASC
+
+**Difficulty Rating:** 4/5
+
+WITH users_last_avg_transactions AS (
+SELECT 
+	user_id,
+	amount,
+	FIRST_VALUE(created_at) OVER (PARTITION BY user_id ORDER BY created_at DESC) AS last_transaction_date,
+	FIRST_VALUE(amount) OVER (PARTITION BY user_id ORDER BY created_at DESC) AS last_transaction_amount,
+	AVG(amount) OVER (PARTITION BY user_id) AS avg_transaction_amount
+FROM transactions
+)
+SELECT 
+	DISTINCT(user_id),
+	last_transaction_date,
+	last_transaction_amount,
+	avg_transaction_amount,
+	GREATEST(last_transaction_amount, avg_transaction_amount) AS max_of_last_and_avg
+FROM users_last_avg_transactions
+ORDER BY user_id
+
+Please note that there was no need to exclude orders with null id as order id is the primary key in our orders table.
+---
+
+## Task 3: Product Pairs Frequently Bought Together
+
+**Scenario:**
+Find pairs of products that appear together in at least 5 orders. Use a self-join on orders_products to identify product pairs within the same order.
+
+**Expected Output Columns:**
+- `product_id_1` (integer) — first product (always < product_id_2)
+- `product_id_2` (integer) — second product
+- `product_name_1` (varchar) — name of first product
+- `product_name_2` (varchar) — name of second product
+- `times_bought_together` (bigint) — count of distinct orders containing both products
+
+**Requirements:**
+- Use `orders_products` and `products` tables
+- Self-join orders_products on order_id to find product pairs
+- Ensure product_id_1 < product_id_2 to avoid duplicates
+- Filter for pairs appearing in at least 5 orders
+- Order by `times_bought_together` DESC
+
+**Difficulty Rating:** 4/5
+
+SELECT 
+	op1.product_id AS product_id1,
+	op2.product_id AS product_id2,
+	p1.name AS product_name1,
+	p2.name AS product_name2,
+	COUNT(*) AS times_bought_together
+FROM orders_products op1
+JOIN orders_products op2 ON op1.order_id = op2.order_id
+JOIN products p1 ON op1.product_id = p1.id
+JOIN products p2 ON op2.product_id = p2.id
+WHERE op1.product_id > op2.product_id
+GROUP BY op1.product_id, op2.product_id, p1.name, p2.name
+HAVING COUNT(*) > 2
+ORDER BY times_bought_together DESC
+
+I could filter pairs for appearing in at least 5 orders, but it's pointless, as the max times_bought_together value was 3, so I filtered out all orders below 2 times bought together.
+
+
+---
+
+## Submission Instructions
+
+Submit your SQL solutions when ready. I'll provide detailed feedback on:
+- Logic correctness and query structure
+- Correlated subquery usage
+- GREATEST/LEAST function application
+- Self-join efficiency
+- Alternative approaches
+
+## Tips
+
+- Correlated subquery: `WHERE user_total > (SELECT AVG(total) FROM orders o2 JOIN users u2 ON o2.user_id = u2.id WHERE u2.country = u.country)`
+- GREATEST picks the maximum value: `GREATEST(value1, value2, value3)`
+- Self-join for pairs: `FROM orders_products op1 JOIN orders_products op2 ON op1.order_id = op2.order_id AND op1.product_id < op2.product_id`
+- Use HAVING to filter aggregated results
+
+Good luck!

@@ -1,74 +1,77 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2025-12-14
-**Week 2, Day 4 Focus:** Correlated Subqueries, GREATEST/LEAST Functions, Complex JOINs
+**Generated:** 2025-12-15
+**Week 2, Day 5 Focus:** UNION/INTERSECT/EXCEPT, Complex CASE Expressions, JSON Functions
 
 ---
 
-## Task 1: Users Who Spent Above Their Category Average
+## Task 1: Combined User Activity — UNION ALL
 
 **Scenario:**
-Find users whose total spending is above the average for their country. Use a correlated subquery to compare each user's spending against their country's average.
+The analytics team wants a unified view of all user activity. Combine data from orders and transactions tables to show all user financial activity in chronological order.
 
 **Expected Output Columns:**
 - `user_id` (integer)
-- `country` (varchar)
-- `user_total_spent` (numeric) — sum of all order amounts for this user
-- `country_avg_spent` (numeric) — average spending for users in this country, rounded to 2 decimals
+- `activity_date` (timestamp)
+- `activity_type` (varchar) — 'order' or 'transaction'
+- `amount` (numeric)
+- `source_table` (varchar) — 'orders' or 'transactions'
 
 **Requirements:**
-- Use `users` and `orders` tables
-- Use correlated subquery in WHERE clause to filter users above their country average
-- Exclude users with NULL country
-- Calculate both user total and country average
-- Order by `user_total_spent` DESC
+- Use UNION ALL to combine orders and transactions
+- Extract created_at as activity_date from both tables
+- Label each row with its source table and activity type
+- Exclude rows with NULL user_id or NULL amount
+- Order by `user_id` ASC, `activity_date` ASC
 
-**Difficulty Rating:** 4/5
+**Difficulty Rating:** 3/5
 
 ---
 
-## Task 2: Latest Transaction Per User with GREATEST
+## Task 2: Tiered Pricing with Complex CASE
 
 **Scenario:**
-For each user, show their most recent transaction and use GREATEST to find the maximum amount between their last transaction and their average transaction amount.
+Create a tiered discount system for products based on their price. Calculate the discount percentage and final price after discount using a complex CASE expression.
+
+**Expected Output Columns:**
+- `product_id` (integer)
+- `product_name` (varchar)
+- `original_price` (numeric)
+- `discount_pct` (integer) — percentage: 0%, 5%, 10%, 15%, or 20%
+- `final_price` (numeric) — price after discount, rounded to 2 decimals
+
+**Requirements:**
+- Use `products` table
+- CASE expression for discount tiers:
+  - price >= 100: 20% discount
+  - price >= 75: 15% discount
+  - price >= 50: 10% discount
+  - price >= 25: 5% discount
+  - price < 25: 0% discount
+- Calculate final_price = original_price * (1 - discount_pct/100)
+- Order by `original_price` DESC
+
+**Difficulty Rating:** 3/5
+
+---
+
+## Task 3: Users Active in Both Orders and Sessions
+
+**Scenario:**
+Find users who are active in BOTH orders (placed at least 1 order) AND sessions (had at least 1 session with count_sessions > 0). Use INTERSECT or an alternative approach.
 
 **Expected Output Columns:**
 - `user_id` (integer)
-- `last_transaction_date` (timestamp) — most recent transaction timestamp
-- `last_transaction_amount` (numeric) — amount of most recent transaction
-- `avg_transaction_amount` (numeric) — average of all transaction amounts, rounded to 2 decimals
-- `max_of_last_and_avg` (numeric) — GREATEST(last_amount, avg_amount)
+- `order_count` (bigint) — count of orders
+- `total_sessions` (numeric) — sum of count_sessions
+- `first_order_date` (timestamp) — date of first order
+- `last_session_date` (date) — date of most recent session
 
 **Requirements:**
-- Use `transactions` table
-- Use window function to get last transaction per user
-- Calculate average transaction amount per user
-- Use GREATEST function to compare last vs average
-- Exclude transactions with NULL user_id or NULL amount
-- Order by `user_id` ASC
-
-**Difficulty Rating:** 4/5
-
----
-
-## Task 3: Product Pairs Frequently Bought Together
-
-**Scenario:**
-Find pairs of products that appear together in at least 5 orders. Use a self-join on orders_products to identify product pairs within the same order.
-
-**Expected Output Columns:**
-- `product_id_1` (integer) — first product (always < product_id_2)
-- `product_id_2` (integer) — second product
-- `product_name_1` (varchar) — name of first product
-- `product_name_2` (varchar) — name of second product
-- `times_bought_together` (bigint) — count of distinct orders containing both products
-
-**Requirements:**
-- Use `orders_products` and `products` tables
-- Self-join orders_products on order_id to find product pairs
-- Ensure product_id_1 < product_id_2 to avoid duplicates
-- Filter for pairs appearing in at least 5 orders
-- Order by `times_bought_together` DESC
+- Use `orders` and `user_sessions_daily` tables
+- Find users present in both datasets (INTERSECT or INNER JOIN approach)
+- Calculate metrics for matched users
+- Order by `order_count` DESC
 
 **Difficulty Rating:** 4/5
 
@@ -78,16 +81,16 @@ Find pairs of products that appear together in at least 5 orders. Use a self-joi
 
 Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - Logic correctness and query structure
-- Correlated subquery usage
-- GREATEST/LEAST function application
-- Self-join efficiency
+- UNION/INTERSECT usage
+- Complex CASE expression implementation
+- Set operation alternatives
 - Alternative approaches
 
 ## Tips
 
-- Correlated subquery: `WHERE user_total > (SELECT AVG(total) FROM orders o2 JOIN users u2 ON o2.user_id = u2.id WHERE u2.country = u.country)`
-- GREATEST picks the maximum value: `GREATEST(value1, value2, value3)`
-- Self-join for pairs: `FROM orders_products op1 JOIN orders_products op2 ON op1.order_id = op2.order_id AND op1.product_id < op2.product_id`
-- Use HAVING to filter aggregated results
+- UNION ALL includes duplicates, UNION removes them
+- INTERSECT finds common elements between two sets
+- Complex CASE: `CASE WHEN condition1 THEN value1 WHEN condition2 THEN value2 ELSE default END`
+- INTERSECT alternative: `WHERE user_id IN (SELECT user_id FROM other_table)`
 
 Good luck!

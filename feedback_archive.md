@@ -532,3 +532,56 @@ Student verified that first message timestamp matches ticket creation time in th
 ## Student Feedback on Questions
 
 (Students should add comments about which questions were good/bad and why.)
+## Agent Feedback on Student
+
+**Session Date:** 2025-12-15
+
+### Overall Performance Summary
+- **Tasks Completed:** 3/3
+- **Average Score:** 9.7/10
+- **Key Strengths:** Perfect CASE expression with thoughtful naming, excellent practical reasoning (INNER JOIN > INTERSECT), clean CTE decomposition
+- **Focus Areas:** Task 1: Unnecessary GROUP BY after UNION ALL causes row deduplication bug
+
+---
+
+### Task 1: Combined User Activity — UNION ALL (9/10)
+- ✅ Correct UNION ALL usage - combined orders and transactions
+- ✅ Correct column mapping - created_at as activity_date, amount, user_id
+- ✅ Good source labeling - 'orders' and 'transactions' labels
+- ✅ Second version has proper NULL filtering - WHERE clauses for user_id and amount
+- ⚠️ **GROUP BY on lines 42 and 61 causes bug** - GROUP BY after UNION ALL will collapse rows where user has order AND transaction with same (user_id, created_at, amount), losing legitimate data
+- **Teaching moment:** UNION ALL already combines all rows. GROUP BY after it will deduplicate rows with matching grouping columns, which loses data when legitimate order/transaction pairs match on all three fields.
+
+### Task 2: Tiered Pricing with Complex CASE (10/10)
+- ✅✅ Perfect CASE expression - all tiers correctly implemented
+- ✅ Correct tier logic - >= comparisons in descending order
+- ✅ Smart naming choice - used discount_rate (decimal 0.2) instead of discount_pct to avoid ambiguity
+- ✅ Correct final price calculation - price - (price * discount_rate)
+- ✅ Good ROUND usage - rounded to 2 decimals
+- ✅ Clean CTE structure - separated discount calculation from final selection
+- **Perfect execution** with excellent semantic clarity in naming
+
+### Task 3: Users Active in Both Orders and Sessions (10/10)
+- ✅✅ Perfect INNER JOIN approach - more practical than INTERSECT for this use case
+- ✅ Excellent CTE decomposition - separate CTEs for orders and sessions metrics
+- ✅ Correct aggregations - COUNT for orders, SUM for sessions, MIN/MAX for dates
+- ✅ Proper JOIN - INNER JOIN ensures users in both datasets
+- ✅ Correct ORDER BY - order_count DESC
+- ✅ Excellent practical reasoning - INTERSECT would only give user_ids, requiring another CTE for metrics. INNER JOIN is superior.
+- **Perfect execution** with excellent justification for approach choice
+
+---
+
+### Agent Self-Corrections This Session
+1. **Task 1 activity_type requirement:** Asking for both `activity_type` AND `source_table` is redundant and verbose. If source_table='orders', it's obvious activity_type='order'. Unnecessary duplication.
+
+### Key Learnings for Next Session
+1. CASE expression mastery with semantic naming awareness
+2. Excellent practical reasoning about set operations vs joins
+3. Understanding when INNER JOIN is superior to INTERSECT
+4. Clean CTE decomposition continues
+5. Watch for GROUP BY placement after set operations
+
+## Student Feedback on Questions
+
+(Students should add comments about which questions were good/bad and why.)

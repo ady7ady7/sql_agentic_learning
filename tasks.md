@@ -1,185 +1,95 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2025-12-15
-**Week 2, Day 5 Focus:** UNION/INTERSECT/EXCEPT, Complex CASE Expressions, JSON Functions
+**Generated:** 2025-12-22
+**Week 3, Day 2 Focus:** Advanced Ranking, Running Totals with Frames, Multiple Window Functions
 
 ---
 
-## Task 1: Combined User Activity — UNION ALL
+## Task 1: Top 3 Products per Category by Revenue
 
 **Scenario:**
-The analytics team wants a unified view of all user activity. Combine data from orders and transactions tables to show all user financial activity in chronological order.
+The product team wants to identify the top 3 best-selling products in each category based on total revenue. Show products ranked within their category, but only include the top 3 from each category.
 
 **Expected Output Columns:**
-- `user_id` (integer)
-- `activity_date` (timestamp)
-- `activity_type` (varchar) — 'order' or 'transaction'
-- `amount` (numeric)
-- `source_table` (varchar) — 'orders' or 'transactions'
+- `category_name` (varchar) — category name from product_categories
+- `product_name` (varchar) — product name
+- `total_revenue` (numeric) — total revenue for this product (price × quantity across all orders), rounded to 2 decimals
+- `category_rank` (bigint) — rank within category (1 = highest revenue in category)
 
 **Requirements:**
-- Use UNION ALL to combine orders and transactions
-- Extract created_at as activity_date from both tables
-- Label each row with its source table and activity type
-- Exclude rows with NULL user_id or NULL amount
-- Order by `user_id` ASC, `activity_date` ASC
-
-**Difficulty Rating:** 3/5
-
-SELECT 
-	user_id,
-	created_at AS activity_date,
-	amount,
-	'orders' AS source_table
-FROM orders
-UNION ALL
-SELECT 
-	user_id,
-	created_at AS activity_date,
-	amount,
-	'transactions' AS source_table
-FROM transactions
-GROUP BY user_id, created_at, amount
-ORDER BY user_id, activity_date
-
-
-SELECT 
-	user_id,
-	created_at AS activity_date,
-	amount,
-	'orders' AS source_table
-FROM orders
-WHERE amount IS NOT NULL AND user_id IS NOT NULL
-UNION ALL
-SELECT 
-	user_id,
-	created_at AS activity_date,
-	amount,
-	'transactions' AS source_table
-FROM transactions
-WHERE amount IS NOT NULL AND user_id IS NOT NULL
-GROUP BY user_id, created_at, amount
-ORDER BY user_id, activity_date
-
-
----
-
-## Task 2: Tiered Pricing with Complex CASE
-
-**Scenario:**
-Create a tiered discount system for products based on their price. Calculate the discount percentage and final price after discount using a complex CASE expression.
-
-**Expected Output Columns:**
-- `product_id` (integer)
-- `product_name` (varchar)
-- `original_price` (numeric)
-- `discount_pct` (integer) — percentage: 0%, 5%, 10%, 15%, or 20%
-- `final_price` (numeric) — price after discount, rounded to 2 decimals
-
-**Requirements:**
-- Use `products` table
-- CASE expression for discount tiers:
-  - price >= 100: 20% discount
-  - price >= 75: 15% discount
-  - price >= 50: 10% discount
-  - price >= 25: 5% discount
-  - price < 25: 0% discount
-- Calculate final_price = original_price * (1 - discount_pct/100)
-- Order by `original_price` DESC
-
-**Difficulty Rating:** 3/5
-
-WITH products_discounts AS (
-SELECT 
-	*,
-	CASE 
-		WHEN price >= 100 THEN 0.2
-		WHEN price >= 75 THEN 0.15
-		WHEN price >= 50 THEN 0.1
-		WHEN price >= 20 THEN 0.05
-		WHEN price < 25 THEN 0
-	END AS discount_rate
-FROM products
-)
-SELECT
-	id AS product_id,
-	name AS product_name,
-	price AS original_price,
-	discount_rate,
-	ROUND(price - (price * discount_rate), 2) AS final_price
-FROM products_discounts
-ORDER BY original_price DESC
-
-
-Please note that I've used discount_rate instead of discount_percent, as it's simply easier for me and more intuitive. It doesn't change the final output, but I named it discount_rate, as discount_prct would suggest that these rates are percents, which they're not (0.2 would suggest a 0.2%, but we know it's actually 20%, so I wanted to make it clear)
-
-
----
-
-## Task 3: Users Active in Both Orders and Sessions
-
-**Scenario:**
-Find users who are active in BOTH orders (placed at least 1 order) AND sessions (had at least 1 session with count_sessions > 0). Use INTERSECT or an alternative approach.
-
-**Expected Output Columns:**
-- `user_id` (integer)
-- `order_count` (bigint) — count of orders
-- `total_sessions` (numeric) — sum of count_sessions
-- `first_order_date` (timestamp) — date of first order
-- `last_session_date` (date) — date of most recent session
-
-**Requirements:**
-- Use `orders` and `user_sessions_daily` tables
-- Find users present in both datasets (INTERSECT or INNER JOIN approach)
-- Calculate metrics for matched users
-- Order by `order_count` DESC
+- Use `products`, `product_categories`, `orders_products` tables
+- Calculate revenue as price × quantity, then SUM for each product
+- Use DENSE_RANK() OVER (PARTITION BY category_id ORDER BY total_revenue DESC)
+- Filter to only include ranks 1, 2, 3
+- Order by `category_name` ASC, `category_rank` ASC
 
 **Difficulty Rating:** 4/5
 
-WITH users_order_cnt AS (
-SELECT 
-	user_id,
-	COUNT(*) AS order_count,
-	MIN(created_at) AS first_order_date
-FROM orders
-GROUP BY user_id
-),
-users_sessions_cnt AS (
-SELECT
-	user_id,
-	SUM(count_sessions) AS total_sessions,
-	MAX(date) AS last_session_date
-FROM user_sessions_daily usd
-GROUP BY user_id
-)
-SELECT
-	uoc.user_id,
-	uoc.order_count,
-	usc.total_sessions,
-	uoc.first_order_date,
-	usc.last_session_date
-FROM users_order_cnt uoc
-JOIN users_sessions_cnt usc ON uoc.user_id = usc.user_id
-ORDER BY order_count DESC
+---
 
-I used inner join, as honestly it doesn't make sense to use INTERSECT here - I would use it if we were to give only the list of user_ids, but if we need more info, I'd have to use another CTE to extract all the necessary information for the list of user_ids extracted with the INTERSECT.
+## Task 2: Running Total of Daily Revenue with Month Reset
+
+**Scenario:**
+Finance wants to see a running total of daily revenue that resets at the start of each month. For each day, show the cumulative revenue within that month up to and including that day.
+
+**Expected Output Columns:**
+- `order_date` (date) — the date orders were created
+- `daily_revenue` (numeric) — total revenue for that specific day, rounded to 2 decimals
+- `running_monthly_total` (numeric) — cumulative revenue within the month up to this day, rounded to 2 decimals
+- `year` (integer) — year from order_date
+- `month` (integer) — month from order_date
+
+**Requirements:**
+- Use `orders` table
+- Extract date from created_at timestamp
+- Calculate daily revenue: SUM of amount per date
+- Use window function with PARTITION BY year, month and ORDER BY date
+- Use appropriate frame: ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+- Order by `order_date` ASC
+
+**Difficulty Rating:** 4/5
+
+---
+
+## Task 3: User Quartiles by Transaction Amount
+
+**Scenario:**
+The analytics team wants to segment users into quartiles (4 equal groups) based on their total transaction amount. Assign each user to a quartile (1 = lowest 25%, 4 = highest 25%) and show summary statistics.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `total_transaction_amount` (numeric) — sum of all transaction amounts for this user, rounded to 2 decimals
+- `transaction_count` (bigint) — number of transactions for this user
+- `user_quartile` (integer) — quartile assignment (1, 2, 3, or 4)
+
+**Requirements:**
+- Use `transactions` table
+- Calculate total_transaction_amount: SUM(amount) per user
+- Calculate transaction_count: COUNT(*) per user
+- Use NTILE(4) OVER (ORDER BY total_transaction_amount DESC) for quartile assignment
+- Only include users who have at least 1 transaction with non-null amount
+- Order by `user_quartile` ASC, `total_transaction_amount` DESC
+
+**Difficulty Rating:** 3/5
 
 ---
 
 ## Submission Instructions
 
 Submit your SQL solutions when ready. I'll provide detailed feedback on:
-- Logic correctness and query structure
-- UNION/INTERSECT usage
-- Complex CASE expression implementation
-- Set operation alternatives
-- Alternative approaches
+- DENSE_RANK vs RANK vs ROW_NUMBER usage
+- Window frame specifications (ROWS vs RANGE)
+- NTILE for bucketing/segmentation
+- PARTITION BY with multiple columns
+- Filtering ranked results (WHERE vs HAVING vs subquery)
 
 ## Tips
 
-- UNION ALL includes duplicates, UNION removes them
-- INTERSECT finds common elements between two sets
-- Complex CASE: `CASE WHEN condition1 THEN value1 WHEN condition2 THEN value2 ELSE default END`
-- INTERSECT alternative: `WHERE user_id IN (SELECT user_id FROM other_table)`
+- DENSE_RANK: No gaps in ranking when ties exist (1, 2, 2, 3)
+- RANK: Gaps after ties (1, 2, 2, 4)
+- ROW_NUMBER: Always unique (1, 2, 3, 4)
+- Frame clause: `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW` for running totals
+- NTILE(n): Divides rows into n roughly equal buckets
+- Filtering ranked results: Use a subquery/CTE, then filter in outer query WHERE clause
 
 Good luck!

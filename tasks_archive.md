@@ -1181,3 +1181,178 @@ Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - INTERSECT alternative: `WHERE user_id IN (SELECT user_id FROM other_table)`
 
 Good luck!
+
+### Task Archive: 2025-12-16 (Week 3, Day 1)
+
+# Daily SQL Practice Tasks
+
+**Generated:** 2025-12-16
+**Week 3, Day 1 Focus:** Advanced Window Frames, FILTER Clause, Complex Aggregations
+
+---
+
+## Task 1: Revenue by Month with Month-over-Month Growth
+
+**Scenario:**
+The finance team wants to see monthly revenue with month-over-month growth comparison. For each month, show the revenue and compare it to the previous month.
+
+**Expected Output Columns:**
+- `year` (integer)
+- `month` (integer) — 1-12
+- `monthly_revenue` (numeric) — total revenue for this month
+- `prev_month_revenue` (numeric) — revenue from previous month
+- `mom_growth_pct` (numeric) — month-over-month growth percentage, rounded to 2 decimals
+
+**Requirements:**
+- Use `orders` table
+- Extract year and month from created_at
+- Use LAG window function ordered by year, month
+- Calculate MoM growth: ((current - previous) / previous) * 100
+- Order by `year` ASC, `month` ASC
+
+**Difficulty Rating:** 4/5
+
+WITH orders_y_m AS (
+	SELECT
+		*,
+		EXTRACT('Month' FROM created_at) AS month_,
+		EXTRACT('Year' FROM created_at) AS year_
+	FROM orders
+	),
+monthly_rev_y_m AS (
+	SELECT
+		year_,
+		month_,
+		SUM(amount) AS monthly_revenue
+	FROM orders_y_m
+	GROUP BY year_, month_
+	ORDER BY year_, month_
+	),
+prev_m_monthly_rev_y_m AS (
+	SELECT 
+		*,
+		LAG(monthly_revenue) OVER (ORDER BY year_, month_) AS prev_month_revenue
+		FROM monthly_rev_y_m
+	)
+SELECT *,
+ROUND((monthly_revenue::NUMERIC - prev_month_revenue::NUMERIC) / prev_month_revenue::NUMERIC * 100, 2) AS mom_growth_pct
+FROM prev_m_monthly_rev_y_m
+
+---
+
+## Task 2: Filtered Aggregations — Active vs Inactive Users
+
+**Scenario:**
+Compare order statistics between active and inactive users in a single query. Use aggregate functions with FILTER clause or CASE expressions to separate the metrics.
+
+**Expected Output Columns:**
+- `active_user_count` (bigint) — count of distinct users where is_active = true who placed orders
+- `active_total_revenue` (numeric) — sum of order amounts from active users
+- `active_avg_order` (numeric) — average order amount from active users
+- `inactive_user_count` (bigint) — count of distinct users where is_active = false who placed orders
+- `inactive_total_revenue` (numeric) — sum of order amounts from inactive users
+- `inactive_avg_order` (numeric) — average order amount from inactive users
+
+**Requirements:**
+- Use `orders` and `users` tables
+- Use FILTER (WHERE ...) clause with aggregations OR CASE expressions inside aggregations
+- Return a single row with all metrics
+- Round averages to 2 decimals
+
+**Difficulty Rating:** 4/5
+
+
+WITH active_users_data AS (
+	SELECT
+		COUNT(DISTINCT(user_id)) AS active_user_count,
+		ROUND(SUM(amount::NUMERIC), 2) AS active_total_revenue,
+		ROUND(AVG(amount::NUMERIC), 2) AS active_avg_order
+	FROM users u
+	JOIN orders o ON u.id = o.user_id
+	WHERE u.is_active = TRUE
+	),
+inactive_users_data AS (
+SELECT
+	COUNT(DISTINCT(user_id)) AS inactive_user_count,
+	ROUND(SUM(amount::NUMERIC), 2) AS inactive_total_revenue,
+	ROUND(AVG(amount::NUMERIC), 2) AS inactive_avg_order
+FROM users u
+JOIN orders o ON u.id = user_id
+WHERE u.is_active = FALSE
+)
+SELECT * FROM active_users_data
+CROSS JOIN inactive_users_data
+
+
+
+
+---
+
+## Task 3: Gap Analysis — Days Between Transactions
+
+**Scenario:**
+For each user, find their transaction frequency patterns. Calculate the average gap (in days) between consecutive transactions and identify the longest gap for each user.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `transaction_count` (bigint) — total number of transactions
+- `avg_gap_days` (numeric) — average days between consecutive transactions, rounded to 2 decimals
+- `max_gap_days` (integer) — maximum days between any two consecutive transactions
+- `min_gap_days` (integer) — minimum days between any two consecutive transactions
+
+**Requirements:**
+- Use `transactions` table
+- Use LAG to get previous transaction date per user
+- Calculate date differences for consecutive transactions
+- Aggregate: AVG, MAX, MIN of gaps
+- Only include users with at least 2 transactions
+- Order by `avg_gap_days` DESC
+
+**Difficulty Rating:** 4/5
+
+
+
+WITH transactions_prev_and_count AS (
+	SELECT 
+			*,
+			COUNT(id) OVER (PARTITION BY user_id) AS transaction_count,
+			LAG(created_at) OVER (PARTITION BY user_id ORDER BY created_at) AS prev_transaction_date
+	FROM transactions
+	),
+users_gap_days AS (
+	SELECT *,
+		DATE(created_at) - DATE(prev_transaction_date) AS gap_days
+	FROM transactions_prev_and_count
+	WHERE prev_transaction_date IS NOT NULL
+	AND transaction_count >= 2
+	)
+SELECT
+	user_id,
+	transaction_count,
+	MAX(gap_days) AS max_gap_days,
+	MIN(gap_days) AS min_gap_days,
+	ROUND(AVG(gap_days), 2) AS avg_gap_days
+FROM users_gap_days
+GROUP BY user_id, transaction_count
+ORDER BY avg_gap_days DESC
+
+
+---
+
+## Submission Instructions
+
+Submit your SQL solutions when ready. I'll provide detailed feedback on:
+- Logic correctness and query structure
+- Window function usage with complex PARTITION BY
+- FILTER clause or CASE aggregation patterns
+- Date arithmetic and gap calculations
+- Alternative approaches
+
+## Tips
+
+- LAG with specific partitioning: `LAG(revenue) OVER (PARTITION BY quarter ORDER BY year)`
+- FILTER clause: `COUNT(*) FILTER (WHERE is_active = true)` or use `SUM(CASE WHEN is_active THEN 1 ELSE 0 END)`
+- Date difference in days: `DATE_PART('day', date1 - date2)` or `(date1 - date2)`
+- For gaps, exclude NULL results from LAG (first transaction has no previous)
+
+Good luck!

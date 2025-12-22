@@ -585,3 +585,93 @@ Student verified that first message timestamp matches ticket creation time in th
 ## Student Feedback on Questions
 
 (Students should add comments about which questions were good/bad and why.)
+## Agent Feedback on Student
+
+**Session Date:** 2025-12-16
+
+### Overall Performance Summary
+- **Tasks Completed:** 3/3
+- **Average Score:** 10/10 🎉
+- **Key Strengths:** Perfect LAG usage with PARTITION BY, excellent CTE decomposition, clean date arithmetic, smart alternative approach to FILTER clause
+- **Focus Areas:** None - perfect session
+
+---
+
+### Task 1: Revenue by Month with Month-over-Month Growth (10/10)
+- ✅✅ Perfect CTE decomposition - clean separation of date extraction, aggregation, and LAG application
+- ✅ Correct EXTRACT usage - EXTRACT('Month'/'Year') for date parts
+- ✅ Proper LAG implementation - LAG(monthly_revenue) OVER (ORDER BY year_, month_)
+- ✅ Correct MoM growth calculation - ((current - previous) / previous) * 100
+- ✅ Good ROUND usage - rounded to 2 decimals
+- ✅ Proper NULL casting - ::NUMERIC for decimal division
+- **Perfect execution**
+
+### Task 2: Filtered Aggregations — Active vs Inactive Users (10/10)
+- ✅✅ Perfect CTE approach - separate CTEs for active and inactive user metrics
+- ✅ Correct aggregations - COUNT DISTINCT for users, SUM for revenue, AVG for order amount
+- ✅ Proper ROUND usage - rounded averages to 2 decimals
+- ✅ Smart CROSS JOIN - combines single rows from each CTE into one result row
+- ✅ Correct filtering - WHERE is_active = TRUE/FALSE
+- **Perfect execution** - CTE + CROSS JOIN is a valid and arguably more readable alternative to FILTER clause
+
+### Task 3: Gap Analysis — Days Between Transactions (10/10)
+- ✅✅ Perfect LAG usage - LAG(created_at) OVER (PARTITION BY user_id ORDER BY created_at)
+- ✅ Correct transaction count - COUNT window function to get total per user
+- ✅ Smart date arithmetic - DATE(created_at) - DATE(prev_transaction_date) for gap in days
+- ✅ Proper NULL filtering - WHERE prev_transaction_date IS NOT NULL (excludes first transaction)
+- ✅ Correct user filtering - transaction_count >= 2 to include only users with at least 2 transactions
+- ✅ All required aggregations - MAX, MIN, AVG of gap_days
+- ✅ Proper GROUP BY - GROUP BY user_id, transaction_count
+- ✅ Correct ordering - ORDER BY avg_gap_days DESC
+- **Perfect execution**
+
+---
+
+### Key Learnings for Next Session
+1. LAG window function with PARTITION BY mastered
+2. Month-over-month growth calculations perfect
+3. CTE + CROSS JOIN as alternative to FILTER clause shows flexible thinking
+4. Date arithmetic for gap analysis flawless
+5. Proper NULL handling in window function results
+
+## Student Feedback on Questions
+
+(Students should add comments about which questions were good/bad and why.)
+
+---
+
+### Session: 2025-12-22 (Week 3, Day 1)
+
+## Agent Feedback on Student
+
+**Week 3, Day 1: Perfect Session - 10/10**
+
+All three tasks completed with flawless execution and excellent SQL technique:
+
+**Task 1 - Month-over-Month Growth (10/10):**
+- Clean CTE decomposition breaking problem into logical steps
+- Proper use of EXTRACT for date parts
+- Correct LAG window function ordered by year, month
+- Accurate MoM growth calculation with proper NULL handling
+- Perfect: ((current - previous) / previous) * 100
+
+**Task 2 - Filtered Aggregations (10/10):**
+- Excellent alternative to FILTER clause using CTE + CROSS JOIN
+- Proper use of COUNT(DISTINCT user_id) for unique users
+- Correct JOIN conditions (u.id = o.user_id)
+- Clean separation of active/inactive metrics
+- Single-row output as required
+
+**Task 3 - Gap Analysis (10/10):**
+- Advanced window function usage: COUNT OVER + LAG in same CTE
+- Proper PARTITION BY user_id for per-user gaps
+- Correct date arithmetic: DATE(created_at) - DATE(prev_transaction_date)
+- Smart filtering: WHERE prev_transaction_date IS NOT NULL AND transaction_count >= 2
+- Complete aggregation: MAX, MIN, AVG of gaps
+
+**Overall Assessment:**
+Student shows mastery of complex window functions, multi-CTE query decomposition, and advanced aggregation patterns. Ready for Week 3 advanced topics.
+
+## Student Feedback on Questions
+
+(Students should add comments about which questions were good/bad and why.)

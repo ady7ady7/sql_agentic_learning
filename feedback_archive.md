@@ -675,3 +675,56 @@ Student shows mastery of complex window functions, multi-CTE query decomposition
 ## Student Feedback on Questions
 
 (Students should add comments about which questions were good/bad and why.)
+
+---
+
+### Session: 2025-12-22 (Week 3, Day 2)
+
+## Agent Feedback on Student
+
+**Week 3, Day 2: Strong Execution with Critical Feedback - 9.5/10**
+
+Excellent SQL execution across all tasks, but Student provided crucial feedback about overly prescriptive requirements.
+
+**Task 1 - Top 3 Products per Category (10/10):**
+- ✅✅ Perfect DENSE_RANK with PARTITION BY category
+- ✅ Correct revenue calculation: SUM(price × quantity)
+- ✅ Smart GROUP BY on category and product names
+- ✅ Proper filtering: WHERE category_rank IN (1, 2, 3) in outer query
+- ✅ Clean CTE structure
+
+**Task 2 - Running Total with Month Reset (9/10):**
+- ✅ Correct window function: PARTITION BY year_, month_ ORDER BY order_date
+- ✅ Proper date extraction with EXTRACT and DATE
+- ✅ Running monthly total works perfectly
+- ⚠️ Minor inefficiency: daily_revenue uses window SUM instead of GROUP BY aggregation
+- **Student correctly identified**: Frame clause `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW` is redundant (it's the default when ORDER BY is present)
+
+**Task 3 - User Quartiles (9.5/10):**
+- ✅ Perfect CTE structure with clean aggregation
+- ✅ Correct NULL filtering and GROUP BY
+- ✅ Proper NTILE usage for quartile segmentation
+- ⚠️ Minor: NTILE ordering ASC gives inverted quartile labels (quartile 1 = lowest vs quartile 4 = highest), but still valid
+
+**Overall Assessment:**
+Student demonstrates strong technical skills but rightfully called out a critical teaching flaw.
+
+## Student Feedback on Questions
+
+**CRITICAL FEEDBACK - Requirements Too Prescriptive:**
+
+Student feedback: "Your instructions/requirements are somewhat too direct - you ask me to use function X and give me code directly - as in 'Use NTILE(4) OVER (ORDER BY total_transaction_amount DESC) for quartile assignment' or 'Use window function with PARTITION BY year, month and ORDER BY date'. This approach does not allow me to think, and I'd like to also practice critical thinking, wondering which method/function to choose etc."
+
+**Issues identified:**
+1. Requirements literally gave away the solution (exact window function syntax)
+2. Eliminated critical thinking about WHICH function to use (DENSE_RANK vs RANK vs ROW_NUMBER)
+3. Removed decision-making about HOW to solve the problem
+4. Redundant frame clause instruction (ROWS BETWEEN... is default behavior)
+
+**Action taken:**
+- Documented all three tasks in [bad_q_examples.md](bad_q_examples.md:44-114)
+- Added examples of better, less prescriptive requirements
+- Key learning: Describe WHAT the output should be, not HOW to achieve it
+
+**Agent commitment:**
+Future tasks will focus on business requirements and expected outputs, letting Student choose the SQL approach and functions. This preserves critical thinking and decision-making practice.

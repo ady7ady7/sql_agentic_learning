@@ -1,95 +1,91 @@
 # Daily SQL Practice Tasks
 
 **Generated:** 2025-12-22
-**Week 3, Day 2 Focus:** Advanced Ranking, Running Totals with Frames, Multiple Window Functions
+**Week 3, Day 3 Focus:** Complex Window Functions, Self-Joins, Advanced Aggregations
 
 ---
 
-## Task 1: Top 3 Products per Category by Revenue
+## Task 1: Revenue Percentile Analysis
 
 **Scenario:**
-The product team wants to identify the top 3 best-selling products in each category based on total revenue. Show products ranked within their category, but only include the top 3 from each category.
+The finance team wants to understand the distribution of order values. For each order, calculate what percentile it falls into compared to all other orders (e.g., an order at the 75th percentile is larger than 75% of all orders).
 
 **Expected Output Columns:**
-- `category_name` (varchar) — category name from product_categories
-- `product_name` (varchar) — product name
-- `total_revenue` (numeric) — total revenue for this product (price × quantity across all orders), rounded to 2 decimals
-- `category_rank` (bigint) — rank within category (1 = highest revenue in category)
-
-**Requirements:**
-- Use `products`, `product_categories`, `orders_products` tables
-- Calculate revenue as price × quantity, then SUM for each product
-- Use DENSE_RANK() OVER (PARTITION BY category_id ORDER BY total_revenue DESC)
-- Filter to only include ranks 1, 2, 3
-- Order by `category_name` ASC, `category_rank` ASC
-
-**Difficulty Rating:** 4/5
-
----
-
-## Task 2: Running Total of Daily Revenue with Month Reset
-
-**Scenario:**
-Finance wants to see a running total of daily revenue that resets at the start of each month. For each day, show the cumulative revenue within that month up to and including that day.
-
-**Expected Output Columns:**
-- `order_date` (date) — the date orders were created
-- `daily_revenue` (numeric) — total revenue for that specific day, rounded to 2 decimals
-- `running_monthly_total` (numeric) — cumulative revenue within the month up to this day, rounded to 2 decimals
-- `year` (integer) — year from order_date
-- `month` (integer) — month from order_date
+- `order_id` (integer)
+- `user_id` (integer)
+- `amount` (double precision) — order amount
+- `revenue_percentile` (double precision) — percentile rank (0.0 to 1.0, rounded to 4 decimals)
 
 **Requirements:**
 - Use `orders` table
-- Extract date from created_at timestamp
-- Calculate daily revenue: SUM of amount per date
-- Use window function with PARTITION BY year, month and ORDER BY date
-- Use appropriate frame: ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-- Order by `order_date` ASC
+- Calculate the percentile rank for each order based on its amount
+- Higher amounts should have higher percentile values
+- Only include orders with non-null amounts
+- Order by `revenue_percentile` DESC, `order_id` ASC
 
-**Difficulty Rating:** 4/5
+**Difficulty Rating:** 3/5
 
 ---
 
-## Task 3: User Quartiles by Transaction Amount
+## Task 2: Customer Retention — Users with Orders in Consecutive Months
 
 **Scenario:**
-The analytics team wants to segment users into quartiles (4 equal groups) based on their total transaction amount. Assign each user to a quartile (1 = lowest 25%, 4 = highest 25%) and show summary statistics.
+The product team wants to identify users who made purchases in consecutive months (e.g., ordered in January and February, or March and April). Find all users who have made orders in at least one pair of consecutive months.
 
 **Expected Output Columns:**
 - `user_id` (integer)
-- `total_transaction_amount` (numeric) — sum of all transaction amounts for this user, rounded to 2 decimals
-- `transaction_count` (bigint) — number of transactions for this user
-- `user_quartile` (integer) — quartile assignment (1, 2, 3, or 4)
+- `first_month` (integer) — the earlier month of the consecutive pair (1-12)
+- `second_month` (integer) — the later month of the consecutive pair (1-12)
+- `year` (integer) — year when this happened
+- `orders_in_first_month` (bigint) — count of orders in the first month
+- `orders_in_second_month` (bigint) — count of orders in the second month
 
 **Requirements:**
-- Use `transactions` table
-- Calculate total_transaction_amount: SUM(amount) per user
-- Calculate transaction_count: COUNT(*) per user
-- Use NTILE(4) OVER (ORDER BY total_transaction_amount DESC) for quartile assignment
-- Only include users who have at least 1 transaction with non-null amount
-- Order by `user_quartile` ASC, `total_transaction_amount` DESC
+- Use `orders` table
+- Find users with orders in consecutive calendar months within the same year
+- A user may have multiple consecutive month pairs (e.g., Jan-Feb AND Feb-Mar)
+- Order by `user_id` ASC, `year` ASC, `first_month` ASC
 
-**Difficulty Rating:** 3/5
+**Difficulty Rating:** 5/5
+
+---
+
+## Task 3: Support Ticket Response Time Analysis
+
+**Scenario:**
+The support team wants to analyze how quickly they respond to tickets. Calculate the time between ticket creation and the first message sent by support (where `author_id` IS NOT NULL, indicating a support agent message, not a user message).
+
+**Expected Output Columns:**
+- `ticket_id` (bigint)
+- `ticket_created_at` (timestamp with time zone) — when ticket was created
+- `first_response_at` (timestamp with time zone) — timestamp of first support message
+- `response_time_minutes` (numeric) — time difference in minutes, rounded to 2 decimals
+
+**Requirements:**
+- Use `chat_tickets` and `chat_messages` tables
+- Find the first message where `author_id IS NOT NULL` for each ticket
+- Calculate time difference in minutes between ticket creation and first response
+- Only include tickets that have received at least one support response
+- Order by `response_time_minutes` DESC
+
+**Difficulty Rating:** 4/5
 
 ---
 
 ## Submission Instructions
 
 Submit your SQL solutions when ready. I'll provide detailed feedback on:
-- DENSE_RANK vs RANK vs ROW_NUMBER usage
-- Window frame specifications (ROWS vs RANGE)
-- NTILE for bucketing/segmentation
-- PARTITION BY with multiple columns
-- Filtering ranked results (WHERE vs HAVING vs subquery)
+- Percentile and ranking functions (PERCENT_RANK, CUME_DIST, etc.)
+- Self-joins and date arithmetic for consecutive period detection
+- Window functions with filtering (FIRST_VALUE, MIN, etc.)
+- Time difference calculations (EXTRACT EPOCH, date subtraction)
 
 ## Tips
 
-- DENSE_RANK: No gaps in ranking when ties exist (1, 2, 2, 3)
-- RANK: Gaps after ties (1, 2, 2, 4)
-- ROW_NUMBER: Always unique (1, 2, 3, 4)
-- Frame clause: `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW` for running totals
-- NTILE(n): Divides rows into n roughly equal buckets
-- Filtering ranked results: Use a subquery/CTE, then filter in outer query WHERE clause
+- PERCENT_RANK() returns values from 0 to 1 showing relative position
+- CUME_DIST() returns cumulative distribution (percentage of values <= current)
+- For consecutive months, consider date arithmetic and comparisons
+- FIRST_VALUE with proper ordering can find earliest/latest values
+- EXTRACT(EPOCH FROM interval) converts intervals to seconds
 
 Good luck!

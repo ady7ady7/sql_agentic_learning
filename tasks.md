@@ -1,72 +1,75 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2025-12-22
-**Week 3, Day 3 Focus:** Complex Window Functions, Self-Joins, Advanced Aggregations
+**Generated:** 2025-12-29
+**Week 3, Day 4 Focus:** Recursive CTEs, Advanced String Functions, Complex Filtering
 
 ---
 
-## Task 1: Revenue Percentile Analysis
+## Task 1: Category Hierarchy Traversal
 
 **Scenario:**
-The finance team wants to understand the distribution of order values. For each order, calculate what percentile it falls into compared to all other orders (e.g., an order at the 75th percentile is larger than 75% of all orders).
+Your product_categories table has been extended with a `parent_id` column (self-referencing FK to create category hierarchies). The marketing team wants to see the full category path for each category (e.g., "Electronics > Computers > Laptops").
+
+**Note:** For this exercise, assume the schema has been updated with:
+- `product_categories.parent_id` (integer, nullable, FK to product_categories.id)
 
 **Expected Output Columns:**
-- `order_id` (integer)
-- `user_id` (integer)
-- `amount` (double precision) — order amount
-- `revenue_percentile` (double precision) — percentile rank (0.0 to 1.0, rounded to 4 decimals)
+- `category_id` (integer) — the category ID
+- `category_name` (varchar) — the category name
+- `category_path` (text) — full path from root to this category, separated by " > "
+- `depth` (integer) — depth level in hierarchy (0 = root, 1 = first level child, etc.)
 
 **Requirements:**
-- Use `orders` table
-- Calculate the percentile rank for each order based on its amount
-- Higher amounts should have higher percentile values
-- Only include orders with non-null amounts
-- Order by `revenue_percentile` DESC, `order_id` ASC
-
-**Difficulty Rating:** 3/5
-
----
-
-## Task 2: Customer Retention — Users with Orders in Consecutive Months
-
-**Scenario:**
-The product team wants to identify users who made purchases in consecutive months (e.g., ordered in January and February, or March and April). Find all users who have made orders in at least one pair of consecutive months.
-
-**Expected Output Columns:**
-- `user_id` (integer)
-- `first_month` (integer) — the earlier month of the consecutive pair (1-12)
-- `second_month` (integer) — the later month of the consecutive pair (1-12)
-- `year` (integer) — year when this happened
-- `orders_in_first_month` (bigint) — count of orders in the first month
-- `orders_in_second_month` (bigint) — count of orders in the second month
-
-**Requirements:**
-- Use `orders` table
-- Find users with orders in consecutive calendar months within the same year
-- A user may have multiple consecutive month pairs (e.g., Jan-Feb AND Feb-Mar)
-- Order by `user_id` ASC, `year` ASC, `first_month` ASC
+- Build a recursive CTE to traverse the category hierarchy
+- Start from root categories (parent_id IS NULL)
+- Concatenate category names to build the full path
+- Track the depth of each category in the tree
+- Order by category_path ASC
 
 **Difficulty Rating:** 5/5
 
 ---
 
-## Task 3: Support Ticket Response Time Analysis
+## Task 2: Email Domain Analysis
 
 **Scenario:**
-The support team wants to analyze how quickly they respond to tickets. Calculate the time between ticket creation and the first message sent by support (where `author_id` IS NOT NULL, indicating a support agent message, not a user message).
+The analytics team wants to understand email provider distribution among users. Extract the domain from each user's email address and count how many users belong to each domain.
 
 **Expected Output Columns:**
-- `ticket_id` (bigint)
-- `ticket_created_at` (timestamp with time zone) — when ticket was created
-- `first_response_at` (timestamp with time zone) — timestamp of first support message
-- `response_time_minutes` (numeric) — time difference in minutes, rounded to 2 decimals
+- `email_domain` (text) — the domain part of the email (everything after @)
+- `user_count` (bigint) — number of users with this domain
+- `percentage` (numeric) — percentage of total users, rounded to 2 decimals
 
 **Requirements:**
-- Use `chat_tickets` and `chat_messages` tables
-- Find the first message where `author_id IS NOT NULL` for each ticket
-- Calculate time difference in minutes between ticket creation and first response
-- Only include tickets that have received at least one support response
-- Order by `response_time_minutes` DESC
+- Use `users` table
+- Extract domain from email addresses (text after @)
+- Calculate count of users per domain
+- Calculate percentage of total users
+- Only include users with non-null email addresses
+- Order by `user_count` DESC
+
+**Difficulty Rating:** 3/5
+
+---
+
+## Task 3: Users with Above-Average Order Frequency
+
+**Scenario:**
+The product team wants to identify power users: those who place orders more frequently than the average user. Find all users whose total order count exceeds the overall average order count per user.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `order_count` (bigint) — total orders for this user
+- `avg_order_count` (numeric) — the average order count across all users, rounded to 2 decimals
+- `orders_above_avg` (numeric) — how many orders above average this user has, rounded to 2 decimals
+
+**Requirements:**
+- Use `orders` table
+- Calculate total orders per user
+- Calculate the average order count across all users
+- Filter to only users with above-average order counts
+- Show how many orders above average each user has
+- Order by `order_count` DESC
 
 **Difficulty Rating:** 4/5
 
@@ -75,17 +78,17 @@ The support team wants to analyze how quickly they respond to tickets. Calculate
 ## Submission Instructions
 
 Submit your SQL solutions when ready. I'll provide detailed feedback on:
-- Percentile and ranking functions (PERCENT_RANK, CUME_DIST, etc.)
-- Self-joins and date arithmetic for consecutive period detection
-- Window functions with filtering (FIRST_VALUE, MIN, etc.)
-- Time difference calculations (EXTRACT EPOCH, date subtraction)
+- Recursive CTE structure and termination conditions
+- String manipulation functions (SPLIT_PART, SUBSTRING, POSITION, etc.)
+- Subqueries vs window functions for average calculations
+- Percentage calculations and rounding
 
 ## Tips
 
-- PERCENT_RANK() returns values from 0 to 1 showing relative position
-- CUME_DIST() returns cumulative distribution (percentage of values <= current)
-- For consecutive months, consider date arithmetic and comparisons
-- FIRST_VALUE with proper ordering can find earliest/latest values
-- EXTRACT(EPOCH FROM interval) converts intervals to seconds
+- Recursive CTEs have two parts: anchor query (base case) and recursive query (joins to itself)
+- For string splitting, PostgreSQL offers SPLIT_PART(string, delimiter, position)
+- SUBSTRING and POSITION are useful for string extraction
+- Average calculations can use window functions or subqueries
+- Always consider NULL handling in string operations
 
 Good luck!

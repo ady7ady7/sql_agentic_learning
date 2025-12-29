@@ -1516,3 +1516,190 @@ Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - Filtering ranked results: Use a subquery/CTE, then filter in outer query WHERE clause
 
 Good luck!
+
+### Task Archive: 2025-12-29 (Week 3, Day 3)
+
+# Daily SQL Practice Tasks
+
+**Generated:** 2025-12-22
+**Week 3, Day 3 Focus:** Complex Window Functions, Self-Joins, Advanced Aggregations
+
+---
+
+## Task 1: Revenue Percentile Analysis
+
+**Scenario:**
+The finance team wants to understand the distribution of order values. For each order, calculate what percentile it falls into compared to all other orders (e.g., an order at the 75th percentile is larger than 75% of all orders).
+
+**Expected Output Columns:**
+- `order_id` (integer)
+- `user_id` (integer)
+- `amount` (double precision) — order amount
+- `revenue_percentile` (double precision) — percentile rank (0.0 to 1.0, rounded to 4 decimals)
+
+**Requirements:**
+- Use `orders` table
+- Calculate the percentile rank for each order based on its amount
+- Higher amounts should have higher percentile values
+- Only include orders with non-null amounts
+- Order by `revenue_percentile` DESC, `order_id` ASC
+
+**Difficulty Rating:** 3/5
+
+WITH orders_percentile_ranks AS (
+	SELECT 
+		id,
+		user_id,
+		amount,
+		ROUND(PERCENT_RANK()OVER (ORDER BY amount)::NUMERIC, 4) AS percent_rank
+	FROM orders
+	WHERE amount IS NOT NULL
+	ORDER BY percent_rank DESC, id
+	)
+SELECT 
+	*,
+	percent_rank > 0.75 AS higher_than_75th_percentile
+FROM orders_percentile_ranks
+
+
+---
+
+## Task 2: Customer Retention — Users with Orders in Consecutive Months
+
+**Scenario:**
+The product team wants to identify users who made purchases in consecutive months (e.g., ordered in January and February, or March and April). Find all users who have made orders in at least one pair of consecutive months.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `first_month` (integer) — the earlier month of the consecutive pair (1-12)
+- `second_month` (integer) — the later month of the consecutive pair (1-12)
+- `year` (integer) — year when this happened
+- `orders_in_first_month` (bigint) — count of orders in the first month
+- `orders_in_second_month` (bigint) — count of orders in the second month
+
+**Requirements:**
+- Use `orders` table
+- Find users with orders in consecutive calendar months within the same year
+- A user may have multiple consecutive month pairs (e.g., Jan-Feb AND Feb-Mar)
+- Order by `user_id` ASC, `year` ASC, `first_month` ASC
+
+**Difficulty Rating:** 5/5
+
+
+WITH orders_month_year AS (
+	SELECT 
+		user_id,
+		EXTRACT('Month' FROM created_at) AS month_,
+		EXTRACT('Year' FROM created_at) AS year_
+	FROM orders
+	ORDER BY user_id
+	),
+orders_months AS (
+	SELECT
+		*,
+		FIRST_VALUE(month_) OVER (PARTITION BY user_id ORDER BY month_, year_) AS first_month,
+		FIRST_VALUE(month_) OVER (PARTITION BY user_id ORDER BY month_ DESC, year_ DESC) AS last_month,
+		LAG(year_) OVER (PARTITION BY user_id ORDER BY month_, year_) AS previous_year
+	FROM orders_month_year
+	),
+eligible_users_orders AS (
+	SELECT 
+		*
+	FROM orders_months
+	WHERE last_month - first_month = 1
+	),
+orders_first_month_cnt AS (
+	SELECT
+		user_id,
+		COUNT(*) AS orders_in_first_month
+	FROM eligible_users_orders
+	WHERE month_ = first_month
+	GROUP BY user_id
+	),
+orders_second_month_cnt AS (
+	SELECT
+		user_id,
+		COUNT(*) AS orders_in_second_month
+	FROM eligible_users_orders
+	WHERE month_ = last_month
+	GROUP BY user_id
+	)
+SELECT
+	DISTINCT(ofm.user_id),
+	euo.first_month,
+	euo.last_month AS second_month,
+	euo.year_,
+	ofm.orders_in_first_month,
+	osm.orders_in_second_month
+FROM orders_first_month_cnt ofm
+JOIN orders_second_month_cnt osm ON ofm.user_id = osm.user_id
+JOIN eligible_users_orders euo ON ofm.user_id = euo.user_id
+ORDER BY ofm.user_id, euo.year_, euo.first_month
+
+
+---
+
+## Task 3: Support Ticket Response Time Analysis
+
+**Scenario:**
+The support team wants to analyze how quickly they respond to tickets. Calculate the time between ticket creation and the first message sent by support (where `author_id` IS NOT NULL, indicating a support agent message, not a user message).
+
+**Expected Output Columns:**
+- `ticket_id` (bigint)
+- `ticket_created_at` (timestamp with time zone) — when ticket was created
+- `first_response_at` (timestamp with time zone) — timestamp of first support message
+- `response_time_minutes` (numeric) — time difference in minutes, rounded to 2 decimals
+
+**Requirements:**
+- Use `chat_tickets` and `chat_messages` tables
+- Find the first message where `author_id IS NOT NULL` for each ticket
+- Calculate time difference in minutes between ticket creation and first response
+- Only include tickets that have received at least one support response
+- Order by `response_time_minutes` DESC
+
+**Difficulty Rating:** 4/5
+
+
+WITH tickets_creation_times AS (
+	SELECT
+		DISTINCT(cm.ticket_id),
+		FIRST_VALUE(cm.created_at) OVER (PARTITION BY cm.ticket_id) AS ticket_created_at
+	FROM chat_messages cm
+	),
+ticket_responses AS (
+	SELECT 
+		ticket_id,
+		FIRST_VALUE(created_at) OVER (PARTITION BY ticket_id) AS ticket_response_time
+	FROM chat_messages
+	WHERE message_type = 'text'
+	AND author_id IS NOT NULL
+	)
+SELECT
+	tct.ticket_id,
+	tct.ticket_created_at,
+	tr.ticket_response_time AS first_response_at,
+	tr.ticket_response_time - tct.ticket_created_at AS response_time_minutes
+FROM tickets_creation_times tct
+JOIN ticket_responses tr ON tct.ticket_id = tr.ticket_id
+ORDER BY response_time_minutes DESC
+
+
+---
+
+## Submission Instructions
+
+Submit your SQL solutions when ready. I'll provide detailed feedback on:
+- Percentile and ranking functions (PERCENT_RANK, CUME_DIST, etc.)
+- Self-joins and date arithmetic for consecutive period detection
+- Window functions with filtering (FIRST_VALUE, MIN, etc.)
+- Time difference calculations (EXTRACT EPOCH, date subtraction)
+
+## Tips
+
+- PERCENT_RANK() returns values from 0 to 1 showing relative position
+- CUME_DIST() returns cumulative distribution (percentage of values <= current)
+- For consecutive months, consider date arithmetic and comparisons
+- FIRST_VALUE with proper ordering can find earliest/latest values
+- EXTRACT(EPOCH FROM interval) converts intervals to seconds
+
+Good luck!

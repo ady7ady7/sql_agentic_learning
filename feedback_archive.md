@@ -728,3 +728,54 @@ Student feedback: "Your instructions/requirements are somewhat too direct - you 
 
 **Agent commitment:**
 Future tasks will focus on business requirements and expected outputs, letting Student choose the SQL approach and functions. This preserves critical thinking and decision-making practice.
+
+---
+
+### Session: 2025-12-29 (Week 3, Day 3)
+
+## Agent Feedback on Student
+
+**Week 3, Day 3: Mixed results with challenging tasks - 8.3/10**
+
+Welcome back from Christmas break! Tackled some of the most challenging tasks yet. Task 1 perfect, Task 2 had critical logic error, Task 3 nearly perfect with good practical judgment.
+
+**Task 1 - Revenue Percentile Analysis (10/10):**
+- ✅✅ Perfect PERCENT_RANK() usage with ORDER BY amount
+- ✅ Correct rounding to 4 decimals with ::NUMERIC cast
+- ✅ Proper NULL filtering
+- ✅ Clean CTE structure
+- ✅ Excellent bonus creativity: added `higher_than_75th_percentile` flag for practical application
+- ⚠️ Minor: Column named `percent_rank` instead of spec's `revenue_percentile` (naming preference)
+
+**Task 2 - Consecutive Month Retention (6/10):**
+- ⚠️⚠️ **Critical logic error**: `WHERE last_month - first_month = 1` checks if user's OVERALL activity spans exactly 2 months, not if they have consecutive month pairs
+- **What this misses**: Users with orders in Jan-Feb AND Mar-Apr (multiple pairs), or Jan-Feb-Mar (two consecutive pairs: Jan-Feb AND Feb-Mar)
+- **Correct approach**: Use LAG to find previous month for each order, check if `month_ - LAG(month_) = 1` within same year
+- ⚠️ DISTINCT misuse: `DISTINCT(ofm.user_id)` - DISTINCT is a clause, not a function
+- ⚠️ FIRST_VALUE(month_) finding min/max doesn't identify consecutive pairs
+- ✅ Good effort on complex CTE decomposition
+- **Note**: This was 5/5 difficulty - the trickiest task yet
+
+**Task 3 - Support Ticket Response Time (9/10):**
+- ✅✅ Good window function approach with FIRST_VALUE
+- ✅ Correct support message filtering: author_id IS NOT NULL
+- ✅ Proper JOIN to include only tickets with responses
+- ✅ **Smart data understanding**: Verified every ticket starts with customer message, so using chat_messages.created_at is correct (avoids unnecessary chat_tickets join)
+- ✅ **INTERVAL format is highly readable**: HH:MM:SS is more intuitive than flat numeric minutes
+- ⚠️ Minor spec deviation: Task asked for numeric minutes rounded to 2 decimals, but your INTERVAL format is more practical
+- ⚠️ DISTINCT misuse: `DISTINCT(cm.ticket_id)` - should be DISTINCT cm.ticket_id (DISTINCT is a clause, not a function)
+
+**Overall Assessment:**
+Strong PERCENT_RANK mastery, Task 3 shows excellent data understanding and practical judgment over blind spec compliance. Task 2's difficulty (5/5) showed - struggled with complex consecutive pair logic, which is normal for advanced material.
+
+**Key Learning Areas:**
+1. LAG for detecting consecutive sequences vs FIRST_VALUE for min/max
+2. DISTINCT is a clause, not a function - stop writing DISTINCT(column)
+3. Task 3: Good judgment prioritizing readability over spec (INTERVAL vs numeric minutes)
+
+**Agent self-correction:**
+Student correctly identified that INTERVAL format is more readable and practical than numeric minutes. Also verified data assumption about ticket creation. Good data exploration and practical reasoning.
+
+## Student Feedback on Questions
+
+(Students should add comments about which questions were good/bad and why.)

@@ -1,94 +1,94 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2025-12-29
-**Week 3, Day 4 Focus:** Recursive CTEs, Advanced String Functions, Complex Filtering
+**Generated:** 2025-12-30
+**Week 3, Day 5 Focus:** Advanced Date Arithmetic, Complex Filtering, Multi-Table Analysis
 
 ---
 
-## Task 1: Category Hierarchy Traversal
+## Task 1: Order Streaks — Users with Consecutive Day Ordering
 
 **Scenario:**
-Your product_categories table has been extended with a `parent_id` column (self-referencing FK to create category hierarchies). The marketing team wants to see the full category path for each category (e.g., "Electronics > Computers > Laptops").
-
-**Note:** For this exercise, assume the schema has been updated with:
-- `product_categories.parent_id` (integer, nullable, FK to product_categories.id)
+The marketing team wants to identify highly engaged users who made purchases on consecutive days (not just consecutive months, but actual back-to-back days). Find users who have ordered on at least 3 consecutive days at some point in their history.
 
 **Expected Output Columns:**
-- `category_id` (integer) — the category ID
-- `category_name` (varchar) — the category name
-- `category_path` (text) — full path from root to this category, separated by " > "
-- `depth` (integer) — depth level in hierarchy (0 = root, 1 = first level child, etc.)
+- `user_id` (integer)
+- `streak_start_date` (date) — the first day of the consecutive streak
+- `streak_end_date` (date) — the last day of the consecutive streak
+- `streak_length` (integer) — number of consecutive days in the streak
+- `total_orders_in_streak` (bigint) — total number of orders during the streak period
 
 **Requirements:**
-- Build a recursive CTE to traverse the category hierarchy
-- Start from root categories (parent_id IS NULL)
-- Concatenate category names to build the full path
-- Track the depth of each category in the tree
-- Order by category_path ASC
+- Use `orders` table
+- Identify sequences where a user ordered on consecutive calendar days
+- Only include streaks of 3 or more consecutive days
+- If a user has multiple streaks, show all of them
+- Order by `streak_length` DESC, `user_id` ASC
 
 **Difficulty Rating:** 5/5
 
 ---
 
-## Task 2: Email Domain Analysis
+## Task 2: Product Category Performance Comparison
 
 **Scenario:**
-The analytics team wants to understand email provider distribution among users. Extract the domain from each user's email address and count how many users belong to each domain.
+The product team wants to compare category performance. For each product category, show total revenue, average order value, and how it compares to the overall average across all categories.
 
 **Expected Output Columns:**
-- `email_domain` (text) — the domain part of the email (everything after @)
-- `user_count` (bigint) — number of users with this domain
-- `percentage` (numeric) — percentage of total users, rounded to 2 decimals
+- `category_name` (varchar)
+- `total_revenue` (numeric) — total revenue for this category, rounded to 2 decimals
+- `order_count` (bigint) — number of orders containing products from this category
+- `avg_order_value` (numeric) — average revenue per order for this category, rounded to 2 decimals
+- `overall_avg_order_value` (numeric) — average order value across all categories, rounded to 2 decimals
+- `performance_vs_avg` (numeric) — difference between category avg and overall avg, rounded to 2 decimals
 
 **Requirements:**
-- Use `users` table
-- Extract domain from email addresses (text after @)
-- Calculate count of users per domain
-- Calculate percentage of total users
-- Only include users with non-null email addresses
-- Order by `user_count` DESC
+- Use `products`, `product_categories`, `orders_products` tables
+- Calculate revenue as price × quantity
+- Calculate average order value per category
+- Compare each category's performance to the overall average
+- Order by `total_revenue` DESC
 
-**Difficulty Rating:** 3/5
+**Difficulty Rating:** 4/5
 
 ---
 
-## Task 3: Users with Above-Average Order Frequency
+## Task 3: Support Ticket Resolution Analysis by Priority
 
 **Scenario:**
-The product team wants to identify power users: those who place orders more frequently than the average user. Find all users whose total order count exceeds the overall average order count per user.
+The support team wants to analyze ticket resolution patterns by priority level. Show average resolution time and ticket count for each priority level, but only for tickets that have been resolved (status = 'resolved' or 'closed').
 
 **Expected Output Columns:**
-- `user_id` (integer)
-- `order_count` (bigint) — total orders for this user
-- `avg_order_count` (numeric) — the average order count across all users, rounded to 2 decimals
-- `orders_above_avg` (numeric) — how many orders above average this user has, rounded to 2 decimals
+- `priority` (text) — ticket priority level
+- `resolved_ticket_count` (bigint) — number of resolved/closed tickets at this priority
+- `avg_resolution_time_hours` (numeric) — average time from creation to last update for resolved tickets, in hours, rounded to 2 decimals
+- `min_resolution_time_hours` (numeric) — fastest resolution time in hours, rounded to 2 decimals
+- `max_resolution_time_hours` (numeric) — slowest resolution time in hours, rounded to 2 decimals
 
 **Requirements:**
-- Use `orders` table
-- Calculate total orders per user
-- Calculate the average order count across all users
-- Filter to only users with above-average order counts
-- Show how many orders above average each user has
-- Order by `order_count` DESC
+- Use `chat_tickets` table
+- Only include tickets with status 'resolved' or 'closed'
+- Calculate resolution time as difference between created_at and updated_at
+- Convert time to hours
+- Group by priority level
+- Order by `avg_resolution_time_hours` ASC
 
-**Difficulty Rating:** 4/5
+**Difficulty Rating:** 3/5
 
 ---
 
 ## Submission Instructions
 
 Submit your SQL solutions when ready. I'll provide detailed feedback on:
-- Recursive CTE structure and termination conditions
-- String manipulation functions (SPLIT_PART, SUBSTRING, POSITION, etc.)
-- Subqueries vs window functions for average calculations
-- Percentage calculations and rounding
+- Date arithmetic and consecutive sequence detection
+- Multi-table aggregations and comparisons
+- Timestamp differences and time unit conversions
+- Grouping and filtering strategies
 
 ## Tips
 
-- Recursive CTEs have two parts: anchor query (base case) and recursive query (joins to itself)
-- For string splitting, PostgreSQL offers SPLIT_PART(string, delimiter, position)
-- SUBSTRING and POSITION are useful for string extraction
-- Average calculations can use window functions or subqueries
-- Always consider NULL handling in string operations
+- Consecutive day detection often requires LAG or complex date arithmetic
+- Multi-table revenue calculations need careful JOIN conditions
+- Time differences: EXTRACT(EPOCH FROM interval) gives seconds, divide by 3600 for hours
+- Consider using CTEs to break complex problems into manageable steps
 
 Good luck!

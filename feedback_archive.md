@@ -779,3 +779,56 @@ Student correctly identified that INTERVAL format is more readable and practical
 ## Student Feedback on Questions
 
 (Students should add comments about which questions were good/bad and why.)
+
+---
+
+### Session: 2025-12-29 (Week 3, Day 4)
+
+## Agent Feedback on Student
+
+**Week 3, Day 4: Strong recovery with practical tasks - 9.7/10**
+
+Excellent execution across all three tasks. Student correctly identified Task 1 (recursive CTE with non-existent schema) as flawed, which was replaced with practical self-join task.
+
+**Task 1 - Transaction Sequence Analysis (9/10):**
+- ✅ Excellent self-join approach: `t1.user_id = t2.user_id` with `t1.id > t2.id`
+- ✅ Correct duplicate avoidance: WHERE clause prevents A→B and B→A pairs
+- ✅ Perfect time calculation: EXTRACT(EPOCH FROM ...) for seconds
+- ✅ Correct filtering: `time_diff_seconds <= 300 AND time_diff_seconds > 0`
+- ✅ Clean CTE decomposition
+- ⚠️ Minor naming confusion: `t1.id > t2.id` means t1 is LATER, but named `transaction_time_1` (implying earlier)
+- ⚠️ Missing ROUND: Task asked for 2 decimal rounding on time_diff_seconds
+
+**Task 2 - Email Domain Analysis (10/10):**
+- ✅✅ Perfect SPLIT_PART usage: `SPLIT_PART(email, '@', 2)`
+- ✅ Correct percentage calculation: `COUNT(*) / total * 100`
+- ✅ Proper ROUND to 2 decimals
+- ✅ Clean CTE structure
+- ✅ Correct GROUP BY and ordering
+- **Student correctly identified**: "This was not that difficult yet a GOOD question, as I feel like questions like this may become real in real-life analysis scenarios + SPLIT_PART is not used that often, and I feel like this is useful to know"
+
+**Task 3 - Above-Average Order Frequency (10/10):**
+- ✅✅ Perfect CTE decomposition: clean separation of aggregation and comparison
+- ✅ Correct subquery usage for AVG calculation
+- ✅ Smart calculation: `order_count - avg` for orders_above_avg
+- ✅ Proper filtering: WHERE orders_above_avg > 0
+- ✅ Correct ordering
+- Minor optimization note: Subquery executed twice, but approach is clear and readable
+- **Student feedback**: "Also a pretty good task" - realistic power user analysis
+
+**Overall Assessment:**
+Strong session with practical, real-world tasks. Excellent self-join logic, perfect string manipulation, clean subquery usage. Minor issues with rounding and naming, but logic is solid throughout.
+
+**Agent Self-Improvement:**
+- Original Task 1 (recursive CTE with non-existent parent_id column) was fundamentally flawed
+- Student correctly rejected it: "HOW AM I SUPPOSED TO assume anything, if there's no such key"
+- Replaced with practical self-join task using actual schema
+- Future: Always verify schema.md before creating tasks, never ask to "assume" schema changes
+
+## Student Feedback on Questions
+
+**Task 2 (Email Domain Analysis):** "This was not that difficult yet a GOOD question, as I feel like questions like this may become real in real-life analysis scenarios, and it allows to practice a few important skills + SPLIT_PART is not used that often, and I feel like this is useful to know."
+
+**Task 3 (Above-Average Order Frequency):** "Also a pretty good task"
+
+**Original Task 1 (Recursive CTE with non-existent schema):** Rejected as flawed - asked to assume `parent_id` column that doesn't exist in schema.md

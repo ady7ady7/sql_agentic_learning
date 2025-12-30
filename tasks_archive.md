@@ -1703,3 +1703,179 @@ Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - EXTRACT(EPOCH FROM interval) converts intervals to seconds
 
 Good luck!
+
+### Task Archive: 2025-12-29 (Week 3, Day 4)
+
+# Daily SQL Practice Tasks
+
+**Generated:** 2025-12-29
+**Week 3, Day 4 Focus:** Recursive CTEs, Advanced String Functions, Complex Filtering
+
+---
+
+## Task 1: Transaction Sequence Analysis with Self-Join
+
+**Scenario:**
+The fraud detection team wants to identify suspicious rapid-fire transactions. Find all instances where the same user made two or more transactions within 5 minutes of each other. Show both transactions in the pair and the time difference between them.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `first_transaction_id` (integer) — ID of the earlier transaction
+- `second_transaction_id` (integer) — ID of the later transaction
+- `first_transaction_time` (timestamp) — timestamp of earlier transaction
+- `second_transaction_time` (timestamp) — timestamp of later transaction
+- `time_diff_seconds` (numeric) — time difference in seconds between the two transactions, rounded to 2 decimals
+
+**Requirements:**
+- Use `transactions` table
+- Find transaction pairs from the same user where the second transaction occurs within 5 minutes (300 seconds) after the first
+- Calculate time difference in seconds between the pair
+- Avoid duplicate pairs (if transaction A→B is shown, don't show B→A)
+- Only include transactions with non-null created_at timestamps
+- Order by `user_id` ASC, `first_transaction_time` ASC
+
+**Difficulty Rating:** 4/5
+
+
+WITH users_transactions AS (
+	SELECT
+		t1.id AS transaction_id_1,
+		t2.id AS transaction_id_2,
+		t1.user_id AS u_id,
+		t1.amount AS transaction_amount_1,
+		t2.amount AS transaction_amount_2,
+		t1.created_at AS transaction_time_1,
+		t2.created_at AS transaction_time_2
+	FROM transactions t1
+	JOIN transactions t2 ON t1.user_id = t2.user_id
+	WHERE t1.id > t2.id
+	ORDER BY u_id, t1.created_at
+	),
+transactions_differences_in_seconds AS (
+SELECT 
+	u_id,
+	transaction_id_1,
+	transaction_id_2,
+	transaction_time_1,
+	transaction_time_2,
+	transaction_time_2 - transaction_time_1 AS time_diff,
+	EXTRACT(EPOCH FROM (transaction_time_2::TIMESTAMP - transaction_time_1::TIMESTAMP)) AS time_diff_seconds
+FROM users_transactions
+)
+SELECT 
+	u_id AS user_id,
+	transaction_id_1 AS first_transaction_id,
+	transaction_id_2 AS second_transaction_id,
+	transaction_time_1 AS first_transaction_time,
+	transaction_time_2 AS second_transaction_time,
+	time_diff_seconds
+FROM transactions_differences_in_seconds
+WHERE time_diff_seconds <= 300 AND time_diff_seconds > 0
+
+
+
+---
+
+## Task 2: Email Domain Analysis
+
+**Scenario:**
+The analytics team wants to understand email provider distribution among users. Extract the domain from each user's email address and count how many users belong to each domain.
+
+**Expected Output Columns:**
+- `email_domain` (text) — the domain part of the email (everything after @)
+- `user_count` (bigint) — number of users with this domain
+- `percentage` (numeric) — percentage of total users, rounded to 2 decimals
+
+**Requirements:**
+- Use `users` table
+- Extract domain from email addresses (text after @)
+- Calculate count of users per domain
+- Calculate percentage of total users
+- Only include users with non-null email addresses
+- Order by `user_count` DESC
+
+**Difficulty Rating:** 3/5
+
+
+WITH users_email_domains AS (
+	SELECT 
+		id,
+		SPLIT_PART(email, '@', 2) AS email_domain
+	FROM users
+	)
+SELECT
+	email_domain,
+	COUNT(*) AS user_count,
+	ROUND(COUNT(*)::NUMERIC / (SELECT COUNT(*)::NUMERIC FROM users) * 100, 2) AS percentage
+FROM users_email_domains
+GROUP BY email_domain
+ORDER BY percentage DESC
+
+
+This was not that difficult yet a GOOD question, as I feel like questions like this may become real in real-life analysis scenarios, and it allows to practice a few important skills + SPLIT_PART is not used that often, and I feel like this is useful to know.
+
+
+---
+
+## Task 3: Users with Above-Average Order Frequency
+
+**Scenario:**
+The product team wants to identify power users: those who place orders more frequently than the average user. Find all users whose total order count exceeds the overall average order count per user.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `order_count` (bigint) — total orders for this user
+- `avg_order_count` (numeric) — the average order count across all users, rounded to 2 decimals
+- `orders_above_avg` (numeric) — how many orders above average this user has, rounded to 2 decimals
+
+**Requirements:**
+- Use `orders` table
+- Calculate total orders per user
+- Calculate the average order count across all users
+- Filter to only users with above-average order counts
+- Show how many orders above average each user has
+- Order by `order_count` DESC
+
+**Difficulty Rating:** 4/5
+
+WITH users_orders_cnt AS (
+	SELECT 
+		user_id,
+		COUNT(*) AS order_count
+	FROM orders
+	GROUP BY user_id
+	),
+users_orders_cnt_comparison AS (
+	SELECT 
+		user_id,
+		order_count,
+		(SELECT AVG(order_count) FROM users_orders_cnt) AS avg_order_count,
+		order_count - (SELECT AVG(order_count) FROM users_orders_cnt) AS orders_above_avg
+	FROM users_orders_cnt
+	)
+SELECT 
+	* 
+FROM users_orders_cnt_comparison
+WHERE orders_above_avg > 0
+ORDER BY order_count DESC
+
+Also a pretty good task
+---
+
+## Submission Instructions
+
+Submit your SQL solutions when ready. I'll provide detailed feedback on:
+- Recursive CTE structure and termination conditions
+- String manipulation functions (SPLIT_PART, SUBSTRING, POSITION, etc.)
+- Subqueries vs window functions for average calculations
+- Percentage calculations and rounding
+
+## Tips
+
+- Recursive CTEs have two parts: anchor query (base case) and recursive query (joins to itself)
+- For string splitting, PostgreSQL offers SPLIT_PART(string, delimiter, position)
+- SUBSTRING and POSITION are useful for string extraction
+- Average calculations can use window functions or subqueries
+- Always consider NULL handling in string operations
+
+Good luck!

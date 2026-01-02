@@ -1,76 +1,76 @@
 # Daily SQL Practice Tasks
 
 **Generated:** 2025-12-30
-**Week 3, Day 5 Focus:** Advanced Date Arithmetic, Complex Filtering, Multi-Table Analysis
+**Week 4, Day 1 Focus:** Practical Analytics, Data Quality Checks, Business Metrics
 
 ---
 
-## Task 1: Order Streaks — Users with Consecutive Day Ordering
+## Task 1: Product Inventory Analysis
 
 **Scenario:**
-The marketing team wants to identify highly engaged users who made purchases on consecutive days (not just consecutive months, but actual back-to-back days). Find users who have ordered on at least 3 consecutive days at some point in their history.
+The inventory team wants to understand which products are ordered most frequently and in what quantities. For each product, calculate total quantity sold, number of orders it appears in, and average quantity per order.
 
 **Expected Output Columns:**
-- `user_id` (integer)
-- `streak_start_date` (date) — the first day of the consecutive streak
-- `streak_end_date` (date) — the last day of the consecutive streak
-- `streak_length` (integer) — number of consecutive days in the streak
-- `total_orders_in_streak` (bigint) — total number of orders during the streak period
-
-**Requirements:**
-- Use `orders` table
-- Identify sequences where a user ordered on consecutive calendar days
-- Only include streaks of 3 or more consecutive days
-- If a user has multiple streaks, show all of them
-- Order by `streak_length` DESC, `user_id` ASC
-
-**Difficulty Rating:** 5/5
-
----
-
-## Task 2: Product Category Performance Comparison
-
-**Scenario:**
-The product team wants to compare category performance. For each product category, show total revenue, average order value, and how it compares to the overall average across all categories.
-
-**Expected Output Columns:**
+- `product_name` (varchar)
 - `category_name` (varchar)
-- `total_revenue` (numeric) — total revenue for this category, rounded to 2 decimals
-- `order_count` (bigint) — number of orders containing products from this category
-- `avg_order_value` (numeric) — average revenue per order for this category, rounded to 2 decimals
-- `overall_avg_order_value` (numeric) — average order value across all categories, rounded to 2 decimals
-- `performance_vs_avg` (numeric) — difference between category avg and overall avg, rounded to 2 decimals
+- `total_quantity_sold` (numeric) — sum of all quantities ordered
+- `order_count` (bigint) — number of distinct orders containing this product
+- `avg_quantity_per_order` (numeric) — average quantity ordered per order, rounded to 2 decimals
 
 **Requirements:**
 - Use `products`, `product_categories`, `orders_products` tables
-- Calculate revenue as price × quantity
-- Calculate average order value per category
-- Compare each category's performance to the overall average
-- Order by `total_revenue` DESC
+- Calculate total quantity sold across all orders
+- Count distinct orders (not total line items)
+- Order by `total_quantity_sold` DESC
 
-**Difficulty Rating:** 4/5
+**Difficulty Rating:** 3/5
 
 ---
 
-## Task 3: Support Ticket Resolution Analysis by Priority
+## Task 2: User Activity Cohort Analysis
 
 **Scenario:**
-The support team wants to analyze ticket resolution patterns by priority level. Show average resolution time and ticket count for each priority level, but only for tickets that have been resolved (status = 'resolved' or 'closed').
+The marketing team wants to segment users based on when they first registered (cohort analysis). Group users by their registration month/year and show how many are still active.
 
 **Expected Output Columns:**
-- `priority` (text) — ticket priority level
-- `resolved_ticket_count` (bigint) — number of resolved/closed tickets at this priority
-- `avg_resolution_time_hours` (numeric) — average time from creation to last update for resolved tickets, in hours, rounded to 2 decimals
-- `min_resolution_time_hours` (numeric) — fastest resolution time in hours, rounded to 2 decimals
-- `max_resolution_time_hours` (numeric) — slowest resolution time in hours, rounded to 2 decimals
+- `cohort_year` (integer) — year of registration
+- `cohort_month` (integer) — month of registration (1-12)
+- `total_users_in_cohort` (bigint) — total users who registered in this month
+- `active_users_in_cohort` (bigint) — users from this cohort who are currently active (is_active = TRUE)
+- `retention_rate` (numeric) — percentage of cohort that is still active, rounded to 2 decimals
 
 **Requirements:**
-- Use `chat_tickets` table
-- Only include tickets with status 'resolved' or 'closed'
-- Calculate resolution time as difference between created_at and updated_at
-- Convert time to hours
-- Group by priority level
-- Order by `avg_resolution_time_hours` ASC
+- Use `users` table
+- Extract year and month from created_at (registration date)
+- Count total users per cohort
+- Count active users per cohort (is_active = TRUE)
+- Calculate retention rate as (active_users / total_users) * 100
+- Order by `cohort_year` DESC, `cohort_month` DESC (newest cohorts first)
+
+**Difficulty Rating:** 3/5
+
+---
+
+## Task 3: Transaction Type Distribution by User
+
+**Scenario:**
+The finance team wants to understand user transaction patterns. For each user, show how many transactions they've made of each type (withdrawal, payment, transfer, deposit, purchase).
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `total_transactions` (bigint) — total number of transactions for this user
+- `withdrawal_count` (bigint) — count of withdrawal transactions
+- `payment_count` (bigint) — count of payment transactions
+- `transfer_count` (bigint) — count of transfer transactions
+- `deposit_count` (bigint) — count of deposit transactions
+- `purchase_count` (bigint) — count of purchase transactions
+
+**Requirements:**
+- Use `transactions` table
+- Count transactions by type for each user
+- Use conditional aggregation (CASE WHEN or FILTER) to count each type
+- Only include users who have at least one transaction
+- Order by `total_transactions` DESC
 
 **Difficulty Rating:** 3/5
 
@@ -79,16 +79,17 @@ The support team wants to analyze ticket resolution patterns by priority level. 
 ## Submission Instructions
 
 Submit your SQL solutions when ready. I'll provide detailed feedback on:
-- Date arithmetic and consecutive sequence detection
-- Multi-table aggregations and comparisons
-- Timestamp differences and time unit conversions
-- Grouping and filtering strategies
+- Multi-table JOINs and aggregations
+- Cohort analysis patterns
+- Conditional aggregation techniques (CASE WHEN vs FILTER)
+- Percentage calculations and rounding
 
 ## Tips
 
-- Consecutive day detection often requires LAG or complex date arithmetic
-- Multi-table revenue calculations need careful JOIN conditions
-- Time differences: EXTRACT(EPOCH FROM interval) gives seconds, divide by 3600 for hours
-- Consider using CTEs to break complex problems into manageable steps
+- COUNT(DISTINCT column) for counting unique values
+- EXTRACT for pulling year/month from timestamps
+- Conditional aggregation: `SUM(CASE WHEN type = 'withdrawal' THEN 1 ELSE 0 END)`
+- Or use FILTER: `COUNT(*) FILTER (WHERE type = 'withdrawal')`
+- Retention rate = (active / total) * 100
 
 Good luck!

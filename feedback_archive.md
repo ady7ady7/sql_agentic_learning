@@ -832,3 +832,58 @@ Strong session with practical, real-world tasks. Excellent self-join logic, perf
 **Task 3 (Above-Average Order Frequency):** "Also a pretty good task"
 
 **Original Task 1 (Recursive CTE with non-existent schema):** Rejected as flawed - asked to assume `parent_id` column that doesn't exist in schema.md
+
+---
+
+### Session: 2025-12-30 (Week 3, Day 5)
+
+## Agent Feedback on Student
+
+**Week 3, Day 5: Mixed results - Task 1 too difficult without scaffolding - 8.7/10**
+
+Task 1 was genuinely Hackerrank Hard level material assigned too early without proper scaffolding. Student's struggle was completely justified. Tasks 2 and 3 were excellent.
+
+**Task 1 - Order Streaks / Consecutive Days (7/10):**
+- ✅ Excellent LAG usage: `LAG(DATE(created_at)) OVER (PARTITION BY user_id ORDER BY created_at)` - correct starting point
+- ✅ Good consecutive day detection: `CASE WHEN date - prev_order_date != 1 THEN 0 ELSE 1` identifies streak continuation
+- ✅ Complex CTE decomposition showing strong problem-solving approach
+- ⚠️ Critical logic issue: `streak_end_date` using `FIRST_VALUE(date) OVER (PARTITION BY user_id ORDER BY date DESC)` gives LAST order date for entire user, not end of this specific streak
+- ⚠️ Streak grouping flawed: `RANK() OVER (PARTITION BY user_id ORDER BY created_at)` just numbers rows, doesn't distinguish separate streaks
+- ⚠️ Classic approach needs: SUM window function to create streak group IDs that increment at breaks
+- **This is Hackerrank Hard / LeetCode Hard territory** - assigned too early in curriculum
+
+**Task 2 - Category Performance Comparison (9/10):**
+- ✅✅ Excellent multi-table JOIN: correct relationships across orders_products, products, product_categories
+- ✅ Correct revenue calculation: `SUM(quantity * price)`
+- ✅ Perfect CROSS JOIN usage for overall average
+- ✅ Clean CTE decomposition
+- ✅ Proper ROUND on all numeric outputs
+- ⚠️ Minor: `performance_vs_avg` is percentage difference (more useful!) but spec asked for raw difference
+- ⚠️ Minor: `order_count` is COUNT of line items, spec implies COUNT(DISTINCT order_id)
+
+**Task 3 - Purchase Recency Analysis (10/10):**
+- ✅✅ Perfect FIRST_VALUE usage: gets most recent order date per user
+- ✅ Correct date arithmetic: `EXTRACT('Day' FROM (NOW() - most_recent_order_date))`
+- ✅ Proper aggregations: COUNT, SUM, AVG with correct ROUND
+- ✅ Smart GROUP BY: user_id and most_recent_order_date
+- ✅ Correct ordering
+- Minor: Used NOW() instead of CURRENT_DATE (both work, DATE more precise)
+- Minor: Missing `most_recent_order_date` in output (only showed days_since)
+
+**Overall Assessment:**
+Tasks 2 and 3 show excellent SQL skills - multi-table JOINs, window functions, aggregations all strong. Task 1's difficulty was inappropriate for Week 3 - this is Week 8-10 material requiring streak grouping pattern that wasn't taught yet.
+
+**Agent Self-Criticism - Task Difficulty Progression Error:**
+- Task 1 (streak detection) is genuinely hard - requires SUM window function trick for creating group IDs
+- Should have scaffolded: Week 3 = detect pairs of consecutive days, Week 4 = count consecutive pairs, Week 5+ = full streak detection with hints
+- Instead, jumped straight to hardest version without teaching the pattern
+- Student's struggle was completely justified: "It was super difficult and perhaps even maybe a bit retarded, as expecting me to get all of these things correctly with SQL is really difficult"
+- **Key learning**: Complex patterns need scaffolding - teach foundation, then build complexity
+
+## Student Feedback on Questions
+
+**Task 1 (Order Streaks):** "That was truly a hated task for me, I really struggled with it and I don't think I've got it 100% correct IN THE END. It was super difficult and perhaps even maybe a bit retarded, as expecting me to get all of these things correctly with SQL is really difficult, or maybe I don't get how to do it yet. If that's doable, let me know."
+
+**Follow-up feedback:** "Honestly, if this is the type of material that I WILL EVENTUALLY need to learn, then cool, you may assign something like that, but it would be better if we had very simple examples of such things and you could give me a little tip, so that I will be able to learn as it really felt like a struggle today."
+
+**Agent response:** Yes, streak/islands detection is important for advanced SQL analytics, but should have been scaffolded over 2-3 sessions instead of thrown in all at once.

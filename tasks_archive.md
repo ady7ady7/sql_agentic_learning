@@ -1879,3 +1879,197 @@ Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - Always consider NULL handling in string operations
 
 Good luck!
+
+### Task Archive: 2025-12-30 (Week 3, Day 5)
+
+# Daily SQL Practice Tasks
+
+**Generated:** 2025-12-30
+**Week 3, Day 5 Focus:** Advanced Date Arithmetic, Complex Filtering, Multi-Table Analysis
+
+---
+
+## Task 1: Order Streaks — Users with Consecutive Day Ordering
+
+**Scenario:**
+The marketing team wants to identify highly engaged users who made purchases on consecutive days (not just consecutive months, but actual back-to-back days). Find users who have ordered on at least 3 consecutive days at some point in their history.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `streak_start_date` (date) — the first day of the consecutive streak
+- `streak_end_date` (date) — the last day of the consecutive streak
+- `streak_length` (integer) — number of consecutive days in the streak
+- `total_orders_in_streak` (bigint) — total number of orders during the streak period
+
+**Requirements:**
+- Use `orders` table
+- Identify sequences where a user ordered on consecutive calendar days
+- Only include streaks of 3 or more consecutive days
+- If a user has multiple streaks, show all of them
+- Order by `streak_length` DESC, `user_id` ASC
+
+**Difficulty Rating:** 5/5
+
+WITH users_orders_dates AS (
+	SELECT
+		user_id,
+		created_at,
+		DATE(created_at) AS date,
+		LAG(DATE(created_at)) OVER (PARTITION BY user_id ORDER BY created_at) AS prev_order_date
+	FROM orders
+	),
+orders_days_diffs AS (
+SELECT
+	*,
+	date - prev_order_date AS days_diff,
+	CASE 
+	WHEN prev_order_date IS NULL OR date - prev_order_date != 1 THEN 0 ELSE 1
+	END AS streak_continuation
+FROM users_orders_dates
+),
+users_streaks AS (
+	SELECT *,
+	RANK() OVER (PARTITION BY user_id ORDER BY created_at) AS streak
+	FROM orders_days_diffs
+	WHERE streak_continuation = 1
+),
+users_streak_dates AS (
+	SELECT 
+		*,
+		streak + 1 AS streak_length,
+		CASE
+			WHEN streak = 1 THEN prev_order_date ELSE LAG(prev_order_date) OVER (PARTITION BY user_id)
+		END AS streak_start_date,
+		FIRST_VALUE(date) OVER (PARTITION BY user_id ORDER BY date DESC) AS streak_end_date
+	FROM users_streaks
+	ORDER BY user_id, date
+	),
+users_streak_finals AS (
+SELECT
+	*,
+	COALESCE(streak_start_date, LAG(streak_start_date) OVER (PARTITION BY user_id)) AS streak_start
+FROM users_streak_dates
+),
+users_streaks_display AS (
+	SELECT
+		usf.user_id,
+		usf.streak_start AS streak_start_date,
+		usf.streak_end_date,
+		usf.streak_length,
+		MAX(usf.streak_length) OVER (PARTITION BY usf.user_id, usf.streak_end_date) AS total_orders_in_streak
+	FROM users_streak_finals usf
+)
+SELECT 
+	*
+FROM users_streaks_display
+WHERE streak_length > 2
+ORDER BY streak_length DESC, user_id
+
+
+That was truly a hated task for me, I really struggled with it and I don't think I've got it 100% correct IN THE END. It was super difficult and perhaps even maybe a bit retarded, as expecting me to get all of these things correctly with SQL is really difficult, or maybe I don't get how to do it yet. If that's doable, let me know.
+---
+
+## Task 2: Product Category Performance Comparison
+
+**Scenario:**
+The product team wants to compare category performance. For each product category, show total revenue, average order value, and how it compares to the overall average across all categories.
+
+**Expected Output Columns:**
+- `category_name` (varchar)
+- `total_revenue` (numeric) — total revenue for this category, rounded to 2 decimals
+- `order_count` (bigint) — number of orders containing products from this category
+- `avg_order_value` (numeric) — average revenue per order for this category, rounded to 2 decimals
+- `overall_avg_order_value` (numeric) — average order value across all categories, rounded to 2 decimals
+- `performance_vs_avg` (numeric) — difference between category avg and overall avg, rounded to 2 decimals
+
+**Requirements:**
+- Use `products`, `product_categories`, `orders_products` tables
+- Calculate revenue as price × quantity
+- Calculate average order value per category
+- Compare each category's performance to the overall average
+- Order by `total_revenue` DESC
+
+**Difficulty Rating:** 4/5
+
+WITH categories_revenues AS (
+	SELECT 
+		pc."name" AS category_name,
+		COUNT(*) AS order_count,
+		ROUND(SUM(op.quantity::NUMERIC * p.price::NUMERIC), 2) AS total_revenue,
+		ROUND(AVG(op.quantity::NUMERIC * p.price::NUMERIC), 2) AS avg_order_value
+	FROM orders_products op
+	JOIN products p ON op.product_id = p.id
+	JOIN product_categories pc ON p.category_id = pc.id
+	GROUP BY pc."name"
+	),
+overall_avg_order AS (
+	SELECT 
+		ROUND(AVG(o.amount::NUMERIC), 2) AS overall_avg_order_value
+	FROM orders o
+	)
+SELECT
+	*,
+	ROUND((cr.avg_order_value - oao.overall_avg_order_value) / oao.overall_avg_order_value  * 100, 2) AS performance_vs_avg
+FROM categories_revenues cr
+CROSS JOIN overall_avg_order oao
+ORDER BY total_revenue DESC
+
+
+---
+
+## Task 3: User Purchase Recency Analysis
+
+**Scenario:**
+The marketing team wants to segment users based on their purchasing behavior. For each user who has made orders, calculate when they last purchased, their total order count, and their lifetime spending value.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `most_recent_order_date` (date) — date of their most recent order
+- `days_since_last_order` (integer) — days between their most recent order and the current date
+- `total_orders` (bigint) — total number of orders this user has made
+- `total_lifetime_value` (numeric) — sum of all order amounts for this user, rounded to 2 decimals
+- `avg_order_value` (numeric) — average order amount for this user, rounded to 2 decimals
+
+**Requirements:**
+- Use `orders` table
+- Calculate days since last order using CURRENT_DATE - most_recent_order_date
+- Include all users who have placed at least one order
+- Handle NULL amounts appropriately
+- Order by `days_since_last_order` ASC (most recent purchasers first)
+
+**Difficulty Rating:** 3/5
+
+WITH users_orders AS (
+SELECT *,
+FIRST_VALUE(DATE(created_at)) OVER (PARTITION BY user_id ORDER BY created_at DESC) AS most_recent_order_date
+FROM orders
+)
+SELECT 
+	user_id,
+	EXTRACT('Day' FROM (NOW() - most_recent_order_date)) AS days_since_last_order,
+	COUNT(*) AS total_orders,
+	ROUND(SUM(amount::NUMERIC), 2) AS total_lifetime_value,
+	ROUND(AVG(amount::NUMERIC), 2) AS avg_order_value
+FROM users_orders
+GROUP BY user_id, most_recent_order_date
+ORDER BY days_since_last_order, user_id
+
+
+---
+
+## Submission Instructions
+
+Submit your SQL solutions when ready. I'll provide detailed feedback on:
+- Date arithmetic and consecutive sequence detection
+- Multi-table aggregations and comparisons
+- Timestamp differences and time unit conversions
+- Grouping and filtering strategies
+
+## Tips
+
+- Consecutive day detection often requires LAG or complex date arithmetic
+- Multi-table revenue calculations need careful JOIN conditions
+- Time differences: EXTRACT(EPOCH FROM interval) gives seconds, divide by 3600 for hours
+- Consider using CTEs to break complex problems into manageable steps
+
+Good luck!

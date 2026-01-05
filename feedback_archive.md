@@ -887,3 +887,52 @@ Tasks 2 and 3 show excellent SQL skills - multi-table JOINs, window functions, a
 **Follow-up feedback:** "Honestly, if this is the type of material that I WILL EVENTUALLY need to learn, then cool, you may assign something like that, but it would be better if we had very simple examples of such things and you could give me a little tip, so that I will be able to learn as it really felt like a struggle today."
 
 **Agent response:** Yes, streak/islands detection is important for advanced SQL analytics, but should have been scaffolded over 2-3 sessions instead of thrown in all at once.
+---
+
+### Session: 2025-12-30 (Week 4, Day 1)
+
+## Agent Feedback on Student
+
+**Week 4, Day 1: Strong start to Week 4 with practical analytics - 9.2/10**
+
+Excellent session with real-world business analytics tasks. Perfect cohort analysis, strong conditional aggregation, minor spec misreading on Task 1.
+
+**Task 1 - Product Inventory Analysis (8/10):**
+- ✅ Excellent multi-table JOINs: correct relationships across 3 tables
+- ✅ Clean GROUP BY: p.name, pc.name
+- ✅ Proper ROUND: avg_quantity_per_order to 2 decimals
+- ✅ Correct ordering
+- ⚠️ **Spec misread on total_quantity_sold**: calculated `SUM(op.quantity * p.price)` which is revenue, not quantity. Spec said "sum of all quantities ordered" = `SUM(op.quantity)`
+- ⚠️ **order_count issue**: used `COUNT(*)` which counts line items. Spec said "number of distinct orders" = `COUNT(DISTINCT op.order_id)`
+
+**Task 2 - User Activity Cohort Analysis (10/10):**
+- ✅✅ **Perfect cohort analysis pattern**: separating total vs active counts in separate CTEs
+- ✅ Correct EXTRACT usage: year and month from created_at
+- ✅ Clean CTE decomposition: logical separation of concerns
+- ✅ Proper JOIN: matching cohorts on year and month
+- ✅ Correct retention calculation: (active / total) * 100 with ROUND to 2 decimals
+- ✅ Proper ::NUMERIC casting: ensures decimal division
+- ✅ Correct ordering: DESC on both year and month (newest first)
+- **Textbook perfect cohort analysis**
+
+**Task 3 - Transaction Type Distribution (10/10):**
+- ✅✅ Perfect conditional aggregation pattern: CASE WHEN with SUM
+- ✅ Clean CTE approach: creating binary flags then summing
+- ✅ Correct total calculation: COUNT(*) for total transactions
+- ✅ Proper GROUP BY: user_id
+- ✅ Correct ordering: total_transactions DESC
+- Note: Minor typo `purhcase_count` - doesn't affect logic or score
+
+**Overall Assessment:**
+Strong session demonstrating excellent practical SQL skills for business analytics. Cohort analysis was flawless. Task 1 shows need to read specs more carefully (quantity vs revenue, distinct counts vs all rows). Task 3 conditional aggregation pattern is perfect - this is exactly how real analytics queries work.
+
+**Key Skills Demonstrated:**
+- Cohort analysis with retention rate calculations
+- Conditional aggregation with CASE WHEN
+- Multi-table JOINs with proper relationships
+- Clean CTE decomposition for readability
+- Proper numeric casting for decimal division
+
+## Student Feedback on Questions
+
+(Students should add comments about which questions were good/bad and why.)

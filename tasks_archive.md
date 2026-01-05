@@ -2073,3 +2073,173 @@ Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - Consider using CTEs to break complex problems into manageable steps
 
 Good luck!
+### Task Archive: 2025-12-30 (Week 4, Day 1)
+
+# Daily SQL Practice Tasks
+
+**Generated:** 2025-12-30
+**Week 4, Day 1 Focus:** Practical Analytics, Data Quality Checks, Business Metrics
+
+---
+
+## Task 1: Product Inventory Analysis
+
+**Scenario:**
+The inventory team wants to understand which products are ordered most frequently and in what quantities. For each product, calculate total quantity sold, number of orders it appears in, and average quantity per order.
+
+**Expected Output Columns:**
+- `product_name` (varchar)
+- `category_name` (varchar)
+- `total_quantity_sold` (numeric) — sum of all quantities ordered
+- `order_count` (bigint) — number of distinct orders containing this product
+- `avg_quantity_per_order` (numeric) — average quantity ordered per order, rounded to 2 decimals
+
+**Requirements:**
+- Use `products`, `product_categories`, `orders_products` tables
+- Calculate total quantity sold across all orders
+- Count distinct orders (not total line items)
+- Order by `total_quantity_sold` DESC
+
+**Difficulty Rating:** 3/5
+
+SELECT 
+	p.name AS product_name,
+	pc."name" AS category_name,
+	SUM(op.quantity * p.price) AS total_quantity_sold,
+	COUNT(*) AS order_count,
+	ROUND(AVG(op.quantity), 2) AS avg_quantity_per_order
+FROM orders_products op
+JOIN products p ON op.product_id = p.id
+JOIN product_categories pc ON pc.id = p.category_id
+GROUP BY p.name, pc.name
+ORDER BY total_quantity_sold DESC
+
+---
+
+## Task 2: User Activity Cohort Analysis
+
+**Scenario:**
+The marketing team wants to segment users based on when they first registered (cohort analysis). Group users by their registration month/year and show how many are still active.
+
+**Expected Output Columns:**
+- `cohort_year` (integer) — year of registration
+- `cohort_month` (integer) — month of registration (1-12)
+- `total_users_in_cohort` (bigint) — total users who registered in this month
+- `active_users_in_cohort` (bigint) — users from this cohort who are currently active (is_active = TRUE)
+- `retention_rate` (numeric) — percentage of cohort that is still active, rounded to 2 decimals
+
+**Requirements:**
+- Use `users` table
+- Extract year and month from created_at (registration date)
+- Count total users per cohort
+- Count active users per cohort (is_active = TRUE)
+- Calculate retention rate as (active_users / total_users) * 100
+- Order by `cohort_year` DESC, `cohort_month` DESC (newest cohorts first)
+
+**Difficulty Rating:** 3/5
+
+WITH users_reg_year_month AS (
+	SELECT
+		*,
+		EXTRACT('Year' FROM created_at) AS year_,
+		EXTRACT('Month' FROM created_at) AS month_
+	FROM users
+	),
+users_cohorts AS (
+	SELECT
+		year_,
+		month_,
+		COUNT(id) AS total_users_in_cohort
+	FROM users_reg_year_month
+	GROUP BY year_, month_
+	),
+active_cohorts AS (
+	SELECT
+		year_,
+		month_,
+		COUNT(id) AS active_users_in_cohort
+	FROM users_reg_year_month
+	WHERE is_active = True
+	GROUP BY year_, month_
+	)
+SELECT
+ac.month_ AS cohort_month,
+ac.year_ AS cohort_year,
+ac.active_users_in_cohort,
+uc.total_users_in_cohort,
+ROUND(ac.active_users_in_cohort::NUMERIC / uc.total_users_in_cohort::NUMERIC * 100, 2) AS retention_rate_prct
+FROM active_cohorts ac
+JOIN users_cohorts uc ON ac.year_ = uc.year_ AND ac.month_ = uc.month_
+ORDER BY cohort_year DESC, cohort_month DESC
+
+
+---
+
+## Task 3: Transaction Type Distribution by User
+
+**Scenario:**
+The finance team wants to understand user transaction patterns. For each user, show how many transactions they've made of each type (withdrawal, payment, transfer, deposit, purchase).
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `total_transactions` (bigint) — total number of transactions for this user
+- `withdrawal_count` (bigint) — count of withdrawal transactions
+- `payment_count` (bigint) — count of payment transactions
+- `transfer_count` (bigint) — count of transfer transactions
+- `deposit_count` (bigint) — count of deposit transactions
+- `purchase_count` (bigint) — count of purchase transactions
+
+**Requirements:**
+- Use `transactions` table
+- Count transactions by type for each user
+- Use conditional aggregation (CASE WHEN or FILTER) to count each type
+- Only include users who have at least one transaction
+- Order by `total_transactions` DESC
+
+**Difficulty Rating:** 3/5
+
+
+WITH transactions_labels AS (
+SELECT 
+	*,
+	CASE WHEN TYPE = 'transfer' THEN 1 ELSE 0 END AS transfer_count,
+	CASE WHEN TYPE = 'payment' THEN 1 ELSE 0 END AS payment_count,
+	CASE WHEN TYPE = 'deposit' THEN 1 ELSE 0 END AS deposit_count,
+	CASE WHEN TYPE = 'withdrawal' THEN 1 ELSE 0 END AS withdrawal_count,
+	CASE WHEN TYPE = 'purchase' THEN 1 ELSE 0 END AS purchase_count
+FROM transactions
+)
+SELECT
+	user_id,
+	COUNT(*) AS total_transactions,
+	SUM(transfer_count) AS transfer_count,
+	SUM(payment_count) AS payment_count,
+	SUM(deposit_count) AS deposit_count,
+	SUM(withdrawal_count) AS withdrawal_count,
+	SUM(purchase_count) AS purhcase_count
+FROM transactions_labels
+GROUP BY user_id
+ORDER BY total_transactions DESC
+
+
+
+
+---
+
+## Submission Instructions
+
+Submit your SQL solutions when ready. I'll provide detailed feedback on:
+- Multi-table JOINs and aggregations
+- Cohort analysis patterns
+- Conditional aggregation techniques (CASE WHEN vs FILTER)
+- Percentage calculations and rounding
+
+## Tips
+
+- COUNT(DISTINCT column) for counting unique values
+- EXTRACT for pulling year/month from timestamps
+- Conditional aggregation: `SUM(CASE WHEN type = 'withdrawal' THEN 1 ELSE 0 END)`
+- Or use FILTER: `COUNT(*) FILTER (WHERE type = 'withdrawal')`
+- Retention rate = (active / total) * 100
+
+Good luck!

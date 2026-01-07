@@ -1,88 +1,95 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2025-12-31
-**Week 4, Day 3 Focus:** Complex Aggregations, Date Ranges, Business Logic
+**Generated:** 2026-01-01
+**Week 4, Day 4 Focus:** Date Ranges, Session Analysis, Advanced NULL Handling
 
 ---
 
-## Task 1: Monthly Active Users (MAU) Trend
+## Task 1: Users Active in Last 30 Days
 
 **Scenario:**
-The growth team wants to track Monthly Active Users over time. For each month in the data, count how many distinct users placed at least one order during that month.
+The engagement team wants to identify recently active users. Find all users who have placed at least one order in the last 30 days from the current date.
 
 **Expected Output Columns:**
-- `year` (integer) — year from order date
-- `month` (integer) — month from order date (1-12)
-- `monthly_active_users` (bigint) — distinct count of users who placed orders in this month
-- `month_over_month_change` (bigint) — change in MAU compared to previous month (can be negative)
+- `user_id` (integer)
+- `first_name` (varchar)
+- `last_name` (varchar)
+- `most_recent_order_date` (date) — date of their most recent order
+- `days_since_last_order` (integer) — days between most recent order and current date
+- `total_orders_last_30_days` (bigint) — count of orders in last 30 days
 
 **Requirements:**
-- Use `orders` table
-- Count distinct users per month/year
-- Calculate change from previous month
-- Order by year ASC, month ASC
+- Use `users` and `orders` tables
+- Filter to orders within last 30 days from CURRENT_DATE
+- Calculate most recent order date per user
+- Count orders in the 30-day window
+- Order by `days_since_last_order` ASC
+
+**Difficulty Rating:** 3/5
+
+---
+
+## Task 2: Daily Session Patterns
+
+**Scenario:**
+The product team wants to understand session activity patterns. For each date, show total sessions, average sessions per active user, and identify dates with unusually high activity (>10 average sessions per user).
+
+**Expected Output Columns:**
+- `date` (date)
+- `total_sessions` (numeric) — sum of all count_sessions for this date
+- `active_users` (bigint) — count of users who had at least 1 session on this date
+- `avg_sessions_per_user` (numeric) — average sessions per active user, rounded to 2 decimals
+- `high_activity_day` (boolean) — TRUE if avg_sessions_per_user > 10
+
+**Requirements:**
+- Use `user_sessions_daily` table
+- Calculate total sessions per date
+- Count users who had sessions (count_sessions > 0)
+- Calculate average sessions per active user
+- Flag high activity days
+- Order by `date` DESC
 
 **Difficulty Rating:** 4/5
 
 ---
 
-## Task 2: High-Value vs Low-Value Customer Segmentation
+## Task 3: Transaction Amount Outliers
 
 **Scenario:**
-The marketing team wants to segment customers into high-value (total lifetime spending > $1000) and low-value (total lifetime spending <= $1000) groups. Show counts and average metrics for each segment.
+The fraud team wants to identify unusually large transactions. Find transactions where the amount is more than 3 times the average transaction amount for that user.
 
 **Expected Output Columns:**
-- `segment` (text) — 'High-Value' or 'Low-Value'
-- `customer_count` (bigint) — number of customers in this segment
-- `avg_lifetime_value` (numeric) — average total spending per customer in segment, rounded to 2 decimals
-- `avg_order_count` (numeric) — average number of orders per customer in segment, rounded to 2 decimals
+- `transaction_id` (integer)
+- `user_id` (integer)
+- `amount` (numeric)
+- `user_avg_transaction` (numeric) — average transaction amount for this user, rounded to 2 decimals
+- `times_above_avg` (numeric) — how many times above their average this transaction is, rounded to 2 decimals
 
 **Requirements:**
-- Use `orders` table
-- Calculate total spending per user
-- Segment users based on $1000 threshold
-- Aggregate metrics per segment
-- Order by segment DESC (High-Value first)
+- Use `transactions` table
+- Calculate average transaction amount per user
+- Find transactions > 3x their user's average
+- Only include transactions with non-null amounts
+- Order by `times_above_avg` DESC
 
 **Difficulty Rating:** 4/5
-
----
-
-## Task 3: Products Ordered Together Analysis
-
-**Scenario:**
-The product team wants to understand which products are frequently purchased together in the same order. Find the top 10 product pairs that appear together most often.
-
-**Expected Output Columns:**
-- `product_1_name` (varchar) — name of first product (alphabetically earlier)
-- `product_2_name` (varchar) — name of second product (alphabetically later)
-- `times_ordered_together` (bigint) — number of orders containing both products
-
-**Requirements:**
-- Use `products`, `orders_products` tables
-- Find product pairs that appear in the same order_id
-- Avoid duplicates (if A-B exists, don't show B-A)
-- Ensure product_1_name comes before product_2_name alphabetically
-- Show top 10 pairs by frequency
-- Order by `times_ordered_together` DESC
-
-**Difficulty Rating:** 5/5
 
 ---
 
 ## Submission Instructions
 
 Submit your SQL solutions when ready. I'll provide detailed feedback on:
-- LAG for time-series comparisons
-- Conditional logic for segmentation
-- Self-joins for finding pairs
-- Deduplication strategies
+- Date range filtering (INTERVAL, date arithmetic)
+- Aggregation with conditional logic
+- Window functions vs subqueries for averages
+- Boolean flag creation
 
 ## Tips
 
-- LAG() OVER (ORDER BY year, month) for previous month's value
-- CASE WHEN for conditional segmentation
-- Self-join on same table with order_id match for pairs
-- Use comparison operators to avoid duplicate pairs (e.g., p1.name < p2.name)
+- Date filtering: WHERE date >= CURRENT_DATE - INTERVAL '30 days'
+- Or: WHERE date >= CURRENT_DATE - 30
+- CASE WHEN for boolean flags
+- Window functions can calculate user averages: AVG(amount) OVER (PARTITION BY user_id)
+- Or use subquery/CTE for user averages
 
 Good luck!

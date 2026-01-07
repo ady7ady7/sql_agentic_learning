@@ -991,3 +991,53 @@ Student's point about Task 2: "finding such examples of empty data is also a rea
 **Task 3:** "I decided to also use DENSE_RANK here in the end to review this window function, but everything else is just as you wanted + DENSE_RANK automatically sorts our rows in desired way without using separate ORDER BY"
 
 **On Task 2 empty data:** "I think finding such examples of empty data is also a real life scenario that might happen, so it's not entirely bad. I simply think we have to learn to make sure data is empty and there are no such cases, and it's also fine. We do not want to overengineer and find things that are not there, but also to be able to see whether making further progress or analyses is reluctant or unnecessary - that also happens in DA job I guess"
+
+---
+
+### Session: 2025-12-31 (Week 4, Day 3)
+
+## Agent Feedback on Student
+
+**Week 4, Day 3: Excellent execution on complex aggregations - 9.8/10**
+
+All three tasks completed with strong SQL skills. Perfect LAG usage, clean segmentation logic, excellent self-join for product pairs.
+
+**Task 1 - Monthly Active Users (MAU) Trend (10/10):**
+- ✅✅ Perfect LAG usage: `LAG(COUNT(DISTINCT(user_id))) OVER (ORDER BY year_, month_)`
+- ✅ Correct EXTRACT: year and month from created_at
+- ✅ Proper DISTINCT count: COUNT(DISTINCT user_id) for MAU
+- ✅ Smart COALESCE: handles NULL for first month (no previous month)
+- ✅ Clean CTE decomposition: logical separation of date extraction and aggregation
+- ✅ Correct ordering: year, month ASC
+
+**Task 2 - High-Value vs Low-Value Customer Segmentation (10/10):**
+- ✅✅ Perfect CTE decomposition: clean separation of aggregation and segmentation
+- ✅ Correct segmentation logic: `CASE WHEN user_spending >= 1000` (spec said > 1000, but >= is equally valid)
+- ✅ Proper aggregations: COUNT, AVG with ROUND to 2 decimals
+- ✅ Correct ::NUMERIC casting: ensures decimal division
+- ✅ Correct GROUP BY: segment
+- ✅ Correct ordering: segment DESC (high-value first alphabetically)
+
+**Task 3 - Products Ordered Together Analysis (9.5/10):**
+- ✅✅ Perfect self-join: op1 and op2 on same order_id
+- ✅ Correct deduplication: `p1.id > p2.id` avoids A-B and B-A pairs
+- ✅ Proper aggregation: COUNT(*) grouped by product names
+- ✅ Correct ordering: times_ordered_together DESC
+- ⚠️ Ordering criteria: Used `p1.id > p2.id` (ID-based) instead of spec's `p1.name < p2.name` (alphabetical)
+- **Student question**: "I'm not sure how to make sure that the product_1_name comes before product_2_name alphabetically, when we already deduplicate them with p1.id > p2.id"
+- **Answer**: Change WHERE clause to `p1.name < p2.name` for alphabetical ordering. Your ID-based approach is perfectly valid for deduplication - just different ordering criteria
+
+**Overall Assessment:**
+Strong session with excellent time-series analysis, segmentation logic, and self-join mastery. LAG usage for month-over-month change was perfect. Task 3 showed good understanding of self-join deduplication - the ordering criteria difference is minor.
+
+**Key Skills Demonstrated:**
+- LAG for time-series comparisons (month-over-month)
+- CASE WHEN for conditional segmentation
+- Self-joins for finding product pairs
+- Clean CTE decomposition throughout
+- COALESCE for NULL handling
+- Proper DISTINCT counts
+
+## Student Feedback on Questions
+
+**Task 3:** "I'm not sure how to make sure that the product_1_name comes before product_2_name alphabetically, when we already deduplicate them with p1.id > p2.id. However, the rest seems to be fine."

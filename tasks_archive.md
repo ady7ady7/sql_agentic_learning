@@ -2382,3 +2382,161 @@ Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - NULL handling: WHERE column IS NOT NULL
 
 Good luck!
+
+### Task Archive: 2025-12-31 (Week 4, Day 3)
+
+# Daily SQL Practice Tasks
+
+**Generated:** 2025-12-31
+**Week 4, Day 3 Focus:** Complex Aggregations, Date Ranges, Business Logic
+
+---
+
+## Task 1: Monthly Active Users (MAU) Trend
+
+**Scenario:**
+The growth team wants to track Monthly Active Users over time. For each month in the data, count how many distinct users placed at least one order during that month.
+
+**Expected Output Columns:**
+- `year` (integer) — year from order date
+- `month` (integer) — month from order date (1-12)
+- `monthly_active_users` (bigint) — distinct count of users who placed orders in this month
+- `month_over_month_change` (bigint) — change in MAU compared to previous month (can be negative)
+
+**Requirements:**
+- Use `orders` table
+- Count distinct users per month/year
+- Calculate change from previous month
+- Order by year ASC, month ASC
+
+**Difficulty Rating:** 4/5
+
+WITH orders_mon_year AS (
+	SELECT 
+		*,
+		EXTRACT('YEAR' FROM created_at) AS year_,
+		EXTRACT('Month' FROM created_at) AS month_
+	FROM orders
+	ORDER BY year_, month_
+	),
+orders_mau AS (
+SELECT
+	year_,
+	month_,
+	COUNT(DISTINCT(user_id)) AS monthly_active_users,
+	LAG(COUNT(DISTINCT(user_id))) OVER (ORDER BY year_, month_) AS prev_mau
+FROM orders_mon_year
+GROUP BY year_, month_
+)
+SELECT
+	year_,
+	month_,
+	monthly_active_users,
+	COALESCE(monthly_active_users - prev_mau, monthly_active_users) AS month_over_month_change
+FROM orders_mau
+
+
+---
+
+## Task 2: High-Value vs Low-Value Customer Segmentation
+
+**Scenario:**
+The marketing team wants to segment customers into high-value (total lifetime spending > $1000) and low-value (total lifetime spending <= $1000) groups. Show counts and average metrics for each segment.
+
+**Expected Output Columns:**
+- `segment` (text) — 'High-Value' or 'Low-Value'
+- `customer_count` (bigint) — number of customers in this segment
+- `avg_lifetime_value` (numeric) — average total spending per customer in segment, rounded to 2 decimals
+- `avg_order_count` (numeric) — average number of orders per customer in segment, rounded to 2 decimals
+
+**Requirements:**
+- Use `orders` table
+- Calculate total spending per user
+- Segment users based on $1000 threshold
+- Aggregate metrics per segment
+- Order by segment DESC (High-Value first)
+
+**Difficulty Rating:** 4/5
+
+WITH orders_spendings AS (
+	SELECT 
+		user_id,
+		SUM(amount) AS user_spending,
+		COUNT(*) AS order_count
+	FROM orders
+	GROUP BY user_id
+	),
+users_orders_segments AS (
+	SELECT
+		*,
+		CASE
+			WHEN user_spending >= 1000 THEN 'high-value' ELSE 'low-value'
+		END AS segment
+	FROM orders_spendings
+	)
+SELECT
+	segment,
+	COUNT(user_id) AS customer_count,
+	ROUND(AVG(user_spending::NUMERIC), 2) AS avg_lifetime_value,
+	ROUND(AVG(order_count), 2) AS avg_order_count
+FROM users_orders_segments
+GROUP BY segment
+ORDER BY segment DESC
+
+
+---
+
+## Task 3: Products Ordered Together Analysis
+
+**Scenario:**
+The product team wants to understand which products are frequently purchased together in the same order. Find the top 10 product pairs that appear together most often.
+
+**Expected Output Columns:**
+- `product_1_name` (varchar) — name of first product (alphabetically earlier)
+- `product_2_name` (varchar) — name of second product (alphabetically later)
+- `times_ordered_together` (bigint) — number of orders containing both products
+
+**Requirements:**
+- Use `products`, `orders_products` tables
+- Find product pairs that appear in the same order_id
+- Avoid duplicates (if A-B exists, don't show B-A)
+- Ensure product_1_name comes before product_2_name alphabetically
+- Show top 10 pairs by frequency
+- Order by `times_ordered_together` DESC
+
+**Difficulty Rating:** 5/5
+
+SELECT 
+p1.name AS product_1_name,
+p2.name AS product_2_name,
+COUNT(*) AS times_ordered_together
+FROM orders_products op1
+JOIN orders_products op2 ON op1.order_id = op2.order_id
+JOIN products p1 ON op1.product_id = p1.id
+JOIN products p2 ON op2.product_id = p2.id
+WHERE p1.id > p2.id
+GROUP BY p1.name, p2.name
+ORDER BY times_ordered_together DESC
+
+I'm not sure how to make sure that the product_1_name comes before product_2_name alpabetically, when we already deduplicate them with p1.id > p2.id.
+
+However, the rest seems to be fine.
+
+---
+
+## Submission Instructions
+
+Submit your SQL solutions when ready. I'll provide detailed feedback on:
+- LAG for time-series comparisons
+- Conditional logic for segmentation
+- Self-joins for finding pairs
+- Deduplication strategies
+
+## Tips
+
+- LAG() OVER (ORDER BY year, month) for previous month's value
+- CASE WHEN for conditional segmentation
+- Self-join on same table with order_id match for pairs
+- Use comparison operators to avoid duplicate pairs (e.g., p1.name < p2.name)
+
+Good luck!

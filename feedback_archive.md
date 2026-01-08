@@ -1041,3 +1041,77 @@ Strong session with excellent time-series analysis, segmentation logic, and self
 ## Student Feedback on Questions
 
 **Task 3:** "I'm not sure how to make sure that the product_1_name comes before product_2_name alphabetically, when we already deduplicate them with p1.id > p2.id. However, the rest seems to be fine."
+
+---
+
+### Session: 2026-01-08 (Week 4, Day 4)
+
+## Agent Feedback on Student
+
+**Week 4, Day 4: Strong practical DA approach with excellent data validation - 8.5/10**
+
+**Task 1 - Users Active in Last 30 Days (7/10):**
+- ❌ Critical error: `total_orders_last_30_days` returns same count for every user (global count, not per-user)
+  - Used: `(SELECT COUNT(*) FROM orders WHERE created_at > (NOW() - INTERVAL '30' DAY))`
+  - Needed: `COUNT(*) FILTER (WHERE created_at > CURRENT_DATE - INTERVAL '30 days')` within aggregation
+- ❌ Missing 30-day filter: returned ALL users instead of filtering `WHERE most_recent_order_date >= CURRENT_DATE - INTERVAL '30 days'`
+- ✅ Clean CTE structure for most recent order date
+- ✅ Correct date arithmetic: `EXTRACT('Day' FROM NOW() - date)`
+- **Student note:** Discovered no users had orders in last 30 days, struggled with NULL handling for 40 minutes
+- **Teaching point:** The per-user count needed window function or FILTER clause within the grouped aggregation
+
+**Task 2 - Daily Session Patterns (9.5/10):**
+- ✅✅ Perfect use of `dates` table with LEFT JOIN - ensures all dates appear
+- ✅✅ Clean NULL handling: `COALESCE(SUM(usd.count_sessions), 0)`
+- ✅ Proper `::NUMERIC` casting for division
+- ✅ Smart `COUNT(DISTINCT(usd.user_id))` for active_users
+- ✅ **Excellent practical judgment:** Validated spec threshold (>10), found no matches, adjusted to 4 and documented findings
+- ✅ Provided actionable insights instead of empty result set
+- Clean two-CTE structure for readability
+
+**Task 3 - Transaction Amount Outliers (9/10):**
+- ✅✅ Perfect window function: `AVG(amount) OVER (PARTITION BY user_id)` - textbook approach
+- ✅ Clean calculation: `ROUND(amount / avg_transaction_amount, 2)`
+- ✅ **Excellent data validation:** Checked 3x threshold, found none, identified 2x+ outliers instead
+- ✅ Documented findings clearly: "no transactions above 3 mark, but there were some above the 2 mark"
+- Minor: Extra column `higher_than_avg_transaction` not in spec, but doesn't hurt
+- **Practical DA skill:** Providing sorted outliers by deviation is more useful than empty set
+
+---
+
+## Key Insight: Data Validation as Core DA Skill
+
+**What you did right:**
+- Validated business thresholds against actual data
+- Documented when specs didn't match reality
+- Provided actionable alternatives (4+ sessions, 2x+ transactions)
+- Sorted results to show highest deviations
+
+**This is exactly what good analysts do** - you don't just run queries blindly, you validate assumptions and provide insights even when exact specs don't match data.
+
+Your approach in Task 2 and Task 3 shows mature analytical thinking: "The threshold yields nothing, but here's what we CAN find at realistic levels."
+
+---
+
+## Technical Skills Progress
+
+**Strengths this session:**
+- Window functions: AVG() OVER (PARTITION BY) - perfect execution
+- NULL handling: COALESCE for aggregations
+- Date arithmetic: EXTRACT, INTERVAL, NOW() usage
+- CTE structure: clean multi-step decomposition
+- LEFT JOIN: proper use for preserving all dates
+- **Data validation: Checking thresholds, documenting findings, providing alternatives**
+
+**Task 1 learning opportunity:**
+The per-user count within a date range is tricky when combining with most recent order date. Two approaches:
+1. Window function with FILTER: `COUNT(*) FILTER (WHERE created_at > CURRENT_DATE - 30) OVER (PARTITION BY user_id)`
+2. Correlated subquery: `(SELECT COUNT(*) FROM orders o2 WHERE o2.user_id = o.user_id AND o2.created_at > CURRENT_DATE - 30)`
+
+Your uncorrelated subquery `(SELECT COUNT(*) FROM orders WHERE ...)` returns the same value for all rows because it has no connection to the outer query's user_id.
+
+---
+
+## Student Feedback on Questions
+
+*(To be filled by student)*

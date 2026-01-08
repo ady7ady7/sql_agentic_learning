@@ -2540,3 +2540,168 @@ Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - Use comparison operators to avoid duplicate pairs (e.g., p1.name < p2.name)
 
 Good luck!
+
+---
+
+### Task Archive: 2026-01-08 (Week 4, Day 4)
+# Daily SQL Practice Tasks
+
+**Generated:** 2026-01-01
+**Week 4, Day 4 Focus:** Date Ranges, Session Analysis, Advanced NULL Handling
+
+---
+
+## Task 1: Users Active in Last 30 Days
+
+**Scenario:**
+The engagement team wants to identify recently active users. Find all users who have placed at least one order in the last 30 days from the current date.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `first_name` (varchar)
+- `last_name` (varchar)
+- `most_recent_order_date` (date) — date of their most recent order
+- `days_since_last_order` (integer) — days between most recent order and current date
+- `total_orders_last_30_days` (bigint) — count of orders in last 30 days
+
+**Requirements:**
+- Use `users` and `orders` tables
+- Filter to orders within last 30 days from CURRENT_DATE
+- Calculate most recent order date per user
+- Count orders in the 30-day window
+- Order by `days_since_last_order` ASC
+
+**Difficulty Rating:** 3/5
+
+WITH users_last_order_date AS (
+	SELECT
+		user_id,
+		DATE(MAX(created_at)) AS most_recent_order_date
+	FROM orders o
+	GROUP BY user_id
+	)
+	SELECT
+		ulo.user_id,
+		u.first_name,
+		u.last_name,
+		most_recent_order_date,
+		EXTRACT('Day' FROM NOW() - most_recent_order_date) AS days_since_last_order,
+		(SELECT COUNT(*) FROM orders WHERE created_at > (NOW() - INTERVAL '30' DAY)) AS total_orders_last_30_days
+	FROM users_last_order_date ulo
+	JOIN users u ON ulo.user_id = u.id
+	ORDER BY days_since_last_order
+
+While it's an easy task as it is, I've struggled a lot to also calculate and show the total order for the last 30 days. I've discovered pretty early that NONE of the users had orders in the last 30 days, so the task's idea was difficult in that matter.
+
+I wanted however to count specifically that 0 for each user with COALESCE etc., but I entered several issues with that, and as I've started with dates, the user_ids were null if there were no orders, and in the effect I wasn't really able to get sufficient calculation that satisfied me. After nearly 40 minutes of trying, I gave up as I realized that I'm fully aware that there are no orders and perhaps there's no point in further continuation of this particular part.
+
+The final effect is the same as real data.
+
+---
+
+## Task 2: Daily Session Patterns
+
+**Scenario:**
+The product team wants to understand session activity patterns. For each date, show total sessions, average sessions per active user, and identify dates with unusually high activity (>10 average sessions per user).
+
+**Expected Output Columns:**
+- `date` (date)
+- `total_sessions` (numeric) — sum of all count_sessions for this date
+- `active_users` (bigint) — count of users who had at least 1 session on this date
+- `avg_sessions_per_user` (numeric) — average sessions per active user, rounded to 2 decimals
+- `high_activity_day` (boolean) — TRUE if avg_sessions_per_user > 10
+
+**Requirements:**
+- Use `user_sessions_daily` table
+- Calculate total sessions per date
+- Count users who had sessions (count_sessions > 0)
+- Calculate average sessions per active user
+- Flag high activity days
+- Order by `date` DESC
+
+**Difficulty Rating:** 4/5
+
+WITH dates_sessions_users AS (
+SELECT 
+	d.date,
+	COALESCE(SUM(usd.count_sessions), 0) AS total_sessions,
+	COUNT(DISTINCT(usd.user_id)) AS active_users
+FROM dates d
+LEFT JOIN user_sessions_daily usd ON d.date = usd."date"
+GROUP BY d.date
+ORDER BY d.date
+)
+SELECT 
+	*,
+	ROUND(total_sessions::NUMERIC / active_users::NUMERIC, 2) AS avg_sessions_per_user,
+	ROUND(total_sessions::NUMERIC / active_users::NUMERIC, 2) > 4 AS high_activity_day
+FROM dates_sessions_users
+WHERE total_sessions > 0
+ORDER BY date DESC
+
+A note - I've decided to set 4 as the threshold for high_Activity_day, as by looking at the data, there weren't any days where avg_sessions_per_user exceeded 5, and 4 seems to be quite a high number.
+
+
+---
+
+## Task 3: Transaction Amount Outliers
+
+**Scenario:**
+The fraud team wants to identify unusually large transactions. Find transactions where the amount is more than 3 times the average transaction amount for that user.
+
+**Expected Output Columns:**
+- `transaction_id` (integer)
+- `user_id` (integer)
+- `amount` (numeric)
+- `user_avg_transaction` (numeric) — average transaction amount for this user, rounded to 2 decimals
+- `times_above_avg` (numeric) — how many times above their average this transaction is, rounded to 2 decimals
+
+**Requirements:**
+- Use `transactions` table
+- Calculate average transaction amount per user
+- Find transactions > 3x their user's average
+- Only include transactions with non-null amounts
+- Order by `times_above_avg` DESC
+
+**Difficulty Rating:** 4/5
+
+
+WITH users_transactions AS (
+SELECT 
+	id AS transaction_id,
+	user_id,
+	amount,
+	ROUND(AVG(amount) OVER (PARTITION BY user_id), 2) AS avg_transaction_amount
+FROM transactions
+)
+SELECT 
+	*,
+	amount > avg_transaction_amount AS higher_than_avg_transaction,
+	ROUND(amount / avg_transaction_amount, 2) AS times_above_avg
+FROM users_transactions
+ORDER BY times_above_avg DESC
+
+There were absolutely no transactions above 3 mark, but there were some above the 2 mark.
+I've decided to leave them like that iwthout further sorting, as it's perfectly clear and we can see transactions that were deviated the most from the avg_transaction of a particular user.
+
+
+
+---
+
+## Submission Instructions
+
+Submit your SQL solutions when ready. I'll provide detailed feedback on:
+- Date range filtering (INTERVAL, date arithmetic)
+- Aggregation with conditional logic
+- Window functions vs subqueries for averages
+- Boolean flag creation
+
+## Tips
+
+- Date filtering: WHERE date >= CURRENT_DATE - INTERVAL '30 days'
+- Or: WHERE date >= CURRENT_DATE - 30
+- CASE WHEN for boolean flags
+- Window functions can calculate user averages: AVG(amount) OVER (PARTITION BY user_id)
+- Or use subquery/CTE for user averages
+
+Good luck!

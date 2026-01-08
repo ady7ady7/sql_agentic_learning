@@ -1,95 +1,101 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-01-01
-**Week 4, Day 4 Focus:** Date Ranges, Session Analysis, Advanced NULL Handling
+**Generated:** 2026-01-08
+**Week 4, Day 5 Focus:** Complex Aggregations, Multi-Level Grouping, Advanced Filtering
 
 ---
 
-## Task 1: Users Active in Last 30 Days
+## Task 1: Products with Declining Sales
 
 **Scenario:**
-The engagement team wants to identify recently active users. Find all users who have placed at least one order in the last 30 days from the current date.
+The sales team wants to identify products with declining performance. For each product, calculate revenue for the last 3 months and the 3 months before that, then find products where recent revenue is lower than previous revenue.
+
+**Expected Output Columns:**
+- `product_id` (integer)
+- `product_name` (varchar)
+- `recent_3_month_revenue` (numeric) — total revenue from last 3 complete months
+- `previous_3_month_revenue` (numeric) — total revenue from months 4-6 ago
+- `revenue_decline` (numeric) — difference (recent - previous), should be negative
+- `decline_percentage` (numeric) — percentage decline, rounded to 2 decimals
+
+**Requirements:**
+- Use `orders`, `orders_products`, and `products` tables
+- Define "last 3 complete months" as the 3 full calendar months before the current month
+- Calculate revenue as SUM(quantity * price)
+- Only include products where recent_3_month_revenue < previous_3_month_revenue
+- Order by `decline_percentage` ASC (most declining first)
+
+**Difficulty Rating:** 5/5
+
+---
+
+## Task 2: User Engagement Tiers
+
+**Scenario:**
+The product team wants to classify users based on multiple engagement metrics. Create engagement tiers combining order frequency, total spend, and recency.
 
 **Expected Output Columns:**
 - `user_id` (integer)
-- `first_name` (varchar)
-- `last_name` (varchar)
-- `most_recent_order_date` (date) — date of their most recent order
-- `days_since_last_order` (integer) — days between most recent order and current date
-- `total_orders_last_30_days` (bigint) — count of orders in last 30 days
+- `total_orders` (bigint)
+- `total_spent` (numeric)
+- `days_since_last_order` (integer)
+- `engagement_tier` (text) — classification based on combined criteria
+- `tier_rank` (integer) — rank within their tier
 
 **Requirements:**
 - Use `users` and `orders` tables
-- Filter to orders within last 30 days from CURRENT_DATE
-- Calculate most recent order date per user
-- Count orders in the 30-day window
-- Order by `days_since_last_order` ASC
-
-**Difficulty Rating:** 3/5
-
----
-
-## Task 2: Daily Session Patterns
-
-**Scenario:**
-The product team wants to understand session activity patterns. For each date, show total sessions, average sessions per active user, and identify dates with unusually high activity (>10 average sessions per user).
-
-**Expected Output Columns:**
-- `date` (date)
-- `total_sessions` (numeric) — sum of all count_sessions for this date
-- `active_users` (bigint) — count of users who had at least 1 session on this date
-- `avg_sessions_per_user` (numeric) — average sessions per active user, rounded to 2 decimals
-- `high_activity_day` (boolean) — TRUE if avg_sessions_per_user > 10
-
-**Requirements:**
-- Use `user_sessions_daily` table
-- Calculate total sessions per date
-- Count users who had sessions (count_sessions > 0)
-- Calculate average sessions per active user
-- Flag high activity days
-- Order by `date` DESC
+- Calculate total orders, total spending, and days since last order per user
+- Classify into tiers:
+  - "Champion": 5+ orders AND spent > $500 AND last order within 30 days
+  - "Loyal": 5+ orders AND spent > $300
+  - "Recent": Last order within 30 days but doesn't meet Champion criteria
+  - "At Risk": Last order 31-90 days ago
+  - "Churned": Last order > 90 days ago
+- Rank users within their tier by total_spent DESC
+- Order by engagement_tier, then tier_rank
 
 **Difficulty Rating:** 4/5
 
 ---
 
-## Task 3: Transaction Amount Outliers
+## Task 3: Category Cross-Sell Analysis
 
 **Scenario:**
-The fraud team wants to identify unusually large transactions. Find transactions where the amount is more than 3 times the average transaction amount for that user.
+The marketing team wants to understand which product categories are frequently purchased together in the same order. Find category pairs that appear together in orders.
 
 **Expected Output Columns:**
-- `transaction_id` (integer)
-- `user_id` (integer)
-- `amount` (numeric)
-- `user_avg_transaction` (numeric) — average transaction amount for this user, rounded to 2 decimals
-- `times_above_avg` (numeric) — how many times above their average this transaction is, rounded to 2 decimals
+- `category_1_name` (varchar) — first category
+- `category_2_name` (varchar) — second category
+- `orders_together` (bigint) — count of orders containing both categories
+- `avg_combined_revenue` (numeric) — average total revenue when both categories in same order, rounded to 2 decimals
 
 **Requirements:**
-- Use `transactions` table
-- Calculate average transaction amount per user
-- Find transactions > 3x their user's average
-- Only include transactions with non-null amounts
-- Order by `times_above_avg` DESC
+- Use `orders`, `orders_products`, `products`, and `product_categories` tables
+- Find orders containing products from at least 2 different categories
+- Calculate how often each category pair appears together
+- Calculate average revenue for orders containing both categories
+- Avoid duplicate pairs (category A + B should not also appear as B + A)
+- Exclude self-pairs (same category appearing twice)
+- Only include pairs appearing together in at least 5 orders
+- Order by `orders_together` DESC
 
-**Difficulty Rating:** 4/5
+**Difficulty Rating:** 5/5
 
 ---
 
 ## Submission Instructions
 
 Submit your SQL solutions when ready. I'll provide detailed feedback on:
-- Date range filtering (INTERVAL, date arithmetic)
-- Aggregation with conditional logic
-- Window functions vs subqueries for averages
-- Boolean flag creation
+- Complex date range filtering and calculations
+- Multi-criteria classification logic
+- Self-joins for finding pairs
+- Advanced aggregation patterns
 
 ## Tips
 
-- Date filtering: WHERE date >= CURRENT_DATE - INTERVAL '30 days'
-- Or: WHERE date >= CURRENT_DATE - 30
-- CASE WHEN for boolean flags
-- Window functions can calculate user averages: AVG(amount) OVER (PARTITION BY user_id)
-- Or use subquery/CTE for user averages
+- Date ranges: Use EXTRACT to identify complete months
+- Multi-criteria CASE: Can nest CASE WHEN conditions
+- Self-joins: Remember to deduplicate with comparison operators
+- Window functions: Can use RANK() OVER (PARTITION BY tier) for tier rankings
 
 Good luck!

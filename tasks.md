@@ -1,101 +1,102 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-01-08
-**Week 4, Day 5 Focus:** Complex Aggregations, Multi-Level Grouping, Advanced Filtering
+**Generated:** 2026-01-09
+**Week 5, Day 1 Focus:** Recursive CTEs, Advanced String Manipulation, Complex Date Logic
 
 ---
 
-## Task 1: Products with Declining Sales
+## Task 1: Date Series Generation with Recursive CTE
 
 **Scenario:**
-The sales team wants to identify products with declining performance. For each product, calculate revenue for the last 3 months and the 3 months before that, then find products where recent revenue is lower than previous revenue.
+The analytics team needs a complete date series for reporting, even for dates with no activity. Generate all dates between the first and last order in the database, then show daily order counts (including zero for dates with no orders).
 
 **Expected Output Columns:**
-- `product_id` (integer)
-- `product_name` (varchar)
-- `recent_3_month_revenue` (numeric) — total revenue from last 3 complete months
-- `previous_3_month_revenue` (numeric) — total revenue from months 4-6 ago
-- `revenue_decline` (numeric) — difference (recent - previous), should be negative
-- `decline_percentage` (numeric) — percentage decline, rounded to 2 decimals
+- `date` (date) — each date in the series
+- `order_count` (bigint) — number of orders on this date (0 if none)
+- `cumulative_orders` (bigint) — running total of orders from first date to current date
+- `days_since_first_order` (integer) — days elapsed since the very first order
 
 **Requirements:**
-- Use `orders`, `orders_products`, and `products` tables
-- Define "last 3 complete months" as the 3 full calendar months before the current month
-- Calculate revenue as SUM(quantity * price)
-- Only include products where recent_3_month_revenue < previous_3_month_revenue
-- Order by `decline_percentage` ASC (most declining first)
-
-**Difficulty Rating:** 5/5
-
----
-
-## Task 2: User Engagement Tiers
-
-**Scenario:**
-The product team wants to classify users based on multiple engagement metrics. Create engagement tiers combining order frequency, total spend, and recency.
-
-**Expected Output Columns:**
-- `user_id` (integer)
-- `total_orders` (bigint)
-- `total_spent` (numeric)
-- `days_since_last_order` (integer)
-- `engagement_tier` (text) — classification based on combined criteria
-- `tier_rank` (integer) — rank within their tier
-
-**Requirements:**
-- Use `users` and `orders` tables
-- Calculate total orders, total spending, and days since last order per user
-- Classify into tiers:
-  - "Champion": 5+ orders AND spent > $500 AND last order within 30 days
-  - "Loyal": 5+ orders AND spent > $300
-  - "Recent": Last order within 30 days but doesn't meet Champion criteria
-  - "At Risk": Last order 31-90 days ago
-  - "Churned": Last order > 90 days ago
-- Rank users within their tier by total_spent DESC
-- Order by engagement_tier, then tier_rank
+- Use a recursive CTE to generate the date series
+- Start from the earliest order date, end at the latest order date
+- LEFT JOIN with orders to get counts (use COALESCE for zero counts)
+- Calculate cumulative sum using window function
+- Order by date ASC
 
 **Difficulty Rating:** 4/5
 
 ---
 
-## Task 3: Category Cross-Sell Analysis
+## Task 2: Email Validation and Domain Categorization
 
 **Scenario:**
-The marketing team wants to understand which product categories are frequently purchased together in the same order. Find category pairs that appear together in orders.
+The data quality team wants to identify and categorize email addresses. Find users with potentially invalid emails and categorize email domains into business types.
 
 **Expected Output Columns:**
-- `category_1_name` (varchar) — first category
-- `category_2_name` (varchar) — second category
-- `orders_together` (bigint) — count of orders containing both categories
-- `avg_combined_revenue` (numeric) — average total revenue when both categories in same order, rounded to 2 decimals
+- `user_id` (integer)
+- `email` (varchar)
+- `domain` (varchar) — extracted domain from email
+- `domain_category` (text) — "Free" (gmail, yahoo, hotmail), "Business" (company domains), "Educational" (.edu), "Other"
+- `email_format_valid` (boolean) — TRUE if email contains exactly one @ and at least one dot after @
 
 **Requirements:**
-- Use `orders`, `orders_products`, `products`, and `product_categories` tables
-- Find orders containing products from at least 2 different categories
-- Calculate how often each category pair appears together
-- Calculate average revenue for orders containing both categories
-- Avoid duplicate pairs (category A + B should not also appear as B + A)
-- Exclude self-pairs (same category appearing twice)
-- Only include pairs appearing together in at least 5 orders
-- Order by `orders_together` DESC
+- Use `users` table
+- Extract domain using string functions (SPLIT_PART or SUBSTRING)
+- Validate email format: must have exactly 1 @, and at least 1 dot after @
+- Categorize domains using CASE WHEN
+- Only include users with non-null emails
+- Order by domain_category, then domain
 
-**Difficulty Rating:** 5/5
+**Difficulty Rating:** 3/5
+
+---
+
+## Task 3: Transaction Frequency Patterns
+
+**Scenario:**
+The fraud team wants to identify unusual transaction patterns. For each user, calculate their typical transaction frequency, then flag periods where they deviated significantly.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `transaction_id` (integer)
+- `transaction_date` (date)
+- `days_since_prev` (integer) — days since previous transaction
+- `user_avg_gap` (numeric) — this user's average gap between transactions, rounded to 2 decimals
+- `deviation_from_avg` (numeric) — how far this gap is from their average (days_since_prev - user_avg_gap), rounded to 2 decimals
+- `unusual_pattern` (boolean) — TRUE if days_since_prev is more than 2x the user's average gap
+
+**Requirements:**
+- Use `transactions` table
+- Calculate days between consecutive transactions using LAG
+- Calculate each user's average gap between transactions
+- Compare current gap to average
+- Only include transactions with a previous transaction (exclude each user's first transaction)
+- Order by user_id, transaction_date
+
+**Difficulty Rating:** 4/5
 
 ---
 
 ## Submission Instructions
 
 Submit your SQL solutions when ready. I'll provide detailed feedback on:
-- Complex date range filtering and calculations
-- Multi-criteria classification logic
-- Self-joins for finding pairs
-- Advanced aggregation patterns
+- Recursive CTE construction and termination conditions
+- String manipulation and validation logic
+- Window functions with LAG and averages
+- NULL handling in date calculations
 
 ## Tips
 
-- Date ranges: Use EXTRACT to identify complete months
-- Multi-criteria CASE: Can nest CASE WHEN conditions
-- Self-joins: Remember to deduplicate with comparison operators
-- Window functions: Can use RANK() OVER (PARTITION BY tier) for tier rankings
+- Recursive CTE structure:
+  ```sql
+  WITH RECURSIVE series AS (
+      SELECT base_value
+      UNION ALL
+      SELECT next_value FROM series WHERE condition
+  )
+  ```
+- Email validation: `LENGTH(email) - LENGTH(REPLACE(email, '@', '')) = 1`
+- LAG with NULL handling: Use WHERE prev_transaction IS NOT NULL to filter first transactions
+- Window function for averages: Can use AVG() OVER (PARTITION BY user_id)
 
 Good luck!

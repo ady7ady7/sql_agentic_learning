@@ -2705,3 +2705,237 @@ Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - Or use subquery/CTE for user averages
 
 Good luck!
+
+---
+
+### Task Archive: 2026-01-09 (Week 4, Day 5)
+# Daily SQL Practice Tasks
+
+**Generated:** 2026-01-08
+**Week 4, Day 5 Focus:** Complex Aggregations, Multi-Level Grouping, Advanced Filtering
+
+---
+
+## Task 1: Products with Declining Sales
+
+**Scenario:**
+The sales team wants to identify products with declining performance. For each product, calculate revenue for the last 3 months and the 3 months before that, then find products where recent revenue is lower than previous revenue.
+
+**Expected Output Columns:**
+- `product_id` (integer)
+- `product_name` (varchar)
+- `recent_3_month_revenue` (numeric) — total revenue from last 3 complete months
+- `previous_3_month_revenue` (numeric) — total revenue from months 4-6 ago
+- `revenue_decline` (numeric) — difference (recent - previous), should be negative
+- `decline_percentage` (numeric) — percentage decline, rounded to 2 decimals
+
+**Requirements:**
+- Use `orders`, `orders_products`, and `products` tables
+- Define "last 3 complete months" as the 3 full calendar months before the current month
+- Calculate revenue as SUM(quantity * price)
+- Only include products where recent_3_month_revenue < previous_3_month_revenue
+- Order by `decline_percentage` ASC (most declining first)
+
+**Difficulty Rating:** 5/5
+
+WITH products_orders AS (
+	SELECT 
+		op.product_id,
+		p.name AS product_name,
+		o.created_at,
+		p.price,
+		op.quantity
+	FROM orders_products op 
+	JOIN orders o ON op.order_id = o.id 
+	JOIN products p ON op.product_id = p.id
+),
+products_last_order_dates AS (
+SELECT 
+	product_id,
+	product_name,
+    EXTRACT('Month' FROM MAX(date(created_at))) AS last_order_month,
+    EXTRACT('Year' FROM MAX(date(created_at))) AS last_order_year
+FROM products_orders
+GROUP BY product_id, product_name
+),
+revenues_recent_3_months AS (
+SELECT
+	plo.product_id,
+	plo.product_name,
+	SUM(po.price * po.quantity) AS recent_3_month_revenue
+FROM products_last_order_dates plo
+JOIN products_orders po ON plo.product_id = po.product_id
+WHERE EXTRACT('Month' FROM created_at) >= plo.last_order_month - 3
+GROUP BY plo.product_id, plo.product_name
+),
+revenues_previous_3_months AS (
+SELECT
+	plo.product_id,
+	plo.product_name,
+	SUM(po.price * po.quantity) AS previous_3_month_revenue
+FROM products_last_order_dates plo
+JOIN products_orders po ON plo.product_id = po.product_id
+WHERE EXTRACT('Month' FROM created_at) <= plo.last_order_month - 3
+AND EXTRACT('Month' FROM created_at) >= plo.last_order_month - 6
+GROUP BY plo.product_id, plo.product_name
+)
+SELECT 
+	rp3.product_id,
+	rp3.product_name,
+	rr3.recent_3_month_revenue,
+	rp3.previous_3_month_revenue,
+	rr3.recent_3_month_revenue - rp3.previous_3_month_revenue AS revenue_decline,
+	ROUND((rr3.recent_3_month_revenue - rp3.previous_3_month_revenue) / rp3.previous_3_month_revenue * 100, 2) AS decline_percentage
+FROM revenues_previous_3_months rp3
+JOIN revenues_recent_3_months rr3 ON rp3.product_id = rr3.product_id
+WHERE rr3.recent_3_month_revenue < rp3.previous_3_month_revenue
+
+That's was quite complex query, not gonna lie.
+
+---
+
+## Task 2: User Engagement Tiers
+
+**Scenario:**
+The product team wants to classify users based on multiple engagement metrics. Create engagement tiers combining order frequency, total spend, and recency.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `total_orders` (bigint)
+- `total_spent` (numeric)
+- `days_since_last_order` (integer)
+- `engagement_tier` (text) — classification based on combined criteria
+- `tier_rank` (integer) — rank within their tier
+
+**Requirements:**
+- Use `users` and `orders` tables
+- Calculate total orders, total spending, and days since last order per user
+- Classify into tiers:
+  - "Champion": 5+ orders AND spent > $500 AND last order within 30 days
+  - "Loyal": 5+ orders AND spent > $300
+  - "Recent": Last order within 30 days but doesn't meet Champion criteria
+  - "At Risk": Last order 31-90 days ago
+  - "Churned": Last order > 90 days ago
+- Rank users within their tier by total_spent DESC
+- Order by engagement_tier, then tier_rank
+
+**Difficulty Rating:** 4/5
+
+WITH users_orders_metrics AS (
+	SELECT
+		*,
+		MAX(created_at) OVER (PARTITION BY user_id) AS last_order_date,
+		SUM(amount) OVER (PARTITION BY user_id) AS total_spent,
+		COUNT(id) OVER (PARTITION BY user_id) AS total_orders
+	FROM orders
+	),
+users_metrics_final AS (
+	SELECT
+		DISTINCT user_id,
+		total_orders,
+		total_spent,
+		EXTRACT('Day' FROM NOW() - last_order_date) AS days_since_last_order
+	FROM users_orders_metrics
+	ORDER BY user_id
+	),
+users_engagement_tiers AS (
+SELECT 
+	*,
+		CASE
+		WHEN total_orders > 5 AND days_since_last_order <= 30 THEN 'champion'
+		WHEN total_orders > 5 AND total_spent > 300 THEN 'loyal'
+		WHEN days_since_last_order <= 30 THEN 'recent'
+		WHEN days_since_last_order > 30 AND days_since_last_order < 90 THEN 'at risk'
+		WHEN days_since_last_order > 90 THEN 'churned'
+	END AS engagement_tier
+FROM users_metrics_final
+)
+SELECT 
+	*,
+	RANK() OVER (PARTITION BY engagement_tier ORDER BY total_spent DESC) AS tier_rank
+FROM users_engagement_tiers
+ORDER BY engagement_tier, tier_rank
+
+
+---
+
+## Task 3: Category Cross-Sell Analysis
+
+**Scenario:**
+The marketing team wants to understand which product categories are frequently purchased together in the same order. Find category pairs that appear together in orders.
+
+**Expected Output Columns:**
+- `category_1_name` (varchar) — first category
+- `category_2_name` (varchar) — second category
+- `orders_together` (bigint) — count of orders containing both categories
+- `avg_combined_revenue` (numeric) — average total revenue when both categories in same order, rounded to 2 decimals
+
+**Requirements:**
+- Use `orders`, `orders_products`, `products`, and `product_categories` tables
+- Find orders containing products from at least 2 different categories
+- Calculate how often each category pair appears together
+- Calculate average revenue for orders containing both categories
+- Avoid duplicate pairs (category A + B should not also appear as B + A)
+- Exclude self-pairs (same category appearing twice)
+- Only include pairs appearing together in at least 5 orders
+- Order by `orders_together` DESC
+
+**Difficulty Rating:** 5/5
+
+WITH categories_orders_count_together AS (
+	SELECT
+		pc1.name AS category_1_name,
+		pc2.name AS category_2_name,
+		COUNT(*) AS orders_together
+	FROM orders_products op1
+	JOIN products p1 ON op1.product_id = p1.id
+	JOIN product_categories pc1 ON p1.category_id = pc1.id
+	JOIN orders_products op2 ON op1.order_id = op2.order_id
+	JOIN products p2 ON op2.product_id = p2.id
+	JOIN product_categories pc2 ON p2.category_id = pc2.id
+	WHERE pc1.name > pc2.name
+	GROUP BY pc1.name, pc2.name
+	),
+categories_total_revenue AS (
+	SELECT
+		pc1.name AS category_1_name_x,
+		pc2.name AS category_2_name_x,
+		SUM(op1.quantity * p1.price + op2.quantity * p2.price) AS total_revenue
+	FROM orders_products op1
+	JOIN products p1 ON op1.product_id = p1.id
+	JOIN product_categories pc1 ON p1.category_id = pc1.id
+	JOIN orders_products op2 ON op1.order_id = op2.order_id
+	JOIN products p2 ON op2.product_id = p2.id
+	JOIN product_categories pc2 ON p2.category_id = pc2.id
+	WHERE pc1.name > pc2.name
+	GROUP BY pc1.name, pc2.name
+	)
+SELECT
+	cc1.category_1_name,
+	cc1.category_2_name,
+	cc1.orders_together,
+	ROUND(cc2.total_revenue / cc1.orders_together, 2) AS avg_combined_revenue
+FROM categories_orders_count_together cc1
+JOIN categories_total_revenue cc2 ON cc1.category_1_name = cc2.category_1_name_x AND cc1.category_2_name = cc2.category_2_name_x
+ORDER BY cc1.orders_together DESC
+
+
+
+---
+
+## Submission Instructions
+
+Submit your SQL solutions when ready. I'll provide detailed feedback on:
+- Complex date range filtering and calculations
+- Multi-criteria classification logic
+- Self-joins for finding pairs
+- Advanced aggregation patterns
+
+## Tips
+
+- Date ranges: Use EXTRACT to identify complete months
+- Multi-criteria CASE: Can nest CASE WHEN conditions
+- Self-joins: Remember to deduplicate with comparison operators
+- Window functions: Can use RANK() OVER (PARTITION BY tier) for tier rankings
+
+Good luck!

@@ -1,102 +1,99 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-01-09
-**Week 5, Day 1 Focus:** Recursive CTEs, Advanced String Manipulation, Complex Date Logic
+**Generated:** 2026-01-10
+**Week 5, Day 2 Focus:** JSON Operations, Advanced Window Frames, Complex Subqueries
 
 ---
 
-## Task 1: Date Series Generation with Recursive CTE
+## Task 1: First and Last Value in Same Row
 
 **Scenario:**
-The analytics team needs a complete date series for reporting, even for dates with no activity. Generate all dates between the first and last order in the database, then show daily order counts (including zero for dates with no orders).
-
-**Expected Output Columns:**
-- `date` (date) — each date in the series
-- `order_count` (bigint) — number of orders on this date (0 if none)
-- `cumulative_orders` (bigint) — running total of orders from first date to current date
-- `days_since_first_order` (integer) — days elapsed since the very first order
-
-**Requirements:**
-- Use a recursive CTE to generate the date series
-- Start from the earliest order date, end at the latest order date
-- LEFT JOIN with orders to get counts (use COALESCE for zero counts)
-- Calculate cumulative sum using window function
-- Order by date ASC
-
-**Difficulty Rating:** 4/5
-
----
-
-## Task 2: Email Validation and Domain Categorization
-
-**Scenario:**
-The data quality team wants to identify and categorize email addresses. Find users with potentially invalid emails and categorize email domains into business types.
+The analytics team wants to see each user's transaction history with both their first and most recent transaction details in the same row for comparison.
 
 **Expected Output Columns:**
 - `user_id` (integer)
-- `email` (varchar)
-- `domain` (varchar) — extracted domain from email
-- `domain_category` (text) — "Free" (gmail, yahoo, hotmail), "Business" (company domains), "Educational" (.edu), "Other"
-- `email_format_valid` (boolean) — TRUE if email contains exactly one @ and at least one dot after @
+- `current_transaction_id` (integer)
+- `current_amount` (numeric)
+- `current_date` (date)
+- `first_transaction_amount` (numeric) — amount of user's very first transaction
+- `first_transaction_date` (date) — date of user's very first transaction
+- `last_transaction_amount` (numeric) — amount of user's most recent transaction
+- `last_transaction_date` (date) — date of user's most recent transaction
 
 **Requirements:**
-- Use `users` table
-- Extract domain using string functions (SPLIT_PART or SUBSTRING)
-- Validate email format: must have exactly 1 @, and at least 1 dot after @
-- Categorize domains using CASE WHEN
-- Only include users with non-null emails
-- Order by domain_category, then domain
+- Use `transactions` table
+- Use FIRST_VALUE and LAST_VALUE window functions with proper frames
+- Or use FIRST_VALUE with reversed ORDER BY for last values
+- Include all transactions (every row should show first/last context)
+- Order by user_id, current_date
 
 **Difficulty Rating:** 3/5
 
 ---
 
-## Task 3: Transaction Frequency Patterns
+## Task 2: Running Total with Reset
 
 **Scenario:**
-The fraud team wants to identify unusual transaction patterns. For each user, calculate their typical transaction frequency, then flag periods where they deviated significantly.
+The finance team wants to see daily order amounts with a running total that resets each month. Calculate cumulative revenue within each month.
 
 **Expected Output Columns:**
-- `user_id` (integer)
-- `transaction_id` (integer)
-- `transaction_date` (date)
-- `days_since_prev` (integer) — days since previous transaction
-- `user_avg_gap` (numeric) — this user's average gap between transactions, rounded to 2 decimals
-- `deviation_from_avg` (numeric) — how far this gap is from their average (days_since_prev - user_avg_gap), rounded to 2 decimals
-- `unusual_pattern` (boolean) — TRUE if days_since_prev is more than 2x the user's average gap
+- `order_date` (date)
+- `daily_revenue` (numeric) — total revenue for this date
+- `month` (integer) — month number
+- `year` (integer) — year number
+- `monthly_running_total` (numeric) — cumulative sum within the month, reset at each new month
 
 **Requirements:**
-- Use `transactions` table
-- Calculate days between consecutive transactions using LAG
-- Calculate each user's average gap between transactions
-- Compare current gap to average
-- Only include transactions with a previous transaction (exclude each user's first transaction)
-- Order by user_id, transaction_date
+- Use `orders` table
+- Extract year and month from order dates
+- Calculate daily revenue sum
+- Use window function with PARTITION BY year, month for monthly reset
+- Order by year, month, order_date
 
-**Difficulty Rating:** 4/5
+**Difficulty Rating:** 3/5
+
+---
+
+## Task 3: Comparing Current Row to Next Row
+
+**Scenario:**
+The operations team wants to identify order amount increases. For each order, show the next order amount for that user to identify when spending increased.
+
+**Expected Output Columns:**
+- `order_id` (integer)
+- `user_id` (integer)
+- `amount` (numeric)
+- `order_date` (date)
+- `next_order_amount` (numeric) — amount of the next order for this user
+- `next_order_date` (date) — date of the next order for this user
+- `amount_increase` (numeric) — difference (next_order_amount - amount)
+- `spending_increased` (boolean) — TRUE if next order amount is higher
+
+**Requirements:**
+- Use `orders` table
+- Use LEAD window function to get next order details
+- Calculate amount difference
+- Include all orders (last order per user will have NULL next values)
+- Order by user_id, order_date
+
+**Difficulty Rating:** 3/5
 
 ---
 
 ## Submission Instructions
 
 Submit your SQL solutions when ready. I'll provide detailed feedback on:
-- Recursive CTE construction and termination conditions
-- String manipulation and validation logic
-- Window functions with LAG and averages
-- NULL handling in date calculations
+- Window function frames (ROWS vs RANGE)
+- PARTITION BY for grouping within window functions
+- LEAD/LAG for row-to-row comparisons
+- Proper NULL handling
 
 ## Tips
 
-- Recursive CTE structure:
-  ```sql
-  WITH RECURSIVE series AS (
-      SELECT base_value
-      UNION ALL
-      SELECT next_value FROM series WHERE condition
-  )
-  ```
-- Email validation: `LENGTH(email) - LENGTH(REPLACE(email, '@', '')) = 1`
-- LAG with NULL handling: Use WHERE prev_transaction IS NOT NULL to filter first transactions
-- Window function for averages: Can use AVG() OVER (PARTITION BY user_id)
+- FIRST_VALUE: `FIRST_VALUE(column) OVER (PARTITION BY group ORDER BY sort_col)`
+- LAST_VALUE needs explicit frame: `LAST_VALUE(column) OVER (... ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)`
+- Or use FIRST_VALUE with reversed ORDER BY: `FIRST_VALUE(column) OVER (PARTITION BY group ORDER BY sort_col DESC)`
+- Running totals: `SUM(column) OVER (PARTITION BY group ORDER BY sort_col)`
+- LEAD: `LEAD(column, 1) OVER (PARTITION BY group ORDER BY sort_col)` gets next row
 
 Good luck!

@@ -2939,3 +2939,202 @@ Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - Window functions: Can use RANK() OVER (PARTITION BY tier) for tier rankings
 
 Good luck!
+
+---
+
+### Task Archive: 2026-01-10 (Week 5, Day 1)
+# Daily SQL Practice Tasks
+
+**Generated:** 2026-01-09
+**Week 5, Day 1 Focus:** Recursive CTEs, Advanced String Manipulation, Complex Date Logic
+
+---
+
+## Task 1: Date Series Generation with Recursive CTE
+
+**Scenario:**
+The analytics team needs a complete date series for reporting, even for dates with no activity. Generate all dates between the first and last order in the database, then show daily order counts (including zero for dates with no orders).
+
+**Expected Output Columns:**
+- `date` (date) — each date in the series
+- `order_count` (bigint) — number of orders on this date (0 if none)
+- `cumulative_orders` (bigint) — running total of orders from first date to current date
+- `days_since_first_order` (integer) — days elapsed since the very first order
+
+**Requirements:**
+- Use a recursive CTE to generate the date series
+- Start from the earliest order date, end at the latest order date
+- LEFT JOIN with orders to get counts (use COALESCE for zero counts)
+- Calculate cumulative sum using window function
+- Order by date ASC
+
+**Difficulty Rating:** 4/5
+
+WITH dates_orders AS (
+	SELECT 
+		d.date,
+		COALESCE(COUNT(o.id), 0) AS order_count
+	FROM dates d
+	LEFT JOIN orders o ON d.date = date(o.created_at)
+	GROUP BY d.date
+	ORDER BY d.date
+	),
+dates_cumulative_orders AS (
+SELECT
+	date,
+	order_count,
+	SUM(order_count) OVER (ORDER BY date) AS cumulative_orders
+FROM dates_orders
+)
+	SELECT 
+		*,
+		date - (SELECT date FROM dates_cumulative_orders WHERE cumulative_orders = 1) AS first_order_date
+	FROM dates_cumulative_orders
+
+
+
+
+---
+
+## Task 2: Email Validation and Domain Categorization
+
+**Scenario:**
+The data quality team wants to identify and categorize email addresses. Find users with potentially invalid emails and categorize email domains into business types.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `email` (varchar)
+- `domain` (varchar) — extracted domain from email
+- `domain_category` (text) — "Free" (gmail, yahoo, hotmail), "Business" (company domains), "Educational" (.edu), "Other"
+- `email_format_valid` (boolean) — TRUE if email contains exactly one @ and at least one dot after @
+
+**Requirements:**
+- Use `users` table
+- Extract domain using string functions (SPLIT_PART or SUBSTRING)
+- Validate email format: must have exactly 1 @, and at least 1 dot after @
+- Categorize domains using CASE WHEN
+- Only include users with non-null emails
+- Order by domain_category, then domain
+
+**Difficulty Rating:** 3/5
+
+
+WITH users_email_check AS (
+	SELECT
+	id AS user_id,
+	SPLIT_PART(email, '@', 1) AS email_first_part,
+	SPLIT_PART(email, '@', 2) AS domain
+	FROM users
+	)
+SELECT
+	uec.user_id,
+	u.email,
+	uec."domain",
+	CASE
+		WHEN domain IN ('gmail.com', 'yahoo.com', 'hotmail.com', 'onet.pl', 'wp.pl', 'o2.pl', 'gazeta.pl', 'buziaczek.pl', 'protonmail.com', 'onet.eu') THEN 'Free'
+		WHEN domain IN ('edu.pl') THEN 'Educational'
+		ELSE 'Business'
+	END AS domain_category,
+	True AS email_valid_format
+FROM users_email_check uec
+JOIN users u ON uec.user_id = u.id
+WHERE uec.domain LIKE ('%.%') AND u.email LIKE ('%@%.%')
+ORDER BY domain_category, domain
+
+
+Definitely not a task that I liked - the thing is we have to state all the domains explicitly here, and it's simply ineffective with CASE WHEN, and as for Educational emails, we'd have to also state all 'edu' domains for all the different countries, if we had people from multiple countries, which is just VERY, VERY BAD, and wildcards don't work in case when as LIKE operator doesn't work there.
+
+So yeah, I fulfilled your requirements and also practiced SPLIT_PART (Which is actually cool, and I definitely want to practice more operations on text), but I didn't like the task.
+
+
+---
+
+## Task 3: Transaction Frequency Patterns
+
+**Scenario:**
+The fraud team wants to identify unusual transaction patterns. For each user, calculate their typical transaction frequency, then flag periods where they deviated significantly.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `transaction_id` (integer)
+- `transaction_date` (date)
+- `days_since_prev` (integer) — days since previous transaction
+- `user_avg_gap` (numeric) — this user's average gap between transactions, rounded to 2 decimals
+- `deviation_from_avg` (numeric) — how far this gap is from their average (days_since_prev - user_avg_gap), rounded to 2 decimals
+- `unusual_pattern` (boolean) — TRUE if days_since_prev is more than 2x the user's average gap
+
+**Requirements:**
+- Use `transactions` table
+- Calculate days between consecutive transactions using LAG
+- Calculate each user's average gap between transactions
+- Compare current gap to average
+- Only include transactions with a previous transaction (exclude each user's first transaction)
+- Order by user_id, transaction_date
+
+**Difficulty Rating:** 4/5
+
+
+WITH users_transactions AS (
+	SELECT 
+		user_id,
+		id AS transaction_id,
+		created_at,
+		LAG(created_at) OVER (PARTITION BY user_id ORDER BY created_at) AS prev_transaction_time
+	FROM transactions
+	),
+users_transaction_gaps AS (
+SELECT 
+	*,
+	EXTRACT('Minute' FROM created_at - prev_transaction_time) AS minutes_since_prev
+FROM users_transactions
+WHERE prev_transaction_time IS NOT NULL
+),
+users_avg_gaps AS (
+SELECT 
+	*,
+	ROUND(AVG(minutes_since_prev) OVER (PARTITION BY user_id), 2) AS user_avg_gap
+FROM users_transaction_gaps
+)
+SELECT 
+	user_id,
+	transaction_id,
+	created_at,
+	prev_transaction_time,
+	minutes_since_prev,
+	user_avg_gap,
+	ROUND(ABS(minutes_since_prev - user_avg_gap), 2) AS deviation_from_avg,
+	ABS(minutes_since_prev - user_avg_gap) > user_avg_gap * 2 AS unusual_pattern
+FROM users_avg_gaps
+
+
+A few things:
+
+- Please note that the user_id, order_date is KEPT and maintained early on with the first window function
+- I'VE DELIBERATELY used created_at and prev_transaction_time and minutes_since_prev, AFTER I SAW HOW DATA ACTUALLY LOOKS LIKE. There were absolutely no gaps that span across days, ONLY gaps that were measured in minutes, so it was the ONLY option that made sense. It was a purely data driven decision and although it's a bit different than your requirement, I DEMAND YOU SHALL NOT TAKE AWAY POINTS FROM me for this, as I've simply adapted the requirements based on the actual data. It works, it's clean and understandable for everyone.
+
+
+---
+
+## Submission Instructions
+
+Submit your SQL solutions when ready. I'll provide detailed feedback on:
+- Recursive CTE construction and termination conditions
+- String manipulation and validation logic
+- Window functions with LAG and averages
+- NULL handling in date calculations
+
+## Tips
+
+- Recursive CTE structure:
+  ```sql
+  WITH RECURSIVE series AS (
+      SELECT base_value
+      UNION ALL
+      SELECT next_value FROM series WHERE condition
+  )
+  ```
+- Email validation: `LENGTH(email) - LENGTH(REPLACE(email, '@', '')) = 1`
+- LAG with NULL handling: Use WHERE prev_transaction IS NOT NULL to filter first transactions
+- Window function for averages: Can use AVG() OVER (PARTITION BY user_id)
+
+Good luck!

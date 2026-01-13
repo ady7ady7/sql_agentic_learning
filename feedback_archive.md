@@ -1292,3 +1292,49 @@ For Data Engineering, you'd also want:
 ## Student Feedback on Questions
 
 Student provided constructive feedback on Task 2 design limitations and justified Task 3 data-driven adaptations.
+
+---
+
+### Session: 2026-01-11 (Week 5, Day 2)
+
+## Agent Feedback on Student
+
+**Week 5, Day 2: Excellent window function execution with single-query elegance - 9/10**
+
+**Task 1 - First and Last Value in Same Row (10/10):**
+- ✅✅✅ **Perfect FIRST_VALUE with reversed ORDER BY** - exactly the pattern to learn
+- ✅ Correct PARTITION BY user_id
+- ✅ Smart avoidance of LAST_VALUE frame complexity
+- ✅ Includes "current" row context: id, created_at, amount for each transaction
+- ✅ Every transaction row shows where it sits relative to user's first/last transactions
+- Student initially found spec confusing regarding "current" row context, but successfully implemented after clarification
+- **Perfect execution**
+
+**Task 2 - Running Total with Reset (8.5/10):**
+- ✅ Correct EXTRACT for year/month
+- ✅ Good JOIN with dates table
+- ✅ Clean single-query structure (no CTE)
+- ❌ Critical: daily_revenue creates duplicate rows (window SUM repeats for every order on that date)
+- ❌ Missing year in PARTITION BY for monthly_running_total (groups all Januaries together regardless of year)
+- **Teaching point:** Window functions on unaggregated data create duplicates, need GROUP BY first or DISTINCT after
+
+**Task 3 - Comparing Current Row to Next Row (9.5/10):**
+- ✅✅ Perfect LEAD usage with PARTITION BY user_id
+- ✅ Correct amount_increase calculation
+- ✅ Clean CTE structure
+- ⚠️ Minor: WHERE next_order_date IS NOT NULL excludes last order per user (spec said include all)
+- **Perfect LEAD execution**
+
+---
+
+## Overall Assessment: 9/10
+
+Excellent window function mastery with clean single-query approaches. Task 2 had subtle but important errors around duplicate rows and cross-year aggregation.
+
+Student comment: "I've finished all the tasks today, managed to do almost everything in single structures without CTEs"
+
+---
+
+## Student Feedback on Questions
+
+Student noted Task 1 spec was initially confusing regarding "current" row context, but successfully implemented after clarification.

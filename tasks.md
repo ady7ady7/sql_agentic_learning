@@ -1,92 +1,97 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-01-11
-**Week 5, Day 3 Focus:** RANK vs ROW_NUMBER, Conditional Aggregation, Subquery Performance
+**Generated:** 2026-01-14
+**Week 5, Day 4 Focus:** Advanced Window Frames, Percentile Rankings, Gap Analysis
 
 ---
 
-## Task 1: Dense Ranking with Ties
+## Task 1: Rolling Window with Custom Frame
 
 **Scenario:**
-The sales team wants to rank products by revenue, but when multiple products have the same revenue, they should share the same rank (with no gaps in the sequence).
-
-**Expected Output Columns:**
-- `product_id` (integer)
-- `product_name` (varchar)
-- `total_revenue` (numeric) — sum of all revenue for this product
-- `revenue_rank` (bigint) — dense ranking (1,2,2,3 not 1,2,2,4)
-
-**Requirements:**
-- Use `orders_products` and `products` tables
-- Calculate total revenue per product (quantity * price)
-- Use DENSE_RANK window function
-- Order by revenue_rank ASC
-
-**Difficulty Rating:** 2/5
-
----
-
-## Task 2: Conditional Aggregation with Multiple Conditions
-
-**Scenario:**
-The finance team wants a single-row summary showing order counts and totals broken down by different criteria.
-
-**Expected Output Columns:**
-- `total_orders` (bigint) — count of all orders
-- `high_value_orders` (bigint) — count where amount > 100
-- `high_value_revenue` (numeric) — sum of amounts where amount > 100
-- `low_value_orders` (bigint) — count where amount <= 100
-- `low_value_revenue` (numeric) — sum of amounts where amount <= 100
-- `avg_order_amount` (numeric) — average of all order amounts, rounded to 2 decimals
-
-**Requirements:**
-- Use `orders` table
-- Return a single row with all aggregations
-- Use CASE WHEN or FILTER clause for conditional counts/sums
-- Round averages to 2 decimals
-
-**Difficulty Rating:** 3/5
-
----
-
-## Task 3: Correlated Subquery - Users Above Category Average
-
-**Scenario:**
-Find users whose total spending in each product category exceeds the average spending in that category across all users.
+The analytics team wants to compare each user's daily session count to their own 3-day moving average (current day plus the 2 previous days). Flag days where the user's session count is more than 50% above their moving average as "spike" days.
 
 **Expected Output Columns:**
 - `user_id` (integer)
-- `category_name` (varchar)
-- `user_category_spending` (numeric) — total spent by this user in this category
-- `category_avg_spending` (numeric) — average spent per user in this category, rounded to 2 decimals
-- `amount_above_avg` (numeric) — difference between user spending and average
+- `date` (date)
+- `count_sessions` (integer)
+- `moving_avg_3day` (numeric) — 3-day moving average rounded to 2 decimals
+- `is_spike` (boolean) — TRUE if count_sessions > moving_avg_3day * 1.5
 
 **Requirements:**
-- Use `orders`, `orders_products`, `products`, and `product_categories` tables
-- Calculate user spending per category
-- Calculate average spending per category (across all users)
-- Only show users exceeding the category average
-- Order by category_name, amount_above_avg DESC
+- Use `user_sessions_daily` table
+- Use window function with explicit ROWS frame (ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)
+- Only include rows where a full 3-day window exists (exclude first 2 days per user)
+- Order by user_id, date
 
 **Difficulty Rating:** 4/5
+
+---
+
+## Task 2: Percentile Ranking with Category Context
+
+**Scenario:**
+For each product, calculate its revenue percentile rank within its category and across all products. Identify products that are top performers in their category (top 25%) but underperformers overall (bottom 50%).
+
+**Expected Output Columns:**
+- `product_id` (integer)
+- `category_name` (varchar)
+- `total_revenue` (numeric) — sum of quantity * price
+- `category_percentile` (numeric) — PERCENT_RANK within category (0 to 1)
+- `global_percentile` (numeric) — PERCENT_RANK across all products (0 to 1)
+- `category_star_global_underperformer` (boolean) — TRUE if category_percentile >= 0.75 AND global_percentile < 0.50
+
+**Requirements:**
+- Use `orders_products`, `products`, and `product_categories` tables
+- Use PERCENT_RANK() window function with different partitions
+- Only show products that have at least one sale
+- Order by category_name, category_percentile DESC
+
+**Difficulty Rating:** 4/5
+
+---
+
+## Task 3: Gap and Island Detection - User Order Gaps
+
+**Scenario:**
+Identify significant gaps in user ordering behavior. For each user, find periods where they went more than 30 days between consecutive orders. Calculate the gap duration and the revenue lost (compare average order amount during active periods vs the gap period's opportunity cost).
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `previous_order_date` (timestamp) — date of order before the gap
+- `next_order_date` (timestamp) — date of order after the gap
+- `gap_days` (integer) — days between orders
+- `user_avg_order_amount` (numeric) — user's average order amount, rounded to 2 decimals
+- `estimated_missed_orders` (numeric) — gap_days / user's average days between orders (their normal frequency)
+- `potential_lost_revenue` (numeric) — estimated_missed_orders * user_avg_order_amount, rounded to 2 decimals
+
+**Requirements:**
+- Use `orders` table
+- Use LAG() to find previous order per user
+- Calculate each user's normal ordering frequency (average days between their orders)
+- Only show gaps > 30 days
+- Only include users who have at least 3 orders (to establish a pattern)
+- Order by potential_lost_revenue DESC
+
+**Difficulty Rating:** 5/5
 
 ---
 
 ## Submission Instructions
 
 Submit your SQL solutions when ready. I'll provide detailed feedback on:
-- DENSE_RANK vs RANK vs ROW_NUMBER usage
-- Conditional aggregation patterns (CASE WHEN vs FILTER)
-- Correlated subqueries vs window functions for averages
-- Performance considerations
+- Window frame specifications (ROWS vs RANGE, frame boundaries)
+- PERCENT_RANK vs NTILE vs CUME_DIST usage
+- Gap-and-island problem-solving techniques
+- Self-referential calculations (comparing to own averages)
 
 ## Tips
 
-- DENSE_RANK: No gaps in ranking sequence even with ties
-- RANK: Gaps after ties (1,2,2,4)
-- ROW_NUMBER: Always unique, even for identical values (1,2,3,4)
-- Conditional aggregation: `SUM(CASE WHEN condition THEN amount ELSE 0 END)`
-- Or: `COUNT(*) FILTER (WHERE condition)`
-- Correlated subquery: Often replaced by window functions for better performance
+- ROWS BETWEEN: Operates on physical row count (ROWS BETWEEN 2 PRECEDING AND CURRENT ROW = exactly 3 rows)
+- RANGE BETWEEN: Operates on value ranges (useful for dates but trickier)
+- PERCENT_RANK: Returns position as fraction (0 = first, 1 = last)
+- CUME_DIST: Returns cumulative distribution (percentage of rows with value <= current)
+- LAG(column, 1): Previous row's value in partition
+- Gap detection: Compare current row to LAG, look for large differences
+- Frame filtering: Use a CTE with ROW_NUMBER() to filter out incomplete windows
 
-Good luck!
+Good luck! These are more challenging as requested.

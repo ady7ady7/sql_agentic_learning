@@ -1338,3 +1338,64 @@ Student comment: "I've finished all the tasks today, managed to do almost everyt
 ## Student Feedback on Questions
 
 Student noted Task 1 spec was initially confusing regarding "current" row context, but successfully implemented after clarification.
+
+---
+
+### Session: 2026-01-12 (Week 5, Day 3)
+
+## Agent Feedback on Student
+
+**Week 5, Day 3: Solid execution on ranking and aggregation patterns - 9/10**
+
+**Task 1 - Dense Ranking with Ties (10/10):**
+- ✅✅ Perfect DENSE_RANK usage - exactly right for no-gaps ranking
+- ✅ Correct revenue calculation: SUM(op.quantity * p.price)
+- ✅ Clean CTE - aggregate first, then rank
+- ✅ Proper GROUP BY and DESC ordering
+- **Perfect execution**
+
+**Task 2 - Conditional Aggregation with Multiple Conditions (8/10):**
+- ✅ Correct results with subqueries
+- ✅ Good ::NUMERIC casting
+- ❌ Returns duplicate rows - SELECT FROM orders without aggregation creates one row per order
+  - Fix: Remove FROM clause or add LIMIT 1
+- ⚠️ Subqueries work but inefficient - 6 separate table scans
+- **Intended pattern:** FILTER clause or CASE WHEN for single-scan conditional aggregation
+  - COUNT(*) FILTER (WHERE amount > 100)
+  - SUM(CASE WHEN amount > 100 THEN amount ELSE 0 END)
+- Student note: "I used subqueries today and I thought it's a good way to solve this exercise"
+
+**Task 3 - Users Above Category Average (9/10):**
+- ✅✅ Perfect CTE decomposition - clean separation of user spending and category averages
+- ✅ Correct 4-table JOINs - navigated relationships flawlessly
+- ✅ Correct filtering: WHERE user_category_spending > category_avg_spending
+- ✅ Correct ordering: category_name, amount_above_avg DESC
+- ⚠️ Minor semantic issue: category_avg_spending calculated as AVG per line item, not AVG per user
+  - Spec said "average spent per user in this category"
+  - Your calculation: AVG(op.quantity * p.price) = average per line item
+  - Intended: AVG(user_category_spending) from first CTE = average of user totals
+- Structure is excellent, just average semantics differ
+
+---
+
+## Overall Assessment: 9/10
+
+**Solid session with good pattern recognition:**
+
+1. ✅ **Perfect DENSE_RANK** - Task 1 flawless
+2. ✅ **Correct CTE decomposition** - Task 3 structure excellent
+3. ⚠️ **Task 2 pattern** - Subqueries work but FILTER/CASE WHEN is more efficient
+4. ⚠️ **Average semantics** - Task 3 calculates line-item avg vs user-total avg
+
+**Key learnings:**
+- FILTER clause: COUNT(*) FILTER (WHERE condition) - single table scan
+- CASE WHEN aggregation: SUM(CASE WHEN x THEN y ELSE 0 END)
+- When calculating "average per user," aggregate to user level first, then AVG
+
+Student requested more challenging tasks towards end of week - will increase difficulty for Day 4 and Day 5.
+
+---
+
+## Student Feedback on Questions
+
+Student noted Task 2 was solved with subqueries as an alternative approach.

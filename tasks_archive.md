@@ -3288,3 +3288,151 @@ Submit your SQL solutions when ready. I'll provide detailed feedback on:
 - LEAD: `LEAD(column, 1) OVER (PARTITION BY group ORDER BY sort_col)` gets next row
 
 Good luck!
+
+---
+
+### Task Archive: 2026-01-11 (Week 5, Day 3)
+
+**Focus:** RANK vs ROW_NUMBER, Conditional Aggregation, Subquery Performance
+
+## Task 1: Dense Ranking with Ties
+
+**Scenario:**
+The sales team wants to rank products by revenue, but when multiple products have the same revenue, they should share the same rank (with no gaps in the sequence).
+
+**Expected Output Columns:**
+- `product_id` (integer)
+- `product_name` (varchar)
+- `total_revenue` (numeric) — sum of all revenue for this product
+- `revenue_rank` (bigint) — dense ranking (1,2,2,3 not 1,2,2,4)
+
+**Requirements:**
+- Use `orders_products` and `products` tables
+- Calculate total revenue per product (quantity * price)
+- Use DENSE_RANK window function
+- Order by revenue_rank ASC
+
+**Difficulty Rating:** 2/5
+
+**Student Solution:**
+```sql
+WITH products_revenues AS (
+SELECT 
+	op.product_id,
+	p.name AS product_name,
+	SUM(op.quantity * p.price) AS total_revenue
+FROM orders_products op 
+JOIN products p ON op.product_id = p.id
+GROUP BY op.product_id, p.name
+)
+SELECT 
+	*,
+	DENSE_RANK() OVER (ORDER BY total_revenue DESC)
+FROM products_revenues
+```
+
+**Score: 10/10** - Perfect implementation of DENSE_RANK with clean CTE structure.
+
+---
+
+## Task 2: Conditional Aggregation with Multiple Conditions
+
+**Scenario:**
+The finance team wants a single-row summary showing order counts and totals broken down by different criteria.
+
+**Expected Output Columns:**
+- `total_orders` (bigint) — count of all orders
+- `high_value_orders` (bigint) — count where amount > 100
+- `high_value_revenue` (numeric) — sum of amounts where amount > 100
+- `low_value_orders` (bigint) — count where amount <= 100
+- `low_value_revenue` (numeric) — sum of amounts where amount <= 100
+- `avg_order_amount` (numeric) — average of all order amounts, rounded to 2 decimals
+
+**Requirements:**
+- Use `orders` table
+- Return a single row with all aggregations
+- Use CASE WHEN or FILTER clause for conditional counts/sums
+- Round averages to 2 decimals
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+SELECT 
+	(SELECT COUNT(*) FROM orders) AS total_orders,
+	(SELECT COUNT(*) FROM orders WHERE amount > 100) AS high_value_orders,
+	(SELECT ROUND(SUM(amount::NUMERIC), 2) FROM orders WHERE amount > 100) AS high_value_revenue,
+	(SELECT COUNT(*) FROM orders WHERE amount <= 100) AS low_value_orders,
+	(SELECT ROUND(SUM(amount::NUMERIC), 2) FROM orders WHERE amount <= 100) AS low_value_revenue,
+	(SELECT ROUND(AVG(amount::NUMERIC), 2) FROM orders) AS avg_order_amount
+FROM orders
+```
+
+**Student Note:** "I used subqueries today and I thought it's a good way to solve this exercise with one single CTE. It also works perfectly here."
+
+**Score: 8/10** - Subqueries work but create duplicate rows (one row per order with same values). The FILTER/CASE WHEN pattern is more efficient and produces exactly one row.
+
+---
+
+## Task 3: Correlated Subquery - Users Above Category Average
+
+**Scenario:**
+Find users whose total spending in each product category exceeds the average spending in that category across all users.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `category_name` (varchar)
+- `user_category_spending` (numeric) — total spent by this user in this category
+- `category_avg_spending` (numeric) — average spent per user in this category, rounded to 2 decimals
+- `amount_above_avg` (numeric) — difference between user spending and average
+
+**Requirements:**
+- Use `orders`, `orders_products`, `products`, and `product_categories` tables
+- Calculate user spending per category
+- Calculate average spending per category (across all users)
+- Only show users exceeding the category average
+- Order by category_name, amount_above_avg DESC
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH users_category_spendings AS (
+SELECT 
+	o.user_id,
+	pc.name AS category_name,
+	SUM(op.quantity * p.price) AS user_category_spending
+FROM orders_products op
+JOIN orders o ON op.order_id = o.id
+JOIN products p ON op.product_id = p.id 
+JOIN product_categories pc ON pc.id = p.category_id
+GROUP BY o.user_id, pc.name
+),
+categories_avgs AS (
+SELECT
+	pc.name AS category_name,
+	ROUND(AVG(op.quantity * p.price), 2) AS category_avg_spending
+FROM orders_products op 
+JOIN orders o ON op.order_id = o.id
+JOIN products p ON op.product_id = p.id 
+JOIN product_categories pc ON pc.id = p.category_id
+GROUP BY pc.name
+)
+SELECT
+	ucs.user_id,
+	ucs.category_name,
+	ucs.user_category_spending,
+	ca.category_avg_spending,
+	ucs.user_category_spending - ca.category_avg_spending AS amount_above_avg
+FROM users_category_spendings ucs
+JOIN categories_avgs ca ON ucs.category_name = ca.category_name
+WHERE ucs.user_category_spending > ca.category_avg_spending 
+ORDER BY category_name, amount_above_avg DESC
+```
+
+**Score: 9/10** - Excellent CTE decomposition. Minor semantic difference: categories_avgs calculates average per line item rather than average per user, but overall approach is sound.
+
+---
+
+**Day 3 Overall Score: 9/10**
+

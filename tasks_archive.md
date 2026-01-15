@@ -3436,3 +3436,170 @@ ORDER BY category_name, amount_above_avg DESC
 
 **Day 3 Overall Score: 9/10**
 
+
+---
+
+### Task Archive: 2026-01-14 (Week 5, Day 4)
+
+**Focus:** Advanced Window Frames, Percentile Rankings, Gap Analysis
+
+## Task 1: Rolling Window with Custom Frame
+
+**Scenario:**
+The analytics team wants to compare each user's daily session count to their own 3-day moving average (current day plus the 2 previous days). Flag days where the user's session count is more than 50% above their moving average as "spike" days.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `date` (date)
+- `count_sessions` (integer)
+- `moving_avg_3day` (numeric) — 3-day moving average rounded to 2 decimals
+- `is_spike` (boolean) — TRUE if count_sessions > moving_avg_3day * 1.5
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH users_session_avgs AS (
+	SELECT 
+		date,
+		user_id,
+		count_sessions,
+		ROUND(AVG(count_sessions) OVER (PARTITION BY user_id ORDER BY date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 2) AS moving_avg_3d,
+		RANK() OVER (PARTITION BY user_id ORDER BY date) AS day_count
+		FROM user_sessions_daily usd 
+		ORDER BY user_id
+	)
+SELECT 
+	*,
+	count_sessions > moving_avg_3d * 1.5 AS is_spike
+FROM users_session_avgs
+WHERE day_count > 2
+```
+
+**Student Note:** Discovered data sparsity (sessions not consecutive), adapted to use last 3 session records per user rather than consecutive calendar days.
+
+**Score: 9/10** - Correct ROWS BETWEEN frame, smart incomplete window filtering.
+
+---
+
+## Task 2: Percentile Ranking with Category Context
+
+**Scenario:**
+For each product, calculate its revenue percentile rank within its category and across all products. Identify products that are top performers in their category (top 25%) but underperformers overall (bottom 50%).
+
+**Expected Output Columns:**
+- `product_id` (integer)
+- `category_name` (varchar)
+- `total_revenue` (numeric)
+- `category_percentile` (numeric)
+- `global_percentile` (numeric)
+- `category_star_global_underperformer` (boolean)
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH products_revenues AS (
+SELECT 
+	op.product_id,
+	p."name" AS product_name,
+	pc."name" AS category_name,
+	SUM(p.price * op.quantity) AS product_revenue
+FROM orders_products op
+JOIN products p ON op.product_id = p.id
+JOIN product_categories pc ON p.category_id = pc.id
+GROUP BY op.product_id, p.name, pc."name"
+ORDER BY product_revenue DESC
+),
+products_revenues_ranks AS (
+SELECT 
+	*,
+	RANK() OVER (PARTITION BY category_name ORDER BY product_revenue DESC) AS category_revenue_rank,
+	ROUND(PERCENT_RANK() OVER (PARTITION BY category_name ORDER BY product_revenue)::NUMERIC, 2) AS category_percentile_rank,
+	ROUND(PERCENT_RANK() OVER (ORDER BY product_revenue)::NUMERIC, 2) AS overall_percentile_rank,
+	RANK() OVER (ORDER BY product_revenue DESC) AS overall_revenue_rank
+FROM products_revenues
+ORDER BY overall_revenue_rank, category_revenue_rank
+)
+SELECT 
+	*,
+	CASE WHEN category_percentile_rank >= 0.75 AND overall_percentile_rank < 0.50 THEN TRUE ELSE FALSE
+	END AS category_star_global_underperformer
+FROM products_revenues_ranks
+```
+
+**Student Note:** First time using PERCENT_RANK — loved learning it. Added extra RANK() columns for practice.
+
+**Score: 10/10** - Perfect dual PERCENT_RANK implementation with different partitions.
+
+---
+
+## Task 3: Gap and Island Detection - User Order Gaps
+
+**Scenario:**
+Identify significant gaps in user ordering behavior. For each user, find periods where they went more than 30 days between consecutive orders.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `previous_order_date` (timestamp)
+- `next_order_date` (timestamp)
+- `gap_days` (integer)
+- `user_avg_order_amount` (numeric)
+- `estimated_missed_orders` (numeric)
+- `potential_lost_revenue` (numeric)
+
+**Difficulty Rating:** 5/5
+
+**Student Solution:**
+```sql
+WITH users_orders AS (
+	SELECT 
+		*,
+		LAG(created_at) OVER (PARTITION BY user_id ORDER BY created_at) AS previous_order_time,
+		LEAD(created_at) OVER (PARTITION BY user_id ORDER BY created_at) AS next_order_time,
+		AVG(amount) OVER (PARTITION BY user_id) AS user_avg_order_amount,
+		COUNT(id) OVER (PARTITION BY user_id) AS user_orders_count
+	FROM orders
+	),
+users_gaps AS (
+	SELECT 
+		user_id,
+		created_at,
+		COALESCE(DATE(created_at) - date(previous_order_time), 0) AS gap_days
+	FROM users_orders
+	WHERE user_orders_count > 2
+	),
+users_orders_avg_gaps_amounts AS (
+	SELECT 
+		*,
+		uo.user_id AS id_user,
+		AVG(ug.gap_days) OVER (PARTITION BY ug.user_id) AS user_avg_gap_days
+	FROM users_orders uo
+	JOIN users_gaps ug ON uo.user_id = ug.user_id AND uo.created_at = ug.created_at
+	),
+users_missed_orders AS (
+	SELECT 
+		id_user,
+		previous_order_time,
+		next_order_time,
+		gap_days,
+		ROUND(user_avg_order_amount::NUMERIC, 2) AS user_avg_order_amount,
+		CASE WHEN gap_days != 0 THEN ROUND(gap_days / user_avg_gap_days, 2) END AS estimated_missed_orders
+	FROM users_orders_avg_gaps_amounts
+	WHERE gap_days != 0
+	)
+SELECT 
+	*,
+	ROUND(estimated_missed_orders * user_avg_order_amount, 2) AS potential_lost_revenue
+FROM users_missed_orders
+ORDER BY potential_lost_revenue DESC
+```
+
+**Student Note:** Complex but satisfying task. Wants more like this.
+
+**Score: 9/10** - Strong multi-CTE decomposition, correct LAG usage, opportunity cost calculation.
+
+---
+
+**Day 4 Overall Score: 9.3/10**
+

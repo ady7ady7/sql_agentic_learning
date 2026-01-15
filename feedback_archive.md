@@ -1399,3 +1399,41 @@ Student requested more challenging tasks towards end of week - will increase dif
 ## Student Feedback on Questions
 
 Student noted Task 2 was solved with subqueries as an alternative approach.
+
+---
+
+### Feedback Archive: 2026-01-14 (Week 5, Day 4)
+
+## Agent Feedback on Student
+
+**Overall Score: 9.3/10**
+
+**Task 1 (Rolling Window): 9/10**
+- Correct ROWS BETWEEN frame specification
+- Smart use of RANK() to filter incomplete windows
+- Excellent data investigation and reasonable interpretation of ambiguous requirements
+
+**Task 2 (Percentile Ranking): 10/10**
+- Correct dual PERCENT_RANK() with different partitions
+- Clean CTE structure
+- Added extra RANK() columns for learning — good initiative
+- First time using PERCENT_RANK — fully mastered
+
+**Task 3 (Gap Detection): 9/10**
+- Correct LAG() usage for gap detection
+- Smart window function filtering for users with 3+ orders
+- Strong multi-CTE decomposition
+- Complex opportunity cost calculation executed well
+
+**Key Wins:**
+- First exposure to PERCENT_RANK — understood and applied correctly
+- Solid window frame control with explicit ROWS BETWEEN
+- Gap-and-island pattern tackled successfully
+- Student showed good judgment adapting to data reality
+
+## Student Feedback on Questions
+
+- Task 1: Ambiguity around "3-day" (consecutive calendar days vs 3 session records) — student adapted well
+- Task 2: Excellent task for learning new concept (PERCENT_RANK)
+- Task 3: Complex but very satisfying — student wants more like this
+

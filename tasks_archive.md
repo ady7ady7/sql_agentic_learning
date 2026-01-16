@@ -3603,3 +3603,177 @@ ORDER BY potential_lost_revenue DESC
 
 **Day 4 Overall Score: 9.3/10**
 
+
+---
+
+### Task Archive: 2026-01-15 (Week 5, Day 5)
+
+**Focus:** Cumulative Distribution, Running Comparisons, Multi-Partition Analytics
+
+## Task 1: NTILE vs PERCENT_RANK — Customer Spending Quartiles
+
+**Scenario:**
+The marketing team wants to segment customers into spending quartiles for targeted campaigns.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `total_spending` (numeric)
+- `spending_quartile` (integer) — NTILE(4) bucket
+- `spending_percentile` (numeric) — PERCENT_RANK (0 to 1)
+- `quartile_label` (text) — Bronze/Silver/Gold/Platinum
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH users_orders AS (
+	SELECT 
+		user_id,
+		SUM(amount) AS total_spending,
+		COUNT(*) AS orders_total
+	FROM orders
+	GROUP BY user_id
+	),
+orders_quartiles AS (
+	SELECT 
+		*,
+		NTILE(4) OVER (ORDER BY total_spending) AS spending_quartile,
+		ROUND(PERCENT_RANK() OVER (ORDER BY total_spending)::NUMERIC, 2) AS spending_percentile,
+		NTILE(4) OVER (ORDER BY orders_total) AS orders_quartile
+	FROM users_orders
+	)
+SELECT 
+	*,
+	CASE 
+		WHEN spending_quartile = 1 THEN 'Bronze'
+		WHEN spending_quartile = 2 THEN 'Silver'
+		WHEN spending_quartile = 3 THEN 'Gold'
+		WHEN spending_quartile = 4 THEN 'Platinum'
+	END AS spending_quartile_label
+FROM orders_quartiles
+ORDER BY total_spending DESC
+```
+
+**Student Note:** Added orders_quartile for extra analysis.
+
+**Score: 10/10** - Perfect NTILE and PERCENT_RANK implementation with bonus analysis.
+
+---
+
+## Task 2: Running Difference — Month-over-Month Revenue Change
+
+**Scenario:**
+Finance needs a monthly revenue report showing totals and change from previous month.
+
+**Expected Output Columns:**
+- `month` (date)
+- `monthly_revenue` (numeric)
+- `previous_month_revenue` (numeric)
+- `revenue_change` (numeric)
+- `change_percent` (numeric)
+- `trend` (text) — UP/DOWN/FLAT
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH orders_y_m AS (
+SELECT 
+	*,
+	EXTRACT('Year' FROM created_at) AS year_,
+	EXTRACT('Month' FROM created_at) AS month_
+FROM orders
+),
+monthly_revenues AS (
+SELECT 
+	year_, 
+	month_,
+	SUM(amount) AS monthly_revenue
+FROM orders_y_m
+GROUP BY year_, month_
+ORDER BY year_, month_
+),
+monthly_revs_complete AS (
+SELECT 
+	*,
+	COALESCE(LAG(monthly_revenue) OVER (ORDER BY year_, month_), 0) AS previous_month_revenue
+FROM monthly_revenues
+)
+SELECT
+	*,
+	CASE
+		WHEN previous_month_revenue != 0 THEN ROUND(monthly_revenue::NUMERIC - previous_month_revenue::NUMERIC, 2) ELSE 0
+	END AS revenue_change,
+	CASE 
+		WHEN previous_month_revenue != 0 THEN ROUND(monthly_revenue::NUMERIC / previous_month_revenue::NUMERIC * 100, 1) ELSE 0
+	END AS change_percent,
+	CASE 
+		WHEN monthly_revenue - previous_month_revenue = monthly_revenue THEN 'FLAT'
+		WHEN monthly_revenue > previous_month_revenue THEN 'UP'
+		WHEN monthly_revenue < previous_month_revenue THEN 'DOWN' 
+	END AS trend
+FROM monthly_revs_complete
+```
+
+**Student Note:** Used EXTRACT instead of DATE_TRUNC. Used COALESCE with 0 for practical calculations.
+
+**Score: 9/10** - Correct LAG implementation. EXTRACT works, DATE_TRUNC is more concise.
+
+---
+
+## Task 3: Multi-Level Ranking — Product Performance
+
+**Scenario:**
+Identify products that rank top 3 in category but outside top 10 overall.
+
+**Expected Output Columns:**
+- `product_id` (integer)
+- `product_name` (varchar)
+- `category_name` (varchar)
+- `units_sold` (bigint)
+- `category_rank` (bigint)
+- `overall_rank` (bigint)
+- `is_category_champion_needs_boost` (boolean)
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH products_units_sold AS (
+SELECT 
+	p.id AS product_id,
+	p.name AS product_name,
+	pc.name AS category_name,
+	SUM(op.quantity) AS units_sold
+FROM orders_products op
+JOIN products p ON op.product_id = p.id
+JOIN product_categories pc ON pc.id = p.category_id
+GROUP BY p.id, p.name, pc.name
+),
+products_ranks AS (
+SELECT 
+	product_id,
+	product_name,
+	category_name,
+	units_sold,
+	RANK() OVER (ORDER BY units_sold DESC) AS overall_rank,
+	RANK() OVER (PARTITION BY category_name ORDER BY units_sold DESC) AS category_rank
+FROM products_units_sold
+)
+SELECT 
+	*,
+	CASE 
+		WHEN category_rank <= 3 AND overall_rank > 10 THEN TRUE ELSE FALSE
+	END AS is_category_champion_needs_boost
+FROM products_ranks
+ORDER BY category_name, category_rank
+```
+
+**Score: 10/10** - Perfect dual-partition RANK implementation.
+
+---
+
+**Day 5 Overall Score: 9.7/10**
+
+**Week 5 Complete - Average: 9.2/10**
+

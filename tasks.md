@@ -1,75 +1,88 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-01-15
-**Week 5, Day 5 Focus:** Cumulative Distribution, Running Comparisons, Multi-Partition Analytics
+**Generated:** 2026-01-16
+**Week 6, Day 1 Focus:** Recursive CTEs, Hierarchical Data, Date Series Generation
 
 ---
 
-## Task 1: NTILE vs PERCENT_RANK — Customer Spending Quartiles
+## Task 1: Recursive CTE — Generate Date Series
 
 **Scenario:**
-The marketing team wants to segment customers into spending quartiles for targeted campaigns. They need both the quartile bucket (1-4) AND the exact percentile position within all customers.
+Generate a complete date series for all months in 2025, then LEFT JOIN to show monthly order counts (including months with zero orders).
 
 **Expected Output Columns:**
-- `user_id` (integer)
-- `total_spending` (numeric) — sum of all order amounts for this user
-- `spending_quartile` (integer) — NTILE(4) bucket (1 = lowest 25%, 4 = highest 25%)
-- `spending_percentile` (numeric) — PERCENT_RANK (0 to 1), rounded to 3 decimals
-- `quartile_label` (text) — 'Bronze' for Q1, 'Silver' for Q2, 'Gold' for Q3, 'Platinum' for Q4
+- `month_start` (date) — first day of each month (2025-01-01 through 2025-12-01)
+- `order_count` (bigint) — number of orders in that month (0 if none)
+- `total_revenue` (numeric) — sum of order amounts, rounded to 2 decimals (0 if none)
 
 **Requirements:**
-- Use `orders` table
-- Use both NTILE(4) and PERCENT_RANK() window functions
-- Only include users who have at least one order
-- Order by total_spending DESC
-
-**Difficulty Rating:** 3/5
-
----
-
-## Task 2: Running Difference — Month-over-Month Revenue Change
-
-**Scenario:**
-Finance needs a monthly revenue report showing not just totals, but also the change from the previous month and whether revenue is trending up or down.
-
-**Expected Output Columns:**
-- `month` (date) — first day of the month (use DATE_TRUNC)
-- `monthly_revenue` (numeric) — sum of order amounts for that month, rounded to 2 decimals
-- `previous_month_revenue` (numeric) — LAG of monthly_revenue
-- `revenue_change` (numeric) — difference from previous month
-- `change_percent` (numeric) — percentage change from previous month, rounded to 1 decimal
-- `trend` (text) — 'UP' if positive change, 'DOWN' if negative, 'FLAT' if zero or NULL
-
-**Requirements:**
-- Use `orders` table
-- Use DATE_TRUNC to group by month
-- Use LAG() for previous month comparison
-- Handle NULL for first month gracefully (show NULL, not error)
-- Order by month ASC
+- Use a recursive CTE to generate all 12 months of 2025
+- LEFT JOIN to orders table
+- Use COALESCE to show 0 instead of NULL for months with no orders
+- Order by month_start ASC
 
 **Difficulty Rating:** 4/5
 
+**Hint — Recursive CTE Structure:**
+```sql
+WITH RECURSIVE month_series AS (
+    -- Anchor: starting point
+    SELECT DATE '2025-01-01' AS month_start
+    UNION ALL
+    -- Recursive: add one month until December
+    SELECT (month_start + INTERVAL '1 month')::DATE
+    FROM month_series
+    WHERE month_start < '2025-12-01'
+)
+SELECT ... FROM month_series LEFT JOIN ...
+```
+
 ---
 
-## Task 3: Multi-Level Ranking — Product Performance Within Category AND Overall
+## Task 2: Self-Referential Hierarchy — User Referral Chain
 
 **Scenario:**
-The product team wants to identify products that rank in the top 3 within their category but fall outside the top 10 overall. These are "category champions" that might benefit from cross-category promotion.
+Imagine users can refer other users. Given the transactions table, simulate a referral relationship: for each user, find another user who made their first transaction within 7 days AFTER them (potential "referred by" relationship). Build a chain showing who might have referred whom.
 
 **Expected Output Columns:**
-- `product_id` (integer)
-- `product_name` (varchar)
-- `category_name` (varchar)
-- `units_sold` (bigint) — total quantity sold
-- `category_rank` (bigint) — RANK within category by units_sold
-- `overall_rank` (bigint) — RANK across all products by units_sold
-- `is_category_champion_needs_boost` (boolean) — TRUE if category_rank <= 3 AND overall_rank > 10
+- `user_id` (integer) — the user
+- `first_transaction_date` (timestamp) — when they first transacted
+- `potential_referrer_id` (integer) — user who transacted 1-7 days before them (closest one)
+- `referrer_first_transaction` (timestamp) — when the referrer first transacted
+- `days_apart` (integer) — days between their first transactions
 
 **Requirements:**
-- Use `orders_products`, `products`, and `product_categories` tables
-- Use RANK() with different partitions
-- Only include products with at least one sale
-- Order by category_name, category_rank ASC
+- Use `transactions` table
+- Calculate each user's first transaction date
+- Find the user whose first transaction was 1-7 days before (closest match)
+- Use window functions or correlated subquery to find the closest referrer
+- Only show users who have a potential referrer (exclude those with no match)
+- Order by first_transaction_date ASC
+
+**Difficulty Rating:** 5/5
+
+---
+
+## Task 3: Recursive CTE — Running Balance Simulation
+
+**Scenario:**
+For a specific user (user_id = 1), simulate their running account balance over time. Start with a balance of 1000, then add deposits/payments and subtract withdrawals/purchases/transfers.
+
+**Expected Output Columns:**
+- `transaction_id` (integer)
+- `created_at` (timestamp)
+- `type` (text) — transaction type
+- `amount` (numeric)
+- `balance_change` (numeric) — positive for deposits/payments, negative for withdrawals/purchases/transfers
+- `running_balance` (numeric) — cumulative balance after this transaction
+
+**Requirements:**
+- Use `transactions` table filtered to user_id = 1
+- Starting balance is 1000
+- Deposits and payments ADD to balance
+- Withdrawals, purchases, and transfers SUBTRACT from balance
+- Use window function SUM() OVER (ORDER BY created_at) for running total
+- Order by created_at ASC
 
 **Difficulty Rating:** 4/5
 
@@ -77,16 +90,11 @@ The product team wants to identify products that rank in the top 3 within their 
 
 ## Submission Instructions
 
-Submit your SQL solutions when ready. This is the final day of Week 5!
+Welcome to Week 6! This week focuses on recursive CTEs and more complex analytical patterns.
 
-**Week 5 Concepts Covered:**
-- DENSE_RANK vs RANK vs ROW_NUMBER
-- PERCENT_RANK and NTILE for distribution analysis
-- LAG/LEAD for row comparisons
-- Custom window frames (ROWS BETWEEN)
-- Gap-and-island detection
-- Multi-partition window functions
+**Key Concepts:**
+- Recursive CTE = Anchor + UNION ALL + Recursive term with termination condition
+- Self-joins for hierarchical/relationship discovery
+- Running totals with conditional logic (CASE WHEN inside SUM)
 
-After today's review, we'll do the Weekly Recap for Week 5.
-
-Good luck on the final day!
+Good luck!

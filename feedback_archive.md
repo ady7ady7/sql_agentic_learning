@@ -1437,3 +1437,73 @@ Student noted Task 2 was solved with subqueries as an alternative approach.
 - Task 2: Excellent task for learning new concept (PERCENT_RANK)
 - Task 3: Complex but very satisfying — student wants more like this
 
+
+---
+
+### Feedback Archive: 2026-01-15 (Week 5, Day 5)
+
+## Agent Feedback on Student
+
+**Overall Score: 9.7/10**
+
+**Task 1 (NTILE vs PERCENT_RANK): 10/10**
+- Correct NTILE(4) for bucket assignment
+- Correct PERCENT_RANK for continuous percentile
+- Added orders_quartile as bonus analysis
+- Clean CASE WHEN for quartile labels
+
+**Task 2 (Month-over-Month): 9/10**
+- Correct LAG() for previous month comparison
+- COALESCE to handle NULL — valid business decision
+- Used EXTRACT instead of DATE_TRUNC (works, but DATE_TRUNC is more concise)
+- Clever trend detection for first month edge case
+
+**Task 3 (Multi-Level Ranking): 10/10**
+- Correct dual RANK() with different partitions
+- Clean CTE structure
+- Correct boolean logic for category champion identification
+- Pattern now second nature after PERCENT_RANK practice
+
+## Student Feedback on Questions
+
+- Task 1: Straightforward, added extra analysis for fun
+- Task 2: Prefers COALESCE over NULL for practical calculations
+- Task 3: Clean execution, dual-partition pattern now comfortable
+
+---
+
+### Week 5 Weekly Recap
+
+**Week 5 Scores:**
+- Day 1: 9/10 (Recursive CTE, Email Validation, Transaction Frequency)
+- Day 2: 9/10 (FIRST_VALUE/LAST_VALUE, Running Total with Reset, LAG/LEAD)
+- Day 3: 9/10 (DENSE_RANK, Conditional Aggregation, Users Above Average)
+- Day 4: 9.3/10 (Rolling Window Frames, PERCENT_RANK, Gap Detection)
+- Day 5: 9.7/10 (NTILE, Month-over-Month, Multi-Level Ranking)
+
+**Week Average: 9.2/10**
+
+**Progress Bar:** ████████░░ 80% towards HackerRank Advanced goal
+
+**Key Wins This Week:**
+1. **Window Function Mastery** — RANK, DENSE_RANK, ROW_NUMBER, PERCENT_RANK, NTILE all understood and applied correctly
+2. **LAG/LEAD Proficiency** — Used for gap detection, running comparisons, and time-series analysis
+3. **Custom Frame Control** — ROWS BETWEEN with explicit boundaries
+4. **Multi-Partition Patterns** — Same window function with different PARTITION BY clauses
+5. **Gap-and-Island Detection** — Complex pattern tackled successfully
+6. **Data-Driven Decision Making** — Consistently adapts to actual data reality
+
+**Areas Explored:**
+- Recursive CTEs (missed requirement Day 1, but understood concept)
+- FILTER clause vs CASE WHEN for conditional aggregation
+- DATE_TRUNC vs EXTRACT (knows both, prefers EXTRACT currently)
+
+**Focus Areas for Week 6:**
+- Recursive CTEs — needs more practice with actual recursive patterns
+- Advanced string manipulation and pattern matching
+- More complex multi-table analytics
+- Query optimization thinking
+
+**Next Week's Plan (Week 6):**
+Transition to Weeks 7-9 curriculum: Recursive CTEs deep dive, advanced string/date manipulation. Maintain difficulty level at 4-5/5 as student requested more challenge.
+

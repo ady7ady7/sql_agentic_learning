@@ -1507,3 +1507,43 @@ Student noted Task 2 was solved with subqueries as an alternative approach.
 **Next Week's Plan (Week 6):**
 Transition to Weeks 7-9 curriculum: Recursive CTEs deep dive, advanced string/date manipulation. Maintain difficulty level at 4-5/5 as student requested more challenge.
 
+
+---
+
+### Feedback Archive: 2026-01-16 (Week 6, Day 1)
+
+## Agent Feedback on Student
+
+**Overall Score: 8.7/10**
+
+**Task 1 (Date Series): 8/10**
+- Clean use of DATE_TRUNC (learned from previous feedback)
+- Correct LEFT JOIN and COALESCE logic
+- However: Used dates table instead of recursive CTE as required
+- Learning objective (recursive pattern) was missed
+
+**Task 2 (Referral Chain): 9/10**
+- Excellent self-join logic for finding pairs within 7-day window
+- Smart use of FIRST_VALUE for first transaction per user
+- Correctly finding closest referrer using MIN + re-join
+- Inverted relationship direction but logic is sound
+
+**Task 3 (Running Balance): 9/10**
+- Correct conditional logic for deposits vs withdrawals
+- Correct SUM() OVER (ORDER BY) for running total
+- Starting balance of 1000 handled
+- Slightly over-engineered but works correctly
+
+**Key Notes:**
+- Student needs dedicated recursive CTE practice — bypassed the requirement in Task 1
+- Strong performance on complex self-referential query (Task 2)
+- Student requested lighter load for Mondays and scaffolded recursive CTE learning
+
+## Student Feedback on Questions
+
+- Task 1: Student questioned why recursive CTE needed when dates table exists
+- Task 2: Found it complex and time-consuming ("pain in the ass")
+- Task 3: Completed successfully
+- Overall: Requested easier Monday sessions (1 hard + 2 moderate)
+- Requested scaffolded approach for recursive CTEs with rationale and examples
+

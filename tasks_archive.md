@@ -3777,3 +3777,150 @@ ORDER BY category_name, category_rank
 
 **Week 5 Complete - Average: 9.2/10**
 
+
+---
+
+### Task Archive: 2026-01-16 (Week 6, Day 1)
+
+**Focus:** Recursive CTEs, Hierarchical Data, Date Series Generation
+
+## Task 1: Recursive CTE — Generate Date Series
+
+**Scenario:**
+Generate a complete date series for all months in 2025, then LEFT JOIN to show monthly order counts.
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH months_trunc AS (
+SELECT
+	DISTINCT DATE_TRUNC('Month', date) AS month_date
+FROM dates d 
+WHERE EXTRACT('Year' FROM date) = 2025
+)
+SELECT 
+	mt.month_date AS month_start,
+	COALESCE(COUNT(o.id), 0) AS order_count,
+	COALESCE(SUM(o.amount), 0) AS total_revenue
+FROM months_trunc mt
+LEFT JOIN orders o ON mt.month_date = DATE_TRUNC('Month', o.created_at)
+GROUP BY mt.month_date
+```
+
+**Student Note:** Used dates table instead of recursive CTE. "Why would I use RECURSIVE?"
+
+**Score: 8/10** - Correct output but missed recursive CTE requirement. Practical solution but learning objective bypassed.
+
+---
+
+## Task 2: Self-Referential Hierarchy — User Referral Chain
+
+**Scenario:**
+Find users whose first transaction was 1-7 days before another user (potential referrer).
+
+**Difficulty Rating:** 5/5
+
+**Student Solution:**
+```sql
+WITH users_first_transactions AS (
+SELECT 
+	DISTINCT user_id,
+	FIRST_VALUE(created_at) OVER (PARTITION BY user_id) AS first_transaction_date
+FROM transactions
+),
+referral_windows AS (
+SELECT 
+	*,
+	first_transaction_date - INTERVAL '7' Day AS possibly_referred
+FROM users_first_transactions
+),
+potential_referral_pairs AS (
+SELECT 
+	DISTINCT rw1.user_id AS uid1,
+	rw2.user_id AS uid2,
+	rw1.first_transaction_date AS first_transaction_1,
+	rw2.first_transaction_date AS first_transaction_2,
+	rw2.possibly_referred AS back_window2
+FROM referral_windows rw1
+JOIN referral_windows rw2 ON rw1.first_transaction_date > rw2.possibly_referred
+WHERE rw1.user_id != rw2.user_id
+AND rw1.first_transaction_date >= rw2.first_transaction_date
+AND rw1.first_transaction_date <= rw2.first_transaction_date + INTERVAL '7' DAY
+ORDER BY rw1.user_id
+),
+closest_referred AS (
+SELECT
+	uid1 AS user_id,
+	MIN(first_transaction_2) AS referred_first_transaction
+FROM potential_referral_pairs
+GROUP BY uid1
+)
+SELECT
+	cr.user_id,
+	pfp.first_transaction_1 AS first_transaction_date,
+	pfp.uid2 AS potentially_referred_id,
+	pfp.first_transaction_2 AS referred_first_transaction,
+	EXTRACT('Days' FROM pfp.first_transaction_1 - pfp.first_transaction_2) AS days_apart
+FROM closest_referred cr
+JOIN potential_referral_pairs pfp ON cr.user_id = pfp.uid1 AND cr.referred_first_transaction = pfp.first_transaction_2
+ORDER BY first_transaction_date
+```
+
+**Student Note:** Complex task, inverted relationship direction (shows who user referred rather than who referred them). "Pain in the ass, need a breather tomorrow."
+
+**Score: 9/10** - Excellent self-join logic on genuinely difficult problem.
+
+---
+
+## Task 3: Running Balance Simulation
+
+**Scenario:**
+Simulate running account balance for user_id = 1, starting at 1000.
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH first_transaction AS (
+SELECT 
+	*,
+	FIRST_VALUE(created_at) OVER (PARTITION BY user_id ORDER BY t.created_at) AS first_transaction_time
+FROM transactions t
+WHERE user_id = 1
+GROUP BY t.user_id, t.id
+),
+starting_balance AS (
+SELECT *,
+	CASE WHEN created_at = first_transaction_time THEN 1000 
+	END AS running_balance
+FROM first_transaction
+),
+cash_flows AS (
+SELECT 
+	*,
+	CASE WHEN TYPE IN ('withdrawal', 'transfer', 'purchase') THEN COALESCE(running_balance, 0) - amount ELSE COALESCE(running_balance, 0) + amount
+	END AS cashflow
+FROM starting_balance
+)
+SELECT 
+	id AS transaction_id,
+	created_at,
+	TYPE,
+	amount,
+	cashflow AS balance_change,
+	SUM(cashflow) OVER (ORDER BY created_at) AS running_balance
+FROM cash_flows
+```
+
+**Score: 9/10** - Correct running total with conditional logic. Slightly over-engineered but works.
+
+---
+
+**Day 1 Overall Score: 8.7/10**
+
+**Action Items:**
+- Week 6 to focus on recursive CTEs with scaffolded learning
+- Lighter Monday sessions (1 hard + 2 moderate)
+- Include rationale and examples for recursive CTE concept
+

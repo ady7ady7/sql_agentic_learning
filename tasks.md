@@ -1,100 +1,140 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-01-16
-**Week 6, Day 1 Focus:** Recursive CTEs, Hierarchical Data, Date Series Generation
+**Generated:** 2026-01-17
+**Week 6, Day 2 Focus:** Recursive CTEs — Foundations & Building Blocks
 
 ---
 
-## Task 1: Recursive CTE — Generate Date Series
+## Understanding Recursive CTEs
 
-**Scenario:**
-Generate a complete date series for all months in 2025, then LEFT JOIN to show monthly order counts (including months with zero orders).
+### Why Do We Need Them?
 
-**Expected Output Columns:**
-- `month_start` (date) — first day of each month (2025-01-01 through 2025-12-01)
-- `order_count` (bigint) — number of orders in that month (0 if none)
-- `total_revenue` (numeric) — sum of order amounts, rounded to 2 decimals (0 if none)
+Regular CTEs are just named subqueries — they run once. **Recursive CTEs** run repeatedly, building results row by row until a termination condition is met.
 
-**Requirements:**
-- Use a recursive CTE to generate all 12 months of 2025
-- LEFT JOIN to orders table
-- Use COALESCE to show 0 instead of NULL for months with no orders
-- Order by month_start ASC
+**Real-world use cases:**
+1. **Generating sequences** — dates, numbers, IDs (when no calendar/sequence table exists)
+2. **Hierarchical data** — org charts (employee → manager → CEO), category trees, folder structures
+3. **Graph traversal** — finding paths, connections, dependencies
+4. **Iterative calculations** — compound interest, running totals with complex rules
 
-**Difficulty Rating:** 4/5
+**Why not just use a dates table or existing data?**
+- Not every database has helper tables
+- HackerRank/LeetCode problems often require generating data from nothing
+- Some hierarchies are arbitrary depth — you can't hardcode the levels
 
-**Hint — Recursive CTE Structure:**
+### The Anatomy of a Recursive CTE
+
 ```sql
-WITH RECURSIVE month_series AS (
-    -- Anchor: starting point
-    SELECT DATE '2025-01-01' AS month_start
+WITH RECURSIVE cte_name AS (
+    -- ANCHOR: The starting point (runs once)
+    SELECT initial_value AS column_name
+
     UNION ALL
-    -- Recursive: add one month until December
-    SELECT (month_start + INTERVAL '1 month')::DATE
-    FROM month_series
-    WHERE month_start < '2025-12-01'
+
+    -- RECURSIVE TERM: References itself, runs until no new rows
+    SELECT next_value
+    FROM cte_name
+    WHERE termination_condition
 )
-SELECT ... FROM month_series LEFT JOIN ...
+SELECT * FROM cte_name;
+```
+
+**How it works:**
+1. **Anchor** executes first → produces initial row(s)
+2. **Recursive term** runs, using previous iteration's results
+3. Repeat step 2 until recursive term returns zero rows
+4. All iterations' results are combined (UNION ALL)
+
+### Simple Example — Counting 1 to 5
+
+```sql
+WITH RECURSIVE counter AS (
+    SELECT 1 AS n           -- Anchor: start at 1
+    UNION ALL
+    SELECT n + 1            -- Recursive: add 1 each time
+    FROM counter
+    WHERE n < 5             -- Termination: stop when n reaches 5
+)
+SELECT * FROM counter;
+
+-- Result: 1, 2, 3, 4, 5
 ```
 
 ---
 
-## Task 2: Self-Referential Hierarchy — User Referral Chain
+## Task 1: Generate a Number Sequence (Warm-up)
 
 **Scenario:**
-Imagine users can refer other users. Given the transactions table, simulate a referral relationship: for each user, find another user who made their first transaction within 7 days AFTER them (potential "referred by" relationship). Build a chain showing who might have referred whom.
+Generate numbers from 1 to 10 using a recursive CTE.
 
 **Expected Output Columns:**
-- `user_id` (integer) — the user
-- `first_transaction_date` (timestamp) — when they first transacted
-- `potential_referrer_id` (integer) — user who transacted 1-7 days before them (closest one)
-- `referrer_first_transaction` (timestamp) — when the referrer first transacted
-- `days_apart` (integer) — days between their first transactions
+- `number` (integer) — values 1 through 10
 
 **Requirements:**
-- Use `transactions` table
-- Calculate each user's first transaction date
-- Find the user whose first transaction was 1-7 days before (closest match)
-- Use window functions or correlated subquery to find the closest referrer
-- Only show users who have a potential referrer (exclude those with no match)
-- Order by first_transaction_date ASC
+- Use WITH RECURSIVE
+- Anchor starts at 1
+- Recursive term adds 1
+- Terminate when reaching 10
 
-**Difficulty Rating:** 5/5
+**Difficulty Rating:** 2/5
+
+**This is intentionally simple** — master the pattern before adding complexity.
 
 ---
 
-## Task 3: Recursive CTE — Running Balance Simulation
+## Task 2: Generate a Date Series (Apply the Pattern)
 
 **Scenario:**
-For a specific user (user_id = 1), simulate their running account balance over time. Start with a balance of 1000, then add deposits/payments and subtract withdrawals/purchases/transfers.
+Generate all dates in January 2025 (2025-01-01 through 2025-01-31) using a recursive CTE.
 
 **Expected Output Columns:**
-- `transaction_id` (integer)
-- `created_at` (timestamp)
-- `type` (text) — transaction type
-- `amount` (numeric)
-- `balance_change` (numeric) — positive for deposits/payments, negative for withdrawals/purchases/transfers
-- `running_balance` (numeric) — cumulative balance after this transaction
+- `date_value` (date) — each day in January 2025
 
 **Requirements:**
-- Use `transactions` table filtered to user_id = 1
-- Starting balance is 1000
-- Deposits and payments ADD to balance
-- Withdrawals, purchases, and transfers SUBTRACT from balance
-- Use window function SUM() OVER (ORDER BY created_at) for running total
-- Order by created_at ASC
+- Use WITH RECURSIVE
+- Anchor starts at '2025-01-01'
+- Recursive term adds 1 day using INTERVAL
+- Terminate at '2025-01-31'
+- Cast properly to DATE type
+
+**Difficulty Rating:** 3/5
+
+**Hint:**
+```sql
+SELECT (date_value + INTERVAL '1 day')::DATE
+```
+
+---
+
+## Task 3: Monthly Revenue Report with Generated Dates
+
+**Scenario:**
+Now combine what you learned: generate all 12 months of 2025 using a recursive CTE, then LEFT JOIN to orders to show revenue per month (including months with zero revenue).
+
+**Expected Output Columns:**
+- `month_start` (date) — first day of each month (2025-01-01 through 2025-12-01)
+- `order_count` (bigint) — number of orders (0 if none)
+- `total_revenue` (numeric) — sum of amounts, rounded to 2 decimals (0 if none)
+
+**Requirements:**
+- Use WITH RECURSIVE to generate 12 months
+- LEFT JOIN to orders table
+- Use COALESCE for zero handling
+- Order by month_start ASC
 
 **Difficulty Rating:** 4/5
+
+**This is yesterday's Task 1 done correctly** — now with the recursive pattern you understand.
 
 ---
 
 ## Submission Instructions
 
-Welcome to Week 6! This week focuses on recursive CTEs and more complex analytical patterns.
+Today is about building the recursive CTE muscle memory:
+1. Task 1 — Pure pattern practice (numbers)
+2. Task 2 — Apply to dates
+3. Task 3 — Combine with real data
 
-**Key Concepts:**
-- Recursive CTE = Anchor + UNION ALL + Recursive term with termination condition
-- Self-joins for hierarchical/relationship discovery
-- Running totals with conditional logic (CASE WHEN inside SUM)
+Tomorrow we'll move to hierarchical queries (org charts, category trees) which is where recursive CTEs really shine.
 
 Good luck!

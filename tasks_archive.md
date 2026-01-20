@@ -3924,3 +3924,89 @@ FROM cash_flows
 - Lighter Monday sessions (1 hard + 2 moderate)
 - Include rationale and examples for recursive CTE concept
 
+
+---
+
+### Task Archive: 2026-01-17 (Week 6, Day 2)
+
+**Focus:** Recursive CTEs — Foundations & Building Blocks
+
+## Task 1: Generate a Number Sequence (Warm-up)
+
+**Scenario:**
+Generate numbers from 1 to 10 using a recursive CTE.
+
+**Difficulty Rating:** 2/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE counter AS (
+	SELECT 1 AS n
+	UNION ALL
+	SELECT n + 1
+	FROM counter
+	WHERE n < 11
+)
+SELECT * FROM counter
+```
+
+**Score: 10/10** - Perfect pattern execution.
+
+---
+
+## Task 2: Generate a Date Series (Apply the Pattern)
+
+**Scenario:**
+Generate all dates in January 2025 using a recursive CTE.
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE january_dates AS (
+	SELECT DATE_TRUNC('Day', '2025-01-01'::DATE) AS DAY
+	UNION ALL
+	SELECT day + INTERVAL '1' Day
+	FROM january_dates
+	WHERE day < '2025-01-31'::DATE
+)
+SELECT * FROM january_dates
+```
+
+**Score: 10/10** - Clean application of pattern to dates.
+
+---
+
+## Task 3: Monthly Revenue Report with Generated Dates
+
+**Scenario:**
+Generate all 12 months of 2025 using recursive CTE, LEFT JOIN to orders for revenue.
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE months_2025 AS (
+SELECT DATE_TRUNC('Month', '2025-01-01'::DATE) AS month_
+UNION ALL
+SELECT month_ + INTERVAL '1' MONTH
+FROM months_2025
+WHERE month_ < '2025-12-1'::DATE
+)
+SELECT 
+	m_2025.month_ AS month_start,
+	COUNT(o.id) AS order_count,
+	COALESCE(ROUND(SUM(o.amount)::NUMERIC, 2), 0) AS total_revenue
+FROM months_2025 m_2025
+LEFT JOIN orders o ON m_2025.month_ = DATE_TRUNC('Month', o.created_at) 
+GROUP BY m_2025.month_
+```
+
+**Score: 10/10** - Exactly the correct approach for Day 1's task. Full understanding demonstrated.
+
+---
+
+**Day 2 Overall Score: 10/10**
+
+**Notes:** Scaffolded approach highly effective. Completed in 30 minutes including notes.
+

@@ -1547,3 +1547,40 @@ Transition to Weeks 7-9 curriculum: Recursive CTEs deep dive, advanced string/da
 - Overall: Requested easier Monday sessions (1 hard + 2 moderate)
 - Requested scaffolded approach for recursive CTEs with rationale and examples
 
+
+---
+
+### Feedback Archive: 2026-01-17 (Week 6, Day 2)
+
+## Agent Feedback on Student
+
+**Overall Score: 10/10**
+
+**Task 1 (Number Sequence): 10/10**
+- Perfect recursive CTE pattern execution
+- Anchor, UNION ALL, recursive term all correct
+- Minor: WHERE n < 11 gives 1-11, but pattern is solid
+
+**Task 2 (Date Series): 10/10**
+- Clean application of pattern to dates
+- Correct INTERVAL usage for day increment
+- Proper termination condition
+
+**Task 3 (Monthly Revenue): 10/10**
+- Exactly what was expected for Day 1's missed task
+- Recursive month generation + LEFT JOIN + COALESCE
+- Full understanding demonstrated
+
+**Session Notes:**
+- Completed in 30 minutes including notes
+- Scaffolded approach was highly effective
+- Student expressed satisfaction with learning the concept
+- Ready for hierarchical recursive CTEs tomorrow
+
+## Student Feedback on Questions
+
+- Super satisfied about learning a new concept
+- Loved the scaffolded approach (simple → complex)
+- Wants more recursive CTE tasks throughout the week
+- Perfect difficulty balance for the day
+

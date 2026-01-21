@@ -1584,3 +1584,44 @@ Transition to Weeks 7-9 curriculum: Recursive CTEs deep dive, advanced string/da
 - Wants more recursive CTE tasks throughout the week
 - Perfect difficulty balance for the day
 
+
+---
+
+### Feedback Archive: 2026-01-18 (Week 6, Day 3)
+
+## Agent Feedback on Student
+
+**Overall Score: 9.7/10**
+
+**Task 1 (Even Numbers): 10/10**
+- Perfect pattern execution with different increment
+- Clean and correct
+
+**Task 2 (Week Dates): 9/10**
+- Correct output with day names
+- Good use of TRIM and TO_CHAR
+- Student found type casting challenging
+
+**Task 3 (Quarterly Revenue): 10/10**
+- Needed help but understood explanation and implemented correctly
+- Correct recursive generation + LEFT JOIN + aggregation
+
+**Session Notes:**
+- Student found today very difficult
+- Initial tasks were too complex (hierarchical CTEs) — had to regenerate simpler ones
+- Task 2 felt like 4/5 to student (rated 2/5 by agent)
+- Task 3 felt like 5/5 to student (rated 3/5 by agent)
+- Agent misjudged difficulty — need smaller steps
+
+## Student Feedback on Questions
+
+- Task 1: Appropriate difficulty
+- Task 2: "It wasn't a 2/5 difficulty task for me, but rather 4/5 - I need to practice this MORE and MORE to actually understand it fully and the amount of type converting etc. it needed definitely makes this a difficult task."
+- Task 3: "I needed your help for this and this is definitely a 5/5 difficulty task for me. There were a few difficult elements: 1. Setting the quarter starts properly 2. Setting the quarter label 3. Figuring out the logic for actually joining the orders."
+- Overall: "Please continue further with a bit simpler tasks, until I learn to feel more and more comfortable. The thing is I want to learn and move higher with my skills, but we can't make too big leaps"
+
+**Action Items for Tomorrow:**
+- More sequence generation practice (no JOINs yet)
+- Focus on recursive pattern itself
+- Smaller steps before combining with other concepts
+

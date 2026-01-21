@@ -4010,3 +4010,101 @@ GROUP BY m_2025.month_
 
 **Notes:** Scaffolded approach highly effective. Completed in 30 minutes including notes.
 
+
+---
+
+### Task Archive: 2026-01-18 (Week 6, Day 3)
+
+**Focus:** Recursive CTEs — Reinforcing the Basics
+
+## Task 1: Generate Even Numbers
+
+**Scenario:**
+Generate all even numbers from 2 to 20.
+
+**Difficulty Rating:** 2/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE even_number AS (
+	SELECT 2 AS n
+	UNION ALL
+	SELECT n + 2
+	FROM even_number
+	WHERE n < 20
+)
+SELECT * FROM even_number
+```
+
+**Score: 10/10** - Perfect pattern execution.
+
+---
+
+## Task 2: Generate Week Dates with Day Names
+
+**Scenario:**
+Generate all 7 days of a specific week with weekday names.
+
+**Difficulty Rating:** 2/5 (Student felt: 4/5)
+
+**Student Solution:**
+```sql
+WITH RECURSIVE dates AS (
+SELECT 
+	'2025-01-06'::DATE AS day_date,
+	TRIM(TO_CHAR('2025-01-06'::DATE, 'Day')) AS date_name
+	UNION ALL 
+	SELECT (day_date::DATE + INTERVAL '1' DAY)::DATE,
+	TRIM(TO_CHAR(day_date + 1, 'Day')) AS date_name
+	FROM dates
+	WHERE day_date::DATE < '2025-01-12'::DATE
+)
+SELECT * FROM dates
+```
+
+**Student Note:** "It wasn't a 2/5 difficulty task for me, but rather 4/5 - I need to practice this MORE and MORE"
+
+**Score: 9/10** - Correct output. Type casting was challenging.
+
+---
+
+## Task 3: Quarterly Revenue Report
+
+**Scenario:**
+Generate 4 quarters of 2025 using recursive CTE, LEFT JOIN to orders for revenue.
+
+**Difficulty Rating:** 3/5 (Student felt: 5/5)
+
+**Student Solution:**
+```sql
+WITH RECURSIVE quarters AS (
+SELECT
+	'2025-01-01'::DATE AS quarter_start
+	UNION ALL
+	SELECT (quarter_start + INTERVAL '3' MONTH)::DATE
+	FROM quarters
+	WHERE quarter_start < '2025-10-01'
+)
+SELECT 
+	q.quarter_start,
+	'Q' || EXTRACT(QUARTER FROM q.quarter_start) AS quarter_label,
+	COUNT(o.id) AS orders_count,
+	COALESCE(SUM(o.amount), 0) AS total_revenue
+FROM quarters q
+LEFT JOIN orders o ON o.created_at >= q.quarter_start AND o.created_at < q.quarter_start + INTERVAL '3' MONTH
+GROUP BY q.quarter_start
+ORDER BY q.quarter_start
+```
+
+**Student Note:** "I needed your help for this... difficult elements: 1. Setting the quarter starts properly 2. Setting the quarter label 3. Figuring out the logic for actually joining the orders."
+
+**Score: 10/10** - Needed help but understood and implemented correctly.
+
+---
+
+**Day 3 Overall Score: 9.7/10**
+
+**Session Notes:** 
+- Original tasks (hierarchical CTEs) were too complex — regenerated simpler ones
+- Student requested continued scaffolded approach with smaller steps
+

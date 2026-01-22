@@ -4108,3 +4108,101 @@ ORDER BY q.quarter_start
 - Original tasks (hierarchical CTEs) were too complex — regenerated simpler ones
 - Student requested continued scaffolded approach with smaller steps
 
+
+---
+
+### Task Archive: 2026-01-19 (Week 6, Day 4)
+
+**Focus:** Recursive CTEs — Applying the Pattern to Real Scenarios
+
+## Task 1: Generate Bi-Weekly Pay Dates for 2025
+
+**Scenario:**
+Generate all bi-weekly pay dates for 2025 starting January 10th.
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE pay_dates AS (
+SELECT 
+	('2025-01-10')::DATE AS pay_date,
+	1 AS pay_period_number
+UNION ALL
+SELECT 
+	(pay_date + INTERVAL '14' Day)::DATE,
+	pay_period_number + 1
+FROM pay_dates
+WHERE pay_date < ('2025-12-26')::DATE
+)
+SELECT * FROM pay_dates
+```
+
+**Score: 10/10** - Perfect execution with two columns tracked.
+
+---
+
+## Task 2: Hourly Slots for a Business Day
+
+**Scenario:**
+Generate hourly booking slots for 9 AM to 5 PM with labels.
+
+**Difficulty Rating:** 3/5 (Student felt: 5/5)
+
+**Student Solution:**
+```sql
+WITH RECURSIVE time_slots AS (
+SELECT 
+	TIME '09:00:00' AS slot_start,
+	TIME '10:00:00' AS slot_end,
+	'9 AM' AS slot_label
+UNION ALL
+SELECT 
+	slot_start + INTERVAL '1' HOUR,
+	slot_end + INTERVAL '1' HOUR,
+	((split_part(slot_label, ' ', 1))::INTEGER + 1)::TEXT || CASE WHEN EXTRACT(HOUR FROM slot_start) < 12 THEN ' AM' ELSE ' PM' END
+FROM time_slots
+WHERE slot_start < TIME '17:00:00'
+)
+SELECT * FROM time_slots
+```
+
+**Student Note:** "This is A VERY DIFFICULT EXAMPLE - a 5/5 for the type casting and multiple type changing"
+
+**Score: 9/10** - Correct TIME usage. Complex string manipulation handled.
+
+---
+
+## Task 3: Weekly Date Ranges for a Month
+
+**Scenario:**
+Generate all calendar weeks in January 2025 with start/end dates.
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE weeks_2025 AS (
+SELECT
+	1 AS week_number,
+	'2024-12-30'::DATE AS week_start,
+	('2024-12-30'::DATE + INTERVAL '6' DAY)::DATE AS week_end_sunday
+UNION ALL
+SELECT
+	week_number + 1,
+	(week_start::DATE + INTERVAL '7' DAY)::DATE,
+	(week_end_sunday::DATE + INTERVAL '7' DAY)::DATE
+FROM weeks_2025
+WHERE week_start < '2025-01-27'::DATE
+)
+SELECT * FROM weeks_2025
+```
+
+**Student Note:** "This task wasn't that difficult, as we didn't have to do complex type casting and/or string concatenation"
+
+**Score: 10/10** - Correct boundary handling with three columns.
+
+---
+
+**Day 4 Overall Score: 9.7/10**
+

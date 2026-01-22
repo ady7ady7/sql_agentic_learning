@@ -1,86 +1,90 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-01-19
-**Week 6, Day 4 Focus:** Recursive CTEs — Pure Pattern Practice (No JOINs)
+**Generated:** 2026-01-20
+**Week 6, Day 5 Focus:** Recursive CTEs — Consolidation & Simple Combinations
 
 ---
 
-## Today's Goal
+## Final Day of Week 6
 
-More repetition of the basic recursive pattern. No JOINs, no complex combinations — just the recursive CTE itself with small variations.
+Today wraps up our recursive CTE focus. Tasks are designed to consolidate what you've learned without overwhelming complexity.
 
 ---
 
-## Task 1: Countdown from 10 to 1
+## Task 1: Generate Year-End Countdown
 
 **Scenario:**
-Generate a countdown: 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+Generate a countdown showing the last 10 days of 2025 (December 22-31), with a "days until new year" counter.
 
 **Expected Output Columns:**
-- `countdown` (integer) — values 10 down to 1
+- `date` (date) — December 22 through December 31
+- `days_until_new_year` (integer) — 10, 9, 8, ... 1
 
 **Requirements:**
 - Use WITH RECURSIVE
-- Anchor starts at 10
-- Recursive term subtracts 1
-- Terminate at 1
-
-**Difficulty Rating:** 2/5
-
----
-
-## Task 2: Generate Hours of the Day
-
-**Scenario:**
-Generate all 24 hours of a day as timestamps (00:00, 01:00, 02:00, ... 23:00).
-
-**Expected Output Columns:**
-- `hour_timestamp` (timestamp) — starting from '2025-01-01 00:00:00' through '2025-01-01 23:00:00'
-- `hour_label` (text) — '00:00', '01:00', '02:00', etc.
-
-**Requirements:**
-- Use WITH RECURSIVE
-- Anchor starts at '2025-01-01 00:00:00'::TIMESTAMP
-- Recursive term adds INTERVAL '1 hour'
-- Terminate before reaching '2025-01-02 00:00:00'
-- Use TO_CHAR(timestamp, 'HH24:MI') for the label
+- Anchor starts at '2025-12-22' with days_until = 10
+- Recursive term adds 1 day and subtracts 1 from counter
+- Terminate at December 31
 
 **Difficulty Rating:** 3/5
 
-**Hint:**
+---
+
+## Task 2: Generate Fiscal Quarters (April Start)
+
+**Scenario:**
+Some companies use a fiscal year starting in April. Generate all 4 fiscal quarters for FY2025 (April 2025 - March 2026).
+
+**Expected Output Columns:**
+- `fiscal_quarter` (text) — 'FY25-Q1', 'FY25-Q2', 'FY25-Q3', 'FY25-Q4'
+- `quarter_start` (date) — first day of each fiscal quarter
+- `quarter_end` (date) — last day of each fiscal quarter
+
+**Requirements:**
+- Use WITH RECURSIVE
+- Q1 starts April 1, 2025; Q4 ends March 31, 2026
+- Track quarter number (1-4) for label generation
+- Calculate quarter_end as start + 3 months - 1 day
+
+**Difficulty Rating:** 3/5
+
+**Hint for quarter_end:**
 ```sql
-TO_CHAR(hour_timestamp, 'HH24:MI')  -- Returns '00:00', '01:00', etc.
+(quarter_start + INTERVAL '3 months' - INTERVAL '1 day')::DATE
 ```
 
 ---
 
-## Task 3: Multiplication Table (5x)
+## Task 3: Daily Transaction Summary with Generated Dates
 
 **Scenario:**
-Generate the 5 times multiplication table: 5×1=5, 5×2=10, 5×3=15, ... up to 5×10=50
+Generate all days in December 2025, then show daily transaction counts and totals (including days with zero transactions).
 
 **Expected Output Columns:**
-- `multiplier` (integer) — 1 through 10
-- `result` (integer) — 5, 10, 15, 20, 25, 30, 35, 40, 45, 50
+- `day` (date) — each day in December 2025
+- `transaction_count` (bigint) — number of transactions (0 if none)
+- `daily_total` (numeric) — sum of amounts, rounded to 2 decimals (0 if none)
 
 **Requirements:**
-- Use WITH RECURSIVE
-- Anchor starts with multiplier = 1
-- Recursive term increments multiplier by 1
-- Calculate result as 5 * multiplier
-- Terminate at multiplier = 10
+- Use WITH RECURSIVE to generate December 1-31, 2025
+- LEFT JOIN to transactions table
+- Match on DATE(created_at) = day
+- Use COALESCE for zero handling
+- Order by day
 
-**Difficulty Rating:** 2/5
+**Difficulty Rating:** 4/5
+
+**This brings back the JOIN pattern from Day 3's quarterly revenue task.**
 
 ---
 
 ## Submission Instructions
 
-Today is pure pattern practice:
-1. Task 1 — Counting down (subtract instead of add)
-2. Task 2 — Hours with timestamps (similar to dates)
-3. Task 3 — Derived calculation (multiplier → result)
+Today's tasks:
+1. Task 1 — Two counters moving opposite directions (date up, countdown down)
+2. Task 2 — Fiscal year logic with calculated end dates
+3. Task 3 — Recursive dates + LEFT JOIN (reinforcing the combination)
 
-No JOINs, no aggregations — just getting comfortable with the recursive structure itself.
+After today's review, we'll do the **Week 6 Recap**.
 
-Good luck!
+Good luck on the final day!

@@ -4206,3 +4206,104 @@ SELECT * FROM weeks_2025
 
 **Day 4 Overall Score: 9.7/10**
 
+
+---
+
+### Task Archive: 2026-01-20 (Week 6, Day 5)
+
+**Focus:** Recursive CTEs — Consolidation & Simple Combinations
+
+## Task 1: Generate Year-End Countdown
+
+**Scenario:**
+Generate countdown showing last 10 days of 2025 with days until new year counter.
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE year_end_countdown AS (
+SELECT 
+	'2025-12-22'::DATE AS date_,
+	('2026-01-01'::DATE - '2025-12-22'::DATE) AS days_until_new_year
+UNION ALL
+SELECT
+	(date_ + INTERVAL '1' DAY)::DATE,
+	days_until_new_year - 1
+FROM year_end_countdown
+WHERE days_until_new_year > 1
+)
+SELECT * FROM year_end_countdown
+```
+
+**Score: 10/10** - Clever dynamic calculation of days_until instead of hardcoding.
+
+---
+
+## Task 2: Generate Fiscal Quarters (April Start)
+
+**Scenario:**
+Generate 4 fiscal quarters for FY2025 (April 2025 - March 2026).
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE fiscal_quarters_2025 AS (
+SELECT
+	'FY25-Q' || 1 AS fiscal_quarter,
+	'2025-04-01'::DATE AS quarter_start,
+	('2025-04-01'::DATE + INTERVAL '3' MONTH)::DATE AS quarter_end,
+	1 AS quarter_num
+UNION ALL
+SELECT
+	'FY25-Q' || quarter_num + 1,
+	(quarter_start::DATE + INTERVAL '3' MONTH)::DATE,
+	(quarter_end::DATE + INTERVAL '3' MONTH - INTERVAL '1' DAY)::DATE,
+	quarter_num + 1
+FROM fiscal_quarters_2025
+WHERE quarter_end < '2026-03-28'
+)
+SELECT * FROM fiscal_quarters_2025
+```
+
+**Score: 8/10** - Good structure. Anchor quarter_end off by 1 day (should be June 30, not July 1).
+
+---
+
+## Task 3: Daily Transaction Summary with Generated Dates
+
+**Scenario:**
+Generate all days in December 2025 with transaction counts and totals.
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE december_transactions AS (
+SELECT 
+	'2025-12-01'::DATE AS day_
+UNION ALL
+SELECT
+	(day_ + INTERVAL '1' DAY)::DATE
+	FROM december_transactions
+	WHERE day_ < '2025-12-31'::DATE
+)
+SELECT 
+	dt.day_,
+	COUNT(t.id) AS transaction_count,
+	COALESCE(ROUND(SUM(t.amount), 2), 0) AS daily_total
+FROM december_transactions dt
+LEFT JOIN transactions t ON dt.day_ = DATE(t.created_at)
+GROUP BY dt.day_
+ORDER BY dt.day_
+```
+
+**Score: 10/10** - Perfect recursive CTE + LEFT JOIN pattern.
+
+---
+
+**Day 5 Overall Score: 9.3/10**
+
+**Week 6 Complete - Average: 9.5/10**
+

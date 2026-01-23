@@ -1662,3 +1662,70 @@ Transition to Weeks 7-9 curriculum: Recursive CTEs deep dive, advanced string/da
 - Overall: "Pretty satisfactory, yet also very difficult at moments. Overall a positive session."
 - Recursive CTEs: "Getting clearer and clearer, but we definitely need some more practice"
 
+
+---
+
+### Feedback Archive: 2026-01-20 (Week 6, Day 5)
+
+## Agent Feedback on Student
+
+**Overall Score: 9.3/10**
+
+**Task 1 (Year-End Countdown): 10/10**
+- Perfect execution with two counters (date up, countdown down)
+- Clever: calculated days_until dynamically instead of hardcoding
+- Shows understanding of the logic beyond following instructions
+
+**Task 2 (Fiscal Quarters): 8/10**
+- Good structure with label generation and calculated end dates
+- Issue: Anchor quarter_end was off by 1 day (July 1 instead of June 30)
+- Recursive term had correct logic but applied to wrong anchor value
+
+**Task 3 (Daily Transactions): 10/10**
+- Perfect recursive CTE + LEFT JOIN combination
+- Clean date generation, correct COALESCE handling
+- This pattern is now solid
+
+## Student Feedback on Questions
+
+- Tasks completed successfully
+- Recursive CTE + JOIN pattern reinforced
+
+---
+
+### Week 6 Weekly Recap
+
+**Week 6 Scores:**
+- Day 1: 8.7/10 (Self-joins, running balance — missed recursive CTE requirement)
+- Day 2: 10/10 (Recursive CTE foundations — number sequence, dates, monthly revenue)
+- Day 3: 9.7/10 (Even numbers, week dates, quarterly revenue — challenging session)
+- Day 4: 9.7/10 (Bi-weekly pay dates, hourly slots, week ranges)
+- Day 5: 9.3/10 (Year-end countdown, fiscal quarters, daily transactions)
+
+**Week Average: 9.5/10**
+
+**Progress Bar:** ████████░░ 85% towards HackerRank Advanced goal
+
+**Key Wins This Week:**
+1. **Recursive CTE Pattern Mastered** — Anchor + UNION ALL + Recursive term + Termination
+2. **Sequence Generation** — Numbers, dates, times, with various intervals
+3. **Multiple Column Tracking** — Counters alongside dates, calculated derived values
+4. **Recursive CTE + JOIN** — Generating dates then LEFT JOINing to real data
+5. **Real-World Scenarios** — Pay dates, time slots, fiscal quarters, transaction summaries
+
+**Areas That Need More Practice:**
+- Type casting with timestamps/times (still causes friction)
+- String manipulation within recursive CTEs
+- Hierarchical recursive CTEs (not yet attempted — postponed for clearer foundation)
+
+**Focus Areas for Week 7:**
+- Continue recursive CTE practice with gradual complexity increase
+- Introduce hierarchical/tree traversal patterns (org charts, category trees)
+- More practice combining recursive CTEs with aggregations
+
+**Student Learning Style Notes:**
+- Prefers scaffolded approach with small steps
+- Needs middle-ground difficulty (not too easy, not overwhelming)
+- Type casting and string manipulation add significant perceived difficulty
+- Learns well from practical business scenarios
+

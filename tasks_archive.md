@@ -4307,3 +4307,103 @@ ORDER BY dt.day_
 
 **Week 6 Complete - Average: 9.5/10**
 
+
+---
+
+### Task Archive: 2026-01-21 (Week 7, Day 1)
+
+**Focus:** Recursive CTEs — Continued Practice + Carrying Forward Values
+
+## Task 1: Generate a Simple Number Pyramid
+
+**Scenario:**
+Generate numbers 1 through 5 with cumulative sum at each step.
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE snp AS (
+SELECT
+	1 AS n,
+	1::NUMERIC AS cumulative_sum
+UNION ALL
+SELECT
+	n + 1,
+	SUM(cumulative_sum::NUMERIC) OVER (ORDER BY n::NUMERIC) + n + 1 AS cumulative_sum
+	FROM snp
+	WHERE n < 5
+	)
+SELECT * FROM snp
+```
+
+**Score: 7/10** - Overcomplicated with window function. Simpler: `cumulative_sum + (n + 1)`.
+
+---
+
+## Task 2: Weekly Order Summary for Q1 2025
+
+**Scenario:**
+Generate weeks in Q1 2025, show order count and revenue per week.
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE weeks_q1 AS (
+SELECT
+	'2024-12-30'::DATE AS week_start,
+	1 AS week_number
+UNION ALL
+SELECT
+	(week_start + INTERVAL '7' DAY)::DATE,
+	week_number + 1
+FROM weeks_q1
+WHERE week_start::DATE < '2025-03-31'::DATE
+)
+SELECT
+	wq1.week_start,
+	wq1.week_number,
+	COALESCE(COUNT(o.id), 0) AS order_count,
+	COALESCE(SUM(o.amount), 0) AS weekly_revenue
+FROM weeks_q1 wq1
+LEFT JOIN orders o ON wq1.week_start < DATE(o.created_at) AND DATE(o.created_at) < (wq1.week_start + INTERVAL '7' DAY)::DATE
+GROUP BY wq1.week_start, wq1.week_number
+```
+
+**Score: 9/10** - Good pattern. Minor boundary issue: `<` should be `>=` for week_start.
+
+---
+
+## Task 3: Power of 2 Sequence
+
+**Scenario:**
+Generate powers of 2 from 2^0 to 2^10.
+
+**Difficulty Rating:** 2/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE powers AS (
+SELECT
+	0 AS exponent,
+	1::NUMERIC
+	AS power_of_2
+UNION ALL
+SELECT 
+	exponent + 1,
+	POWER(2, exponent)::NUMERIC
+FROM powers
+WHERE exponent < 10
+)
+SELECT * FROM powers
+```
+
+**Score: 7/10** - Used POWER() instead of carrying forward. Results off by one. Simpler: `power_of_2 * 2`.
+
+---
+
+**Day 1 Overall Score: 7.7/10**
+
+**Key Learning:** Recursive CTEs carry values forward naturally — no need for window functions or POWER().
+

@@ -1729,3 +1729,35 @@ Transition to Weeks 7-9 curriculum: Recursive CTEs deep dive, advanced string/da
 - Type casting and string manipulation add significant perceived difficulty
 - Learns well from practical business scenarios
 
+
+---
+
+### Feedback Archive: 2026-01-21 (Week 7, Day 1)
+
+## Agent Feedback on Student
+
+**Overall Score: 7.7/10**
+
+**Task 1 (Number Pyramid): 7/10**
+- Used window function SUM() OVER inside recursive term
+- Overcomplicated — recursive CTE already carries values forward
+- Simpler: cumulative_sum + (n + 1) in recursive term
+
+**Task 2 (Weekly Orders): 9/10**
+- Good recursive CTE + LEFT JOIN pattern
+- Minor boundary issue: used < instead of >= for week_start
+- Orders exactly on Monday would be missed
+
+**Task 3 (Power of 2): 7/10**
+- Used POWER(2, exponent) instead of carrying forward
+- Logic error: exponent is old value, so results off by one
+- Simpler: power_of_2 * 2 in recursive term
+
+**Key Learning:**
+In recursive CTEs, you don't need window functions or built-in functions like POWER() — the recursion itself carries values forward. Each iteration builds on the previous row's values directly.
+
+## Student Feedback on Questions
+
+- Student acknowledged solutions were overengineered
+- Good self-awareness about the learning point
+

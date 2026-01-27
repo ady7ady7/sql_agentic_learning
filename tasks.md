@@ -1,119 +1,102 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-01-22
-**Week 7, Day 2 Focus:** Recursive CTEs — The "Carry Forward" Pattern
+**Generated:** 2026-01-23
+**Week 7, Day 3 Focus:** Recursive CTEs — Real-World Complexity
 
 ---
 
-## Today's Focus
+## Stepping Up
 
-Yesterday's key learning: **In recursive CTEs, each iteration has direct access to the previous row's values.** You don't need window functions or built-in functions — just reference the column and modify it.
-
-Today we'll drill this pattern with simple, focused tasks.
+You've mastered the basic patterns. Now we combine recursive CTEs with real table data, window functions, and complex business logic.
 
 ---
 
-## The Pattern
-
-```sql
-WITH RECURSIVE cte AS (
-    -- Anchor: starting values
-    SELECT 1 AS counter, 100 AS value
-
-    UNION ALL
-
-    -- Recursive: modify previous values directly
-    SELECT
-        counter + 1,        -- increment counter
-        value * 2           -- double the previous value (CARRY FORWARD + MODIFY)
-    FROM cte
-    WHERE counter < 5
-)
-SELECT * FROM cte;
-```
-
-**Key insight:** `value` in the recursive term IS the previous row's value. No SUM() OVER, no POWER() — just `value * 2`.
-
----
-
-## Task 1: Factorial Sequence
+## Task 1: Running Balance per User with Carry-Forward
 
 **Scenario:**
-Generate factorials from 1! to 7!: 1, 2, 6, 24, 120, 720, 5040
+For each user who has transactions, calculate their running balance over time. Start each user at $0, then apply each transaction: deposits/payments add, withdrawals/purchases/transfers subtract.
 
 **Expected Output Columns:**
-- `n` (integer) — 1, 2, 3, 4, 5, 6, 7
-- `factorial` (bigint) — 1, 2, 6, 24, 120, 720, 5040
+- `user_id` (integer)
+- `transaction_id` (integer)
+- `created_at` (timestamp)
+- `type` (text)
+- `amount` (numeric)
+- `running_balance` (numeric) — cumulative balance after this transaction
 
 **Requirements:**
-- Use WITH RECURSIVE
-- Anchor: n=1, factorial=1
-- Recursive: n+1, factorial * (n+1) ← **carry forward and multiply**
-- Terminate at n=7
+- Use a recursive CTE to process transactions in chronological order per user
+- The anchor should be each user's first transaction
+- The recursive term should find the next transaction for that user and update the balance
+- Handle transaction types: deposit/payment = +amount, withdrawal/purchase/transfer = -amount
+- Order by user_id, created_at
 
-**Difficulty Rating:** 3/5
+**Difficulty Rating:** 5/5
 
-**Think about it:** factorial(n) = factorial(n-1) × n
+**Hint:** This is tricky because you need to:
+1. Identify each user's first transaction (anchor)
+2. For each iteration, find the NEXT transaction for that user (using ROW_NUMBER or similar)
+3. Carry forward the balance
+
+Alternative simpler approach: Use window function SUM() OVER (PARTITION BY user_id ORDER BY created_at) with CASE WHEN for +/- logic. If you use this approach, explain why it's better than recursive CTE here.
 
 ---
 
-## Task 2: Compound Interest Growth
+## Task 2: Consecutive Days with Orders (Streak Analysis)
 
 **Scenario:**
-An investment of $1000 grows at 10% annual interest. Show the balance after each year for 5 years.
+Find the longest streak of consecutive days where at least one order was placed. A streak breaks when there's a day with no orders.
 
 **Expected Output Columns:**
-- `year` (integer) — 0, 1, 2, 3, 4, 5
-- `balance` (numeric) — 1000, 1100, 1210, 1331, 1464.10, 1610.51 (rounded to 2 decimals)
+- `streak_start` (date) — first day of the streak
+- `streak_end` (date) — last day of the streak
+- `streak_length` (integer) — number of consecutive days
 
 **Requirements:**
-- Use WITH RECURSIVE
-- Anchor: year=0, balance=1000
-- Recursive: year+1, balance * 1.10 ← **carry forward and multiply by growth factor**
-- Terminate at year=5
-- Round balance to 2 decimals
+- First, identify which dates have orders
+- Use recursive CTE or gap-and-island technique to find consecutive date ranges
+- Find the longest streak(s)
+- If multiple streaks have the same max length, show all of them
 
-**Difficulty Rating:** 3/5
+**Difficulty Rating:** 5/5
+
+**This is a classic gap-and-island problem.** Approaches:
+1. Recursive CTE: Start from each order date, recursively check if next day has orders
+2. Gap-and-island with ROW_NUMBER: Subtract row_number from date to create groups
 
 ---
 
-## Task 3: Fibonacci Sequence
+## Task 3: Monthly Revenue with Running Total and Month-over-Month Change
 
 **Scenario:**
-Generate the first 10 Fibonacci numbers: 1, 1, 2, 3, 5, 8, 13, 21, 34, 55
+Generate all months from the earliest order to the latest, showing monthly revenue, running total, and percentage change from previous month.
 
 **Expected Output Columns:**
-- `position` (integer) — 1 through 10
-- `fib_value` (integer) — the Fibonacci number at that position
+- `month` (date) — first day of month
+- `monthly_revenue` (numeric) — sum of order amounts that month (0 if none)
+- `running_total` (numeric) — cumulative revenue up to this month
+- `mom_change_pct` (numeric) — percentage change from previous month, rounded to 1 decimal (NULL for first month)
 
 **Requirements:**
-- Use WITH RECURSIVE
-- Anchor: position=1, fib_value=1, prev_value=0
-- Recursive: position+1, fib_value + prev_value (new fib), fib_value (becomes new prev)
-- Terminate at position=10
+- Use recursive CTE to generate month series (from MIN to MAX order date)
+- LEFT JOIN to orders for monthly aggregation
+- Use window functions for running_total and LAG for previous month
+- Calculate percentage: ((current - previous) / previous) * 100
+- Handle division by zero (if previous month was 0)
 
 **Difficulty Rating:** 4/5
 
-**Hint:** You need to track TWO values: current and previous. Each iteration:
-- new_fib = current + previous
-- new_prev = current (the old current becomes the new previous)
-
-```sql
-SELECT
-    position + 1,
-    fib_value + prev_value AS fib_value,  -- new = current + previous
-    fib_value AS prev_value               -- old current becomes new previous
-```
+**This combines:** Recursive date generation + LEFT JOIN + window functions (SUM OVER, LAG) + percentage calculation.
 
 ---
 
 ## Submission Instructions
 
-Today's tasks all use the **carry forward** pattern:
-1. Task 1 — Multiply by incrementing number (factorial)
-2. Task 2 — Multiply by constant factor (compound interest)
-3. Task 3 — Carry TWO values forward (Fibonacci)
+Today's tasks combine recursive CTEs with:
+1. Task 1 — Per-user transaction processing with balance carry-forward
+2. Task 2 — Gap-and-island streak detection
+3. Task 3 — Multi-technique combination (recursive + JOIN + window functions)
 
-No window functions needed. No POWER() or FACTORIAL() built-ins. Just reference the previous value and modify it.
+These are significantly harder. Take your time.
 
 Good luck!

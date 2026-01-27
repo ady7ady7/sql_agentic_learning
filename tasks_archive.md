@@ -4407,3 +4407,109 @@ SELECT * FROM powers
 
 **Key Learning:** Recursive CTEs carry values forward naturally — no need for window functions or POWER().
 
+
+---
+
+### Task Archive: 2026-01-22 (Week 7, Day 2)
+
+**Focus:** Recursive CTEs — The "Carry Forward" Pattern
+
+## Task 1: Factorial Sequence
+
+**Scenario:**
+Generate factorials from 1! to 7!.
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE factorials AS (
+SELECT
+	1 AS n,
+	1 AS factorial
+UNION ALL
+SELECT 
+	n + 1,
+	factorial * (n + 1)
+FROM factorials
+WHERE n < 7
+)
+SELECT * FROM factorials
+```
+
+**Student Note:** "I get that pattern already, there's no need to reiterate OVER SUCH SIMPLE TASKS ANYMORE"
+
+**Score: 10/10**
+
+---
+
+## Task 2: Compound Interest Growth
+
+**Scenario:**
+$1000 at 10% annual interest for 5 years.
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE interest_results AS (
+SELECT
+	ROUND(1000, 2) AS balance,
+	0 AS year_,
+	10 AS interest_rate
+UNION ALL
+SELECT 
+	ROUND(balance + interest_rate * balance / 100, 2),
+	year_ + 1,
+	interest_rate
+FROM interest_results
+WHERE year_ < 5
+)
+SELECT 
+	balance,
+	year_,
+	interest_rate || '%' AS interest_rate
+FROM interest_results
+```
+
+**Student Note:** Added % formatting. Observed that numeric values must be kept during recursion, formatted only at display.
+
+**Score: 10/10**
+
+---
+
+## Task 3: Fibonacci Sequence
+
+**Scenario:**
+Generate first 10 Fibonacci numbers.
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE fibo_numbers AS (
+SELECT
+	1 AS position_,
+	1 AS fib_value,
+	0 AS prev_value
+UNION ALL
+SELECT 
+	position_ + 1,
+	fib_value + prev_value,
+	fib_value
+FROM fibo_numbers
+WHERE fib_value < 55
+)
+SELECT * FROM fibo_numbers
+```
+
+**Student Note:** "I think I've mastered it, so we can move further with more complex tasks now."
+
+**Score: 10/10**
+
+---
+
+**Day 2 Overall Score: 10/10**
+
+**Note:** Student requests increased complexity — basic recursive CTE patterns mastered.
+

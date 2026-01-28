@@ -1,102 +1,89 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-01-23
-**Week 7, Day 3 Focus:** Recursive CTEs — Real-World Complexity
+**Generated:** 2026-01-24
+**Week 7, Day 4 Focus:** Recursive CTEs + Window Functions Combined
 
 ---
 
-## Stepping Up
+## Today's Goal
 
-You've mastered the basic patterns. Now we combine recursive CTEs with real table data, window functions, and complex business logic.
+Yesterday Task 1 was perfect. Today we'll reinforce that pattern and properly combine recursive CTEs with window functions.
 
 ---
 
-## Task 1: Running Balance per User with Carry-Forward
+## Task 1: Monthly Order Stats with Dynamic Date Range
 
 **Scenario:**
-For each user who has transactions, calculate their running balance over time. Start each user at $0, then apply each transaction: deposits/payments add, withdrawals/purchases/transfers subtract.
+Generate all months between the first and last order, then show order count, revenue, AND running cumulative revenue.
 
 **Expected Output Columns:**
-- `user_id` (integer)
-- `transaction_id` (integer)
-- `created_at` (timestamp)
-- `type` (text)
-- `amount` (numeric)
-- `running_balance` (numeric) — cumulative balance after this transaction
+- `month` (date) — first day of each month
+- `order_count` (bigint) — orders that month (0 if none)
+- `monthly_revenue` (numeric) — sum of amounts that month (0 if none)
+- `cumulative_revenue` (numeric) — running total of revenue up to this month
 
 **Requirements:**
-- Use a recursive CTE to process transactions in chronological order per user
-- The anchor should be each user's first transaction
-- The recursive term should find the next transaction for that user and update the balance
-- Handle transaction types: deposit/payment = +amount, withdrawal/purchase/transfer = -amount
-- Order by user_id, created_at
-
-**Difficulty Rating:** 5/5
-
-**Hint:** This is tricky because you need to:
-1. Identify each user's first transaction (anchor)
-2. For each iteration, find the NEXT transaction for that user (using ROW_NUMBER or similar)
-3. Carry forward the balance
-
-Alternative simpler approach: Use window function SUM() OVER (PARTITION BY user_id ORDER BY created_at) with CASE WHEN for +/- logic. If you use this approach, explain why it's better than recursive CTE here.
-
----
-
-## Task 2: Consecutive Days with Orders (Streak Analysis)
-
-**Scenario:**
-Find the longest streak of consecutive days where at least one order was placed. A streak breaks when there's a day with no orders.
-
-**Expected Output Columns:**
-- `streak_start` (date) — first day of the streak
-- `streak_end` (date) — last day of the streak
-- `streak_length` (integer) — number of consecutive days
-
-**Requirements:**
-- First, identify which dates have orders
-- Use recursive CTE or gap-and-island technique to find consecutive date ranges
-- Find the longest streak(s)
-- If multiple streaks have the same max length, show all of them
-
-**Difficulty Rating:** 5/5
-
-**This is a classic gap-and-island problem.** Approaches:
-1. Recursive CTE: Start from each order date, recursively check if next day has orders
-2. Gap-and-island with ROW_NUMBER: Subtract row_number from date to create groups
-
----
-
-## Task 3: Monthly Revenue with Running Total and Month-over-Month Change
-
-**Scenario:**
-Generate all months from the earliest order to the latest, showing monthly revenue, running total, and percentage change from previous month.
-
-**Expected Output Columns:**
-- `month` (date) — first day of month
-- `monthly_revenue` (numeric) — sum of order amounts that month (0 if none)
-- `running_total` (numeric) — cumulative revenue up to this month
-- `mom_change_pct` (numeric) — percentage change from previous month, rounded to 1 decimal (NULL for first month)
-
-**Requirements:**
-- Use recursive CTE to generate month series (from MIN to MAX order date)
-- LEFT JOIN to orders for monthly aggregation
-- Use window functions for running_total and LAG for previous month
-- Calculate percentage: ((current - previous) / previous) * 100
-- Handle division by zero (if previous month was 0)
+- Use recursive CTE to generate months from MIN to MAX order date
+- LEFT JOIN to orders for aggregation
+- Use window function SUM() OVER (ORDER BY month) for cumulative revenue
+- Handle months with zero orders using COALESCE
 
 **Difficulty Rating:** 4/5
 
-**This combines:** Recursive date generation + LEFT JOIN + window functions (SUM OVER, LAG) + percentage calculation.
+**This combines:** Yesterday's Task 1 pattern + proper window function usage.
+
+---
+
+## Task 2: Depreciation Schedule
+
+**Scenario:**
+An asset worth $10,000 depreciates by 15% each year. Generate a 7-year depreciation schedule showing the value at the start of each year and the depreciation amount.
+
+**Expected Output Columns:**
+- `year` (integer) — 1 through 7
+- `start_value` (numeric) — value at start of year, rounded to 2 decimals
+- `depreciation` (numeric) — amount lost that year (15% of start_value)
+- `end_value` (numeric) — value at end of year (start_value - depreciation)
+
+**Requirements:**
+- Use recursive CTE
+- Year 1 starts with $10,000
+- Each subsequent year's start_value = previous year's end_value
+- Calculate depreciation as start_value * 0.15
+
+**Difficulty Rating:** 3/5
+
+**This is like compound interest but subtracting instead of adding.**
+
+---
+
+## Task 3: User Registration by Week with Running Total
+
+**Scenario:**
+Show weekly user registration counts with a running total of all users registered up to that week.
+
+**Expected Output Columns:**
+- `week_start` (date) — Monday of each week
+- `new_users` (bigint) — users registered that week
+- `total_users` (bigint) — cumulative users up to and including that week
+
+**Requirements:**
+- Get weekly registration counts from users table (GROUP BY week)
+- Use DATE_TRUNC('week', created_at) to get week start
+- Use window function SUM() OVER (ORDER BY week_start) for running total
+- Order by week_start
+
+**Difficulty Rating:** 3/5
+
+**Note:** No recursive CTE needed — this practices proper window function running totals (fixing yesterday's Task 3 pattern).
 
 ---
 
 ## Submission Instructions
 
-Today's tasks combine recursive CTEs with:
-1. Task 1 — Per-user transaction processing with balance carry-forward
-2. Task 2 — Gap-and-island streak detection
-3. Task 3 — Multi-technique combination (recursive + JOIN + window functions)
-
-These are significantly harder. Take your time.
+Today's tasks:
+1. Task 1 — Recursive months + LEFT JOIN + window function (4/5)
+2. Task 2 — Depreciation with carry-forward (3/5)
+3. Task 3 — Window function running total done correctly (3/5)
 
 Good luck!

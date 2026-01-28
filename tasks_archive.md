@@ -4513,3 +4513,116 @@ SELECT * FROM fibo_numbers
 
 **Note:** Student requests increased complexity — basic recursive CTE patterns mastered.
 
+
+---
+
+### Task Archive: 2026-01-23 (Week 7, Day 3)
+
+**Focus:** Recursive CTEs — Moderate Step Up (Adjusted from original 5/5 difficulty)
+
+## Task 1: Generate Date Range from Actual Data
+
+**Scenario:**
+Generate all dates between earliest and latest order, count orders per day.
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE min_max_date AS (
+SELECT 
+	MIN(DATE(created_at)) AS min_date,
+	MAX(DATE(created_at)) AS max_date
+FROM orders
+),
+chronological_dates AS (
+SELECT 
+	mmd.min_date::DATE AS date_,
+	mmd.max_date::DATE AS max_date
+FROM min_max_date mmd
+UNION ALL
+SELECT
+	(date_ + INTERVAL '1' DAY)::DATE,
+	max_date::DATE
+FROM chronological_dates
+WHERE date_ < max_date
+)
+SELECT 
+	cd.date_,
+	COALESCE(COUNT(o.id), 0) AS order_count
+FROM chronological_dates cd
+LEFT JOIN orders o ON cd.date_ = DATE(o.created_at)
+GROUP BY cd.date_
+ORDER BY cd.date_
+```
+
+**Score: 10/10** - Perfect execution with dynamic date bounds.
+
+---
+
+## Task 2: Countdown with Conditional Message
+
+**Scenario:**
+New Year countdown Dec 25-31 with conditional messages.
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE new_year_countdown AS (
+SELECT
+	'2025-12-25'::DATE AS date_,
+	'2025-12-31'::DATE - '2025-12-25'::DATE AS days_left,
+	'Almost there' AS message
+UNION ALL
+SELECT
+	(date_ + INTERVAL '1' DAY)::DATE,
+	'2025-12-31'::DATE - date_::DATE AS days_left,
+	CASE 
+		WHEN days_left > 4 THEN 'Almost there'	
+		WHEN days_left > 0 AND days_left < 5 THEN 'So close!'
+		WHEN days_left = 0 THEN 'Happy New Year!'
+	END
+FROM new_year_countdown
+WHERE date_ < '2026-01-01'::DATE
+)
+SELECT * FROM new_year_countdown
+```
+
+**Score: 8/10** - Good structure, timing issue with old vs new values in CASE WHEN.
+
+---
+
+## Task 3: Running Total of Daily Orders
+
+**Scenario:**
+Daily order counts with cumulative running total.
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH daily_order_counts AS (
+SELECT 
+	DATE(created_at) AS day_,
+	COUNT(*) AS order_count
+FROM orders
+GROUP BY DATE(created_at)
+ORDER BY DATE(created_at)
+)
+SELECT 
+	doc.day_,
+	doc.order_count,
+	SUM(amount) OVER (ORDER BY o.created_at) AS running_total
+FROM daily_order_counts doc
+JOIN orders o ON doc.day_ = DATE(o.created_at)
+```
+
+**Score: 6/10** - Wrong column (amount vs count), unnecessary JOIN created duplicates.
+
+---
+
+**Day 3 Overall Score: 8/10**
+
+**Note:** Original tasks were too difficult (5/5) and caused frustration. Adjusted to 3-4/5 difficulty mid-session.
+

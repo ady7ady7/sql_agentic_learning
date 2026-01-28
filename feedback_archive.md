@@ -1790,3 +1790,40 @@ In recursive CTEs, you don't need window functions or built-in functions like PO
 - Student has mastered basic recursive CTE patterns
 - Ready for increased complexity: recursive CTEs + JOINs, aggregations, or hierarchical traversal
 
+
+---
+
+### Feedback Archive: 2026-01-23 (Week 7, Day 3)
+
+## Agent Feedback on Student
+
+**Overall Score: 8/10**
+
+**Task 1 (Dynamic Date Range): 10/10**
+- Perfect execution of recursive CTE with dynamic date bounds
+- Correctly pulled min/max from actual data
+- Carried max_date through recursion for termination
+- Proper LEFT JOIN + COALESCE
+
+**Task 2 (Countdown Messages): 8/10**
+- Good structure with recursive date generation
+- Timing issue: days_left calculated using OLD date value
+- CASE WHEN referenced OLD values, causing message misalignment
+
+**Task 3 (Running Total): 6/10**
+- CTE aggregation was correct
+- Wrong column: used SUM(amount) instead of cumulative order count
+- Unnecessary JOIN back to orders created duplicate rows
+
+**Session Notes:**
+- Original tasks (5/5 difficulty) were too hard — student got frustrated
+- Tasks regenerated to moderate difficulty (3-4/5)
+- Good recovery after adjustment
+- Task 1 shows solid mastery of recursive CTE + real data
+
+## Student Feedback on Questions
+
+- Original Task 1 (transaction balances) was "too fucking difficult" and caused frustration
+- Adjusted tasks were more appropriate
+- Student completed all three adjusted tasks
+

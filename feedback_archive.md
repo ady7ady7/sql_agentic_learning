@@ -1827,3 +1827,34 @@ In recursive CTEs, you don't need window functions or built-in functions like PO
 - Adjusted tasks were more appropriate
 - Student completed all three adjusted tasks
 
+
+---
+
+### Feedback Archive: 2026-01-24 (Week 7, Day 4)
+
+## Agent Feedback on Student
+
+**Overall Score: 10/10**
+
+**Task 1 (Monthly Order Stats): 10/10**
+- Perfect combination of recursive CTE + LEFT JOIN + window function
+- Dynamic date bounds with DATE_TRUNC
+- COALESCE for zero handling
+- Window function applied correctly on aggregated result
+
+**Task 2 (Depreciation Schedule): 10/10**
+- Perfect carry-forward pattern
+- Previous end_value correctly becomes new start_value
+- Rounding applied properly
+
+**Task 3 (Weekly Registration Running Total): 10/10**
+- Fixed yesterday's mistake perfectly
+- No unnecessary JOIN — window function applied directly on aggregated CTE
+- Clean and correct pattern
+
+## Student Feedback on Questions
+
+- All tasks completed successfully
+- Student absorbed feedback from Day 3 and applied it correctly
+- Recursive CTE + LEFT JOIN + window function combination now solid
+

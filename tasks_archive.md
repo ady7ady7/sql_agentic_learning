@@ -4626,3 +4626,116 @@ JOIN orders o ON doc.day_ = DATE(o.created_at)
 
 **Note:** Original tasks were too difficult (5/5) and caused frustration. Adjusted to 3-4/5 difficulty mid-session.
 
+
+---
+
+### Task Archive: 2026-01-24 (Week 7, Day 4)
+
+**Focus:** Recursive CTEs + Window Functions Combined
+
+## Task 1: Monthly Order Stats with Dynamic Date Range
+
+**Scenario:**
+Generate all months between first and last order, show order count, revenue, and running cumulative revenue.
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE min_max_order_dates AS (
+SELECT 
+	DATE_TRUNC('Month', MIN(created_at)) AS first_order_month,
+	DATE_TRUNC('Month', MAX(created_at)) AS last_order_month
+FROM orders
+),
+month_range AS (
+SELECT
+	first_order_month AS month_date,
+	last_order_month
+	FROM min_max_order_dates
+UNION ALL
+SELECT
+	month_date + INTERVAL '1' MONTH,
+	last_order_month
+FROM month_range
+WHERE month_date::date < last_order_month::DATE
+),
+months_orders_revenue AS (
+SELECT 
+	mr.month_date,
+	COALESCE(COUNT(o.id), 0) AS order_count,
+	COALESCE(SUM(amount), 0) AS monthly_revenue
+FROM month_range mr
+LEFT JOIN orders o ON mr.month_date = DATE_TRUNC('Month', o.created_at)
+GROUP BY mr.month_date
+ORDER BY mr.month_date
+)
+SELECT 
+	*,
+	SUM(monthly_revenue) OVER (ORDER BY month_date) AS cumulative_revenue
+FROM months_orders_revenue
+```
+
+**Score: 10/10** - Perfect combination of recursive CTE + LEFT JOIN + window function.
+
+---
+
+## Task 2: Depreciation Schedule
+
+**Scenario:**
+$10,000 asset depreciating 15% annually for 7 years.
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE depreciation_schema AS (
+SELECT 
+	1 AS year_,
+	10000::NUMERIC AS start_value,
+	10000 * 0.15 AS depreciation,
+	(10000 - (10000 * 0.15))::NUMERIC AS end_value
+UNION ALL
+SELECT
+	year_ + 1,
+	end_value AS start_value,
+	ROUND(end_value * 0.15, 2) AS depreciation,
+	ROUND(end_value - end_value * 0.15, 2)
+FROM depreciation_schema
+WHERE year_ < 7
+)
+SELECT * FROM depreciation_schema
+```
+
+**Score: 10/10** - Perfect carry-forward pattern.
+
+---
+
+## Task 3: User Registration by Week with Running Total
+
+**Scenario:**
+Weekly user registration counts with cumulative running total.
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH registration_count_weeks AS (
+SELECT 
+	DATE_TRUNC('Week', created_at) AS week_start,
+	COUNT(*) AS new_users
+FROM users
+GROUP BY week_start
+)
+SELECT 
+	*,
+	SUM(new_users) OVER (ORDER BY week_start) AS total_users
+FROM registration_count_weeks
+```
+
+**Score: 10/10** - Fixed Day 3's mistake. Clean window function on aggregated CTE.
+
+---
+
+**Day 4 Overall Score: 10/10**
+

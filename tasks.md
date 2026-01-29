@@ -1,89 +1,93 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-01-24
-**Week 7, Day 4 Focus:** Recursive CTEs + Window Functions Combined
+**Generated:** 2026-01-25
+**Week 7, Day 5 Focus:** Recursive CTEs — Week Wrap-Up
 
 ---
 
-## Today's Goal
+## Final Day of Week 7
 
-Yesterday Task 1 was perfect. Today we'll reinforce that pattern and properly combine recursive CTEs with window functions.
+Strong finish yesterday. Today we consolidate with practical scenarios combining everything you've learned.
 
 ---
 
-## Task 1: Monthly Order Stats with Dynamic Date Range
+## Task 1: Daily Revenue with 7-Day Moving Average
 
 **Scenario:**
-Generate all months between the first and last order, then show order count, revenue, AND running cumulative revenue.
+For each day with orders, show the daily revenue AND a 7-day trailing moving average (average of that day plus the 6 preceding days).
 
 **Expected Output Columns:**
-- `month` (date) — first day of each month
-- `order_count` (bigint) — orders that month (0 if none)
-- `monthly_revenue` (numeric) — sum of amounts that month (0 if none)
-- `cumulative_revenue` (numeric) — running total of revenue up to this month
+- `order_date` (date)
+- `daily_revenue` (numeric) — total revenue that day
+- `moving_avg_7day` (numeric) — average of last 7 days, rounded to 2 decimals
 
 **Requirements:**
-- Use recursive CTE to generate months from MIN to MAX order date
-- LEFT JOIN to orders for aggregation
-- Use window function SUM() OVER (ORDER BY month) for cumulative revenue
-- Handle months with zero orders using COALESCE
+- Aggregate orders by date
+- Use window function AVG() with frame: ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+- Order by date
 
-**Difficulty Rating:** 4/5
+**Difficulty Rating:** 3/5
 
-**This combines:** Yesterday's Task 1 pattern + proper window function usage.
+**Note:** No recursive CTE needed — this practices window frames.
 
 ---
 
-## Task 2: Depreciation Schedule
+## Task 2: Loan Amortization Schedule
 
 **Scenario:**
-An asset worth $10,000 depreciates by 15% each year. Generate a 7-year depreciation schedule showing the value at the start of each year and the depreciation amount.
+A $5,000 loan at 1% monthly interest is paid off with $500 monthly payments. Generate the amortization schedule until the loan is paid off.
 
 **Expected Output Columns:**
-- `year` (integer) — 1 through 7
-- `start_value` (numeric) — value at start of year, rounded to 2 decimals
-- `depreciation` (numeric) — amount lost that year (15% of start_value)
-- `end_value` (numeric) — value at end of year (start_value - depreciation)
+- `month` (integer) — payment number (1, 2, 3, ...)
+- `starting_balance` (numeric) — balance at start of month
+- `interest` (numeric) — interest charged (1% of starting balance)
+- `payment` (numeric) — monthly payment ($500, or less if balance + interest < $500)
+- `ending_balance` (numeric) — balance after payment (starting + interest - payment)
 
 **Requirements:**
 - Use recursive CTE
-- Year 1 starts with $10,000
-- Each subsequent year's start_value = previous year's end_value
-- Calculate depreciation as start_value * 0.15
+- Start with $5,000 balance
+- Each month: add 1% interest, subtract $500 payment
+- Final payment should be exactly what's owed (not overpay)
+- Terminate when ending_balance <= 0
 
-**Difficulty Rating:** 3/5
+**Difficulty Rating:** 4/5
 
-**This is like compound interest but subtracting instead of adding.**
+**Hint:** Use LEAST(500, starting_balance + interest) for the final payment logic.
 
 ---
 
-## Task 3: User Registration by Week with Running Total
+## Task 3: Product Sales Ranking by Month
 
 **Scenario:**
-Show weekly user registration counts with a running total of all users registered up to that week.
+For each month, rank products by their total revenue and show only the top 3 products per month.
 
 **Expected Output Columns:**
-- `week_start` (date) — Monday of each week
-- `new_users` (bigint) — users registered that week
-- `total_users` (bigint) — cumulative users up to and including that week
+- `month` (date) — first day of month
+- `product_name` (varchar)
+- `monthly_revenue` (numeric) — sum of quantity * price for that product that month
+- `rank` (bigint) — rank within that month (1, 2, 3)
 
 **Requirements:**
-- Get weekly registration counts from users table (GROUP BY week)
-- Use DATE_TRUNC('week', created_at) to get week start
-- Use window function SUM() OVER (ORDER BY week_start) for running total
-- Order by week_start
+- Join orders, orders_products, and products
+- Aggregate by month and product
+- Use RANK() or ROW_NUMBER() with PARTITION BY month
+- Filter to only show rank <= 3
+- Order by month, rank
 
-**Difficulty Rating:** 3/5
+**Difficulty Rating:** 4/5
 
-**Note:** No recursive CTE needed — this practices proper window function running totals (fixing yesterday's Task 3 pattern).
+**Note:** No recursive CTE — practices window ranking with PARTITION BY.
 
 ---
 
 ## Submission Instructions
 
 Today's tasks:
-1. Task 1 — Recursive months + LEFT JOIN + window function (4/5)
-2. Task 2 — Depreciation with carry-forward (3/5)
-3. Task 3 — Window function running total done correctly (3/5)
+1. Task 1 — Window frame (moving average) (3/5)
+2. Task 2 — Recursive loan amortization with conditional logic (4/5)
+3. Task 3 — Window ranking with PARTITION BY (4/5)
+
+After today's review, we'll do the **Week 7 Recap**.
 
 Good luck!

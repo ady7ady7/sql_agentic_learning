@@ -1858,3 +1858,89 @@ In recursive CTEs, you don't need window functions or built-in functions like PO
 - Student absorbed feedback from Day 3 and applied it correctly
 - Recursive CTE + LEFT JOIN + window function combination now solid
 
+
+---
+
+### Feedback Archive: 2026-01-25 (Week 7, Day 5)
+
+## Agent Feedback on Student
+
+**Overall Score: 29/30 (9.67/10)**
+
+**Task 1 (7-Day Moving Average): 10/10**
+- Perfect window frame usage with ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+- Clean CTE aggregation pattern
+
+**Task 2 (Loan Amortization): 9/10**
+- Excellent recursive CTE with carry-forward pattern
+- Correct conditional logic for termination
+- Minor issue: final payment shows principal only, should include final month's interest
+
+**Task 3 (Product Ranking): 10/10**
+- Perfect RANK() with PARTITION BY implementation
+- Clean two-CTE approach (aggregate then rank)
+- Correct 3-way JOIN structure
+
+**Overall:** Strong finish to Week 7. All core concepts demonstrated well.
+
+## Student Feedback on Questions
+
+No specific feedback. Happy with direction — good to refresh previously learned concepts (window functions) to reinforce them. Still occasionally looks up window function syntax despite understanding them well. Curious about what remains for advanced level mastery.
+
+
+---
+
+## Week 7 Weekly Recap
+
+### Progress Bar: ████████░░ 75-80% toward HackerRank Advanced
+
+### Weekly Scores
+| Day | Score | Notes |
+|-----|-------|-------|
+| Day 1 | 7.7/10 | Overengineered — used window functions inside recursion |
+| Day 2 | 10/10 | Perfect but tasks too easy (student feedback) |
+| Day 3 | 8/10 | Started too hard (5/5), adjusted to moderate, good recovery |
+| Day 4 | 10/10 | Perfect execution, absorbed Day 3 feedback |
+| Day 5 | 9.67/10 | Strong finish, minor amortization detail |
+
+**Weekly Average: 9.07/10**
+
+### Key Wins This Week
+1. **Mastered recursive CTE carry-forward pattern** — no longer overengineering with unnecessary window functions or POWER()
+2. **Recursive CTE + LEFT JOIN + window function combination** — nailed the gap-free date reporting pattern
+3. **Dynamic date bounds from actual data** — pulling MIN/MAX into recursive anchor
+4. **PARTITION BY in window functions** — clean implementation of ranking within groups
+5. **Conditional logic in recursive CTEs** — loan amortization with CASE WHEN termination
+
+### Focus Areas for Improvement
+- Timing of value references in recursive CTEs (new vs old values)
+- Final payment calculations in amortization scenarios (include interest in final payment)
+- Window function syntax recall (student self-identified as occasional lookup needed)
+
+### Concepts Mastered (Week 7)
+- Basic recursive CTE patterns (factorial, powers, Fibonacci)
+- Recursive date series generation
+- Combining recursive CTEs with real table data (LEFT JOIN)
+- Applying window functions on aggregated recursive results
+- Business scenario recursion (compound interest, depreciation, loan amortization)
+
+### What Remains for Advanced Level
+**Still to Cover (Weeks 8-12):**
+1. **Hierarchical/tree traversal** — org charts, category trees, bill of materials
+2. **Advanced string manipulation** — REGEXP, string_agg, pattern matching
+3. **JSON extraction** — JSONB operators (if applicable to schema)
+4. **Query optimization concepts** — EXPLAIN ANALYZE, index strategies
+5. **Complex multi-step problems** — HackerRank Hard-style puzzles combining multiple techniques
+
+### Week 8 Plan
+- Introduce **hierarchical recursive CTEs** (tree structures)
+- Continue combining recursive CTEs with aggregations
+- Practice more complex conditional logic
+- Begin introducing string manipulation patterns
+
+### Student Learning Style Notes
+- Middle-ground difficulty works best (not too easy, not overwhelming)
+- Practical business scenarios are engaging
+- Learns quickly from mistakes when feedback is specific
+- Ready for increased complexity after solid Week 7 foundation
+

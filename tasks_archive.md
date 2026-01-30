@@ -4739,3 +4739,108 @@ FROM registration_count_weeks
 
 **Day 4 Overall Score: 10/10**
 
+
+---
+
+### Task Archive: 2026-01-25 (Week 7, Day 5)
+
+**Focus:** Recursive CTEs — Week Wrap-Up
+
+---
+
+## Task 1: Daily Revenue with 7-Day Moving Average
+
+**Scenario:**
+For each day with orders, show the daily revenue AND a 7-day trailing moving average.
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH orders_daily_revenue AS (
+SELECT
+	DATE(created_at) AS order_date,
+	SUM(amount) AS daily_revenue
+FROM orders
+GROUP BY order_date
+)
+SELECT
+	*,
+	ROUND(AVG(daily_revenue) OVER (ORDER BY order_date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)::NUMERIC, 2) AS moving_avg_7d
+FROM orders_daily_revenue
+```
+
+**Score: 10/10** - Perfect window frame usage.
+
+---
+
+## Task 2: Loan Amortization Schedule
+
+**Scenario:**
+$5,000 loan at 1% monthly interest with $500 monthly payments. Generate amortization schedule.
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE loan_repayment AS (
+SELECT
+	1 AS MONTH,
+	5000::numeric AS balance,
+	5000 / 100::NUMERIC AS interest,
+	500::numeric AS payment,
+	5000 + (0.01 * 5000) - 500 AS ending_balance
+UNION ALL
+SELECT
+	MONTH + 1,
+	ending_balance AS starting_balance,
+	round(ending_balance / 100, 2),
+	ROUND(CASE WHEN ending_balance + (0.01 * ending_balance) < 500 THEN ending_balance ELSE 500 END, 2) AS payment,
+	ROUND(CASE WHEN ending_balance + (0.01 * ending_balance) < 500 THEN 0 ELSE ending_balance + (0.01 * ending_balance) - 500 END, 2) AS ending_balance
+FROM loan_repayment
+WHERE ending_balance > 0
+)
+SELECT * FROM loan_repayment
+```
+
+**Score: 9/10** - Excellent recursive logic. Minor: final payment should include interest (ending_balance + interest, not just ending_balance).
+
+---
+
+## Task 3: Product Sales Ranking by Month
+
+**Scenario:**
+Rank products by revenue per month, show top 3.
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH products_monthly_revenues AS (
+SELECT
+	DATE_TRUNC('Month', o.created_at) AS month_,
+	p.name AS product_name,
+	SUM(op.quantity * p.price) AS monthly_revenue
+FROM orders_products op
+JOIN orders o ON op.order_id = o.id
+JOIN products p ON p.id = op.product_id
+GROUP BY month_, product_name
+),
+monthly_revenues_ranks AS (
+SELECT
+	*,
+	RANK() OVER (PARTITION BY month_ ORDER BY monthly_revenue DESC) AS rank
+FROM products_monthly_revenues
+)
+SELECT * FROM monthly_revenues_ranks
+WHERE RANK < 4
+```
+
+**Score: 10/10** - Perfect RANK() with PARTITION BY.
+
+---
+
+**Day 5 Overall Score: 29/30 (9.67/10)**
+
+**Week 7 Overall: 9.07/10 average**
+

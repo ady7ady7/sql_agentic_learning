@@ -4844,3 +4844,97 @@ WHERE RANK < 4
 
 **Week 7 Overall: 9.07/10 average**
 
+
+---
+
+### Task Archive: 2026-01-30 (Week 8, Day 1)
+
+**Focus:** Hierarchical Recursive CTEs — Introduction (2-level)
+
+---
+
+## Task 1: Department-Team Hierarchy (2 Levels)
+
+**Scenario:**
+Create 2-level hierarchy: Departments → Teams
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE department_hierarchy(team, parent) AS (
+VALUES
+    ('Backend', 'Engineering'),
+    ('Frontend', 'Engineering'),
+    ('Inside Sales', 'Sales'),
+    ('Enterprise', 'Sales'),
+    ('Digital', 'Marketing'),
+    ('Brand', 'Marketing')
+),
+hierarchy AS (
+SELECT
+    1 AS LEVEL,
+    name,
+    NULL::text AS parent_name
+FROM (VALUES('Engineering'), ('Sales'), ('Marketing')) AS d(name)
+UNION ALL
+SELECT
+    h.LEVEL + 1,
+    dt.team,
+    h.name
+FROM HIERARCHY h
+JOIN department_hierarchy dt ON dt.parent = h.name
+WHERE h.LEVEL = 1
+)
+SELECT * FROM hierarchy
+```
+
+**Score: 10/10** - Correct pattern with mapping CTE. Required initial guidance.
+
+---
+
+## Task 2: Countries & Cities (Same Pattern)
+
+**Scenario:**
+Apply same pattern: Countries → Cities
+
+**Difficulty Rating:** 2/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE countries_hierarchy(country, city) AS (
+VALUES
+    ('USA', 'New York'),
+    ('USA', 'Los Angeles'),
+    ('Germany', 'Berlin'),
+    ('Germany', 'Munich')
+),
+HIERARCHY AS (
+SELECT
+    1 AS level_,
+    name,
+    NULL::TEXT AS parent_name
+FROM UNNEST(ARRAY['USA', 'Germany']) AS d(name)
+UNION ALL
+SELECT
+    h.level_ + 1,
+    ch.city,
+    h.name
+FROM HIERARCHY h
+JOIN countries_hierarchy ch ON h.name = ch.country
+)
+SELECT * FROM hierarchy
+```
+
+**Score: 10/10** - Applied pattern independently. Used UNNEST alternative.
+
+---
+
+## Task 3: Conceptual Questions
+
+**Score: 8/10** - Q1-Q3 correct. Q4 incorrect (WHERE stops recursion, not sorting).
+
+---
+
+**Day 1 Overall Score: 28/30**
+

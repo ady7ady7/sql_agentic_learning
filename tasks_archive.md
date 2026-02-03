@@ -4938,3 +4938,107 @@ SELECT * FROM hierarchy
 
 **Day 1 Overall Score: 28/30**
 
+
+---
+
+### Task Archive: 2026-01-31 (Week 8, Day 2)
+
+**Focus:** Hierarchical CTEs with Real Table Data + Window Functions
+
+---
+
+## Task 1: Categories → Products Hierarchy
+
+**Scenario:**
+Build 2-level hierarchy using product_categories and products tables.
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE hierarchy AS (
+SELECT
+    1 AS level,
+    id AS category_id,
+    name::text AS name,
+    NULL::TEXT AS parent_name
+FROM product_categories
+UNION ALL
+SELECT
+    h.LEVEL + 1,
+    h.category_id,
+    p.name,
+    h.name
+FROM HIERARCHY h JOIN products p ON h.category_id = p.category_id
+WHERE h.LEVEL < 2
+)
+SELECT * FROM hierarchy
+```
+
+**Score: 10/10** - Correct: included category_id for JOIN.
+
+---
+
+## Task 2: Users → Orders Hierarchy
+
+**Scenario:**
+Build 2-level hierarchy: Users → Orders
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE order_hierarchy AS (
+SELECT
+    1 AS LEVEL,
+    id AS user_id,
+    email::TEXT AS name,
+    NULL::TEXT AS parent_id
+FROM users
+UNION ALL
+SELECT
+    oh.LEVEL + 1,
+    oh.user_id,
+    o.ID::TEXT,
+    oh.name
+FROM order_hierarchy oh JOIN orders o ON o.user_id = oh.user_id
+WHERE oh.LEVEL < 2
+)
+SELECT LEVEL, USER_ID, name, parent_id
+FROM order_hierarchy
+WHERE user_id < 6
+```
+
+**Student Note:** "I had to include oh.user_id to be able to actually join orders based on that user_id"
+
+**Score: 10/10** - Key insight: carry IDs through recursion for JOINs.
+
+---
+
+## Task 3: PERCENT_RANK Window Function
+
+**Scenario:**
+Calculate percentile ranking of users by total spending.
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH users_spent AS (
+SELECT user_id, SUM(amount) AS total_spent
+FROM orders
+GROUP BY user_id
+)
+SELECT *, PERCENT_RANK() OVER (ORDER BY total_spent) AS percentile_rank
+FROM users_spent
+ORDER BY total_spent DESC
+```
+
+**Student Note:** "Very easy task for me."
+
+**Score: 9/10** - Missing ROUND and filter, but core concept correct.
+
+---
+
+**Day 2 Overall Score: 29/30**
+

@@ -1974,3 +1974,30 @@ No specific feedback. Happy with direction — good to refresh previously learne
 - Initial tasks were too difficult — scaffolding helped
 - Pattern clicked after seeing the mapping CTE approach
 
+
+---
+
+### Feedback Archive: 2026-01-31 (Week 8, Day 2)
+
+## Agent Feedback on Student
+
+**Overall Score: 29/30**
+
+**Task 1 (Categories → Products): 10/10**
+- Correct pattern: included category_id in anchor for JOIN
+- Proper recursive JOIN on FK relationship
+
+**Task 2 (Users → Orders): 10/10**
+- Key insight: must carry user_id through recursion for JOIN
+- Good observation documented in solution
+
+**Task 3 (PERCENT_RANK): 9/10**
+- Correct use of PERCENT_RANK()
+- Missing: ROUND to 2 decimals, filter total_spent > 0
+
+**Key Learning:** Carry ID columns through hierarchy for JOINs even if not in final output.
+
+## Student Feedback on Questions
+
+- Task 3 was "very easy" — can increase window function difficulty
+

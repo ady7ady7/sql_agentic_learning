@@ -1,25 +1,23 @@
 ## Agent Feedback on Student
 
-### Week 8, Day 1 Assessment — 28/30
+### Week 8, Day 2 Assessment — 29/30
 
-**Task 1 (Department Hierarchy): 10/10**
-- Correct hierarchical CTE pattern with mapping CTE
-- Required initial guidance but executed correctly
+**Task 1 (Categories → Products): 10/10**
+- Correct pattern: included category_id in anchor for JOIN
+- Proper recursive JOIN on FK relationship
 
-**Task 2 (Countries & Cities): 10/10**
-- Applied pattern independently
-- Used UNNEST for anchor — valid alternative to VALUES
+**Task 2 (Users → Orders): 10/10**
+- Key insight: must carry user_id through recursion for JOIN
+- Good observation documented in solution
 
-**Task 3 (Conceptual): 8/10**
-- Q1-Q3: Correct understanding
-- Q4: Incorrect — WHERE h.LEVEL = 1 stops recursion, not sorting
+**Task 3 (PERCENT_RANK): 9/10**
+- Correct use of PERCENT_RANK()
+- Missing: ROUND to 2 decimals, filter total_spent > 0, ORDER BY percentile_rank DESC
 
-**Key Learning:** 2-level hierarchical CTE pattern with mapping CTE established.
+**Key Learning:** Carry ID columns through hierarchy for JOINs even if not in final output.
 
 ## Student Feedback on Questions
 
-- Prefers practical tasks over theory (Task 3 was too theoretical)
-- Wants at least 1 non-recursive advanced task per day (window funcs, GROUP BY)
-- Initial tasks were too difficult — scaffolding helped
-- Pattern clicked after seeing the mapping CTE approach
+- Task 3 was "very easy" — can increase window function difficulty
+- No other feedback
 

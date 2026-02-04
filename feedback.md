@@ -1,23 +1,25 @@
 ## Agent Feedback on Student
 
-### Week 8, Day 2 Assessment — 29/30
+### Week 8, Day 3 Assessment — 24/30
 
-**Task 1 (Categories → Products): 10/10**
-- Correct pattern: included category_id in anchor for JOIN
-- Proper recursive JOIN on FK relationship
+**Task 1 (3-Level Hardcoded): 8/10**
+- Works but needed heavy guidance
+- Student not confident with pattern yet
 
-**Task 2 (Users → Orders): 10/10**
-- Key insight: must carry user_id through recursion for JOIN
-- Good observation documented in solution
+**Task 2 (3-Level Real Data): 6/10**
+- Bug: p.category_id = p.category_id (should be h.category_id)
+- Task was too difficult — multi-table conditional JOINs too advanced
 
-**Task 3 (PERCENT_RANK): 9/10**
-- Correct use of PERCENT_RANK()
-- Missing: ROUND to 2 decimals, filter total_spent > 0, ORDER BY percentile_rank DESC
+**Task 3 (LAG Running Difference): 10/10**
+- Perfect, "easy peasy"
 
-**Key Learning:** Carry ID columns through hierarchy for JOINs even if not in final output.
+**Curriculum Adjustment:** Task 2 was too steep. Revising Days 4-5 to reinforce 3-level patterns more gradually.
 
 ## Student Feedback on Questions
 
-- Task 3 was "very easy" — can increase window function difficulty
-- No other feedback
+- Task 1: "NOT feeling confident... need to practice to get comfortable"
+- Task 2: "still don't understand it... feels really steep/difficult... need to carve this out bit by bit"
+- Task 3: "easy peasy, I didn't even think when solving it"
+
+**Action:** More 3-level hardcoded practice before real data complexity.
 

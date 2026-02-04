@@ -1,112 +1,117 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-02-01
-**Week 8, Day 3 Focus:** 3-Level Hierarchies + Advanced Window Functions
+**Generated:** 2026-02-02
+**Week 8, Day 4 Focus:** 3-Level Hierarchy Practice + Path Building
 
 ---
 
-## Task 1: 3-Level Hierarchy — Company → Department → Team
+## Revised Plan
+
+Day 3 showed the 3-level pattern needs more practice. Today: same pattern, different data, plus path building introduction.
+
+---
+
+## Task 1: 3-Level Hierarchy — Continent → Country → City
 
 **Scenario:**
-Extend to 3 levels using hardcoded data:
-- Level 1: 'TechCorp' (the company)
-- Level 2: 'Engineering', 'Sales' (departments)
-- Level 3: 'Backend', 'Frontend' (under Engineering), 'Inside Sales', 'Enterprise' (under Sales)
+Build a 3-level hierarchy with geography:
+- Level 1: 'World'
+- Level 2: 'Europe', 'Asia'
+- Level 3: 'Germany', 'France' (under Europe), 'Japan', 'China' (under Asia)
 
 **Expected Output:**
 ```
-level | name         | parent_name
-------+--------------+------------
-1     | TechCorp     | NULL
-2     | Engineering  | TechCorp
-2     | Sales        | TechCorp
-3     | Backend      | Engineering
-3     | Frontend     | Engineering
-3     | Inside Sales | Sales
-3     | Enterprise   | Sales
+level | name    | parent_name
+------+---------+------------
+1     | World   | NULL
+2     | Europe  | World
+2     | Asia    | World
+3     | Germany | Europe
+3     | France  | Europe
+3     | Japan   | Asia
+3     | China   | Asia
 ```
 
 **Requirements:**
-- Use mapping CTE to define parent-child relationships for ALL levels
-- Recursive CTE that can go 3 levels deep
-- Change `WHERE h.level = 1` to `WHERE h.level < 3` to allow 3 iterations
+- Mapping CTE with all parent-child pairs
+- Single anchor row ('World')
+- `WHERE h.level < 3`
 
 **Difficulty Rating:** 3/5
 
-**Hint:** Your mapping CTE needs entries like:
-- ('Engineering', 'TechCorp')
-- ('Backend', 'Engineering')
-- etc.
+This is the SAME pattern as Day 3 Task 1. Write it from scratch without looking back.
 
 ---
 
-## Task 2: 3-Level with Real Data — Categories → Products → Orders
+## Task 2: 3-Level with Path Building — Add Full Path
 
 **Scenario:**
-Build a 3-level hierarchy from actual tables:
-- Level 1: Product categories
-- Level 2: Products (linked via category_id)
-- Level 3: Order IDs where that product was purchased (via orders_products)
+Take Task 1 and add a `path` column showing the full hierarchy path.
 
-Limit to 1 category ('travel') to keep output manageable.
-
-**Expected Output Columns:**
-- `level` (integer) — 1, 2, or 3
-- `name` (text) — category name, product name, or order ID as text
-- `parent_name` (text) — NULL for level 1, parent's name for levels 2-3
+**Expected Output:**
+```
+level | name    | parent_name | path
+------+---------+-------------+--------------------
+1     | World   | NULL        | World
+2     | Europe  | World       | World > Europe
+2     | Asia    | World       | World > Asia
+3     | Germany | Europe      | World > Europe > Germany
+3     | France  | Europe      | World > Europe > France
+3     | Japan   | Asia        | World > Asia > Japan
+3     | China   | Asia        | World > Asia > China
+```
 
 **Requirements:**
-- Anchor: Single category 'travel'
-- Level 2: JOIN products on category_id
-- Level 3: JOIN orders_products on product_id, then show order_id
-- Carry necessary IDs through (category_id for level 2, product_id for level 3)
+- Same structure as Task 1
+- Add `path` column using string concatenation (`||`)
+- Anchor path = just the name
+- Recursive path = parent's path || ' > ' || child's name
 
-**Difficulty Rating:** 4/5
+**Difficulty Rating:** 3/5
+
+**Hint:** In anchor: `'World' AS path`. In recursive: `h.path || ' > ' || m.child AS path`
 
 ---
 
-## Task 3: Advanced — Running Difference with LAG
+## Task 3: Advanced — NTILE for Quartile Bucketing
 
 **Scenario:**
-For each user, show their transactions in chronological order with:
-- The transaction amount
-- The previous transaction amount (using LAG)
-- The difference from previous transaction
+Divide users into 4 equal groups (quartiles) based on their total order amounts.
 
 **Expected Output Columns:**
 - `user_id` (integer)
-- `transaction_date` (date)
-- `amount` (numeric)
-- `prev_amount` (numeric) — previous transaction amount, NULL for first
-- `amount_diff` (numeric) — current minus previous, NULL for first
+- `total_spent` (numeric) — sum of order amounts
+- `quartile` (integer) — 1 (lowest spenders) to 4 (highest spenders)
 
 **Requirements:**
-- Use LAG() with PARTITION BY user_id ORDER BY created_at
-- Calculate difference as amount - prev_amount
-- Only include users 1-5 to limit output
-- Order by user_id, transaction_date
+- Aggregate orders by user_id
+- Use `NTILE(4)` window function
+- Order by total_spent to assign quartiles
+- Final output ordered by quartile, then total_spent DESC
 
 **Difficulty Rating:** 4/5
 
+**Note:** `NTILE(n)` divides rows into n roughly equal buckets numbered 1 to n.
+
 ---
 
-## Week 8 Scaffolding Plan
+## Week 8 Scaffolding Plan (Revised)
 
 | Day | Focus | Status |
 |-----|-------|--------|
 | Day 1 | 2-level hierarchy with mapping CTE | ✓ Done |
 | Day 2 | 2-level with real table data | ✓ Done |
-| Day 3 | 3-level hierarchy introduction (TODAY) | |
-| Day 4 | Path building (e.g., 'Category > Product') | |
-| Day 5 | Combine hierarchies with aggregations | |
+| Day 3 | 3-level hierarchy introduction | ✓ Done (struggled) |
+| Day 4 | 3-level practice + path building (TODAY) | |
+| Day 5 | 3-level with simple real data | |
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — 3-level hardcoded hierarchy (3/5)
-2. Task 2 — 3-level with real tables (4/5)
-3. Task 3 — LAG with running difference (4/5)
+1. Task 1 — 3-level hardcoded, same pattern (3/5)
+2. Task 2 — Add path column (3/5)
+3. Task 3 — NTILE quartile bucketing (4/5)
 
-Today adds depth — from 2 levels to 3.
+Goal: Lock in the 3-level pattern through repetition.
 

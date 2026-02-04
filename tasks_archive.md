@@ -5042,3 +5042,104 @@ ORDER BY total_spent DESC
 
 **Day 2 Overall Score: 29/30**
 
+
+---
+
+### Task Archive: 2026-02-01 (Week 8, Day 3)
+
+**Focus:** 3-Level Hierarchies + Advanced Window Functions
+
+---
+
+## Task 1: 3-Level Hardcoded Hierarchy
+
+**Scenario:**
+Company → Department → Team (3 levels)
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE mapping(child, parent) AS (
+VALUES
+    ('Engineering', 'TechCorp'),
+    ('Sales', 'TechCorp'),
+    ('Backend', 'Engineering'),
+    ('Frontend', 'Engineering'),
+    ('Inside Sales', 'Sales'),
+    ('Enterprise', 'Sales')
+),
+HIERARCHY AS (
+SELECT 1 AS LEVEL, 'TechCorp' AS name, NULL::TEXT AS parent_name
+UNION ALL
+SELECT h.LEVEL + 1, m.child, h.name
+FROM HIERARCHY h JOIN MAPPING m ON m.parent = h.name
+WHERE h.LEVEL < 3
+)
+SELECT * FROM hierarchy
+```
+
+**Student Note:** "NOT feeling confident... need to practice to get comfortable"
+
+**Score: 8/10** - Works but needed heavy guidance.
+
+---
+
+## Task 2: 3-Level with Real Data
+
+**Scenario:**
+Categories → Products → Orders (3 levels with real tables)
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE hierarchy AS (
+SELECT 1 AS LEVEL, id AS category_id, NULL::INT AS product_id,
+       NULL::TEXT AS name, NULL::TEXT AS parent_name
+FROM product_categories WHERE name = 'travel'
+UNION ALL
+SELECT h.level + 1, h.category_id, COALESCE(p.id, h.product_id),
+       COALESCE(p.name, op.order_id::TEXT), h.name
+FROM HIERARCHY h
+LEFT JOIN products p ON h.LEVEL = 1 AND p.category_id = p.category_id
+LEFT JOIN orders_products op ON h.LEVEL = 2 AND op.product_id = h.product_id
+WHERE h.LEVEL < 3
+)
+SELECT LEVEL, name, parent_name FROM hierarchy
+```
+
+**Student Note:** "still don't understand it... feels really steep/difficult"
+
+**Score: 6/10** - Bug in JOIN condition. Task was too advanced.
+
+---
+
+## Task 3: LAG Running Difference
+
+**Scenario:**
+Show transactions with previous amount and difference.
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH users_transactions AS (
+SELECT user_id, DATE(created_at) AS transaction_date, amount,
+       LAG(amount) OVER (PARTITION BY user_id ORDER BY created_at) AS prev_amount
+FROM transactions
+)
+SELECT *, CASE WHEN prev_amount IS NULL THEN NULL ELSE amount - prev_amount END AS amount_diff
+FROM users_transactions WHERE user_id < 6
+```
+
+**Student Note:** "easy peasy, I didn't even think when solving it."
+
+**Score: 10/10** - Perfect.
+
+---
+
+**Day 3 Overall Score: 24/30**
+
+**Curriculum Note:** Task 2 was too steep. Days 4-5 revised for more gradual progression.
+

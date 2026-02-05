@@ -5143,3 +5143,94 @@ FROM users_transactions WHERE user_id < 6
 
 **Curriculum Note:** Task 2 was too steep. Days 4-5 revised for more gradual progression.
 
+
+---
+
+### Task Archive: 2026-02-02 (Week 8, Day 4)
+
+**Focus:** 3-Level Hierarchy Practice + Path Building
+
+---
+
+## Task 1: 3-Level Geography Hierarchy
+
+**Scenario:**
+World → Continents → Countries (3 levels)
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE mapping(child, parent) AS (
+VALUES
+('Europe', 'World'),
+('Asia', 'World'),
+('France', 'Europe'),
+('Germany', 'Europe'),
+('Japan', 'Asia'),
+('China', 'Asia')
+),
+HIERARCHY AS (
+SELECT 1 AS LEVEL, 'World' AS name, NULL::TEXT AS parent_name
+UNION ALL
+SELECT h.LEVEL + 1, m.child, h.name
+FROM HIERARCHY h JOIN MAPPING m ON h.name = m.parent
+WHERE LEVEL < 3
+)
+SELECT * FROM hierarchy
+```
+
+**Student Note:** "I honestly had to look it up, but it's getting clearer"
+
+**Score: 9/10** - Correct, needed to look back.
+
+---
+
+## Task 2: Path Building
+
+**Scenario:**
+Add full path column to hierarchy.
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE mapping(child, parent) AS (...),
+HIERARCHY AS (
+SELECT 1 AS LEVEL, 'World' AS name, NULL::TEXT AS parent_name, 'World' AS path
+UNION ALL
+SELECT h.LEVEL + 1, m.child, h.name, h.path || ' > ' || m.child
+FROM HIERARCHY h JOIN MAPPING m ON h.name = m.parent
+WHERE LEVEL < 3
+)
+SELECT * FROM hierarchy
+```
+
+**Score: 10/10** - Perfect path concatenation.
+
+---
+
+## Task 3: NTILE Quartile Bucketing
+
+**Scenario:**
+Divide users into quartiles by spending.
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH users_orders AS (
+SELECT user_id, SUM(amount) AS total_spent
+FROM orders GROUP BY user_id
+)
+SELECT *, NTILE(4) OVER (ORDER BY total_spent) AS quartile
+FROM users_orders
+ORDER BY quartile, total_spent DESC
+```
+
+**Score: 10/10** - Clean and correct.
+
+---
+
+**Day 4 Overall Score: 29/30**
+

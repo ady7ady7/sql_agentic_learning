@@ -1,25 +1,23 @@
 ## Agent Feedback on Student
 
-### Week 8, Day 3 Assessment — 24/30
+### Week 8, Day 4 Assessment — 29/30
 
-**Task 1 (3-Level Hardcoded): 8/10**
-- Works but needed heavy guidance
-- Student not confident with pattern yet
+**Task 1 (3-Level Geography): 9/10**
+- Correct pattern execution
+- Had to look back but getting clearer
 
-**Task 2 (3-Level Real Data): 6/10**
-- Bug: p.category_id = p.category_id (should be h.category_id)
-- Task was too difficult — multi-table conditional JOINs too advanced
+**Task 2 (Path Building): 10/10**
+- Perfect path concatenation implementation
 
-**Task 3 (LAG Running Difference): 10/10**
-- Perfect, "easy peasy"
+**Task 3 (NTILE Quartiles): 10/10**
+- Clean and correct
 
-**Curriculum Adjustment:** Task 2 was too steep. Revising Days 4-5 to reinforce 3-level patterns more gradually.
+**Progress:** 3-level pattern becoming more familiar through repetition.
 
 ## Student Feedback on Questions
 
-- Task 1: "NOT feeling confident... need to practice to get comfortable"
-- Task 2: "still don't understand it... feels really steep/difficult... need to carve this out bit by bit"
-- Task 3: "easy peasy, I didn't even think when solving it"
-
-**Action:** More 3-level hardcoded practice before real data complexity.
+- 3-level hierarchies "feel clunky" but improving
+- Wants continued scaffolded approach for Week 9
+- Keep 1 window function/GROUP BY task per day
+- Completed in 30 minutes
 

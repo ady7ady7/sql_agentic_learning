@@ -1,117 +1,110 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-02-02
-**Week 8, Day 4 Focus:** 3-Level Hierarchy Practice + Path Building
+**Generated:** 2026-02-03
+**Week 8, Day 5 Focus:** Week Consolidation — Hierarchy Review + Window Functions
 
 ---
 
-## Revised Plan
+## Final Day of Week 8
 
-Day 3 showed the 3-level pattern needs more practice. Today: same pattern, different data, plus path building introduction.
+Consolidating what we've learned. No new complexity — just reinforcement.
 
 ---
 
-## Task 1: 3-Level Hierarchy — Continent → Country → City
+## Task 1: 3-Level Hierarchy — Organization Structure
 
 **Scenario:**
-Build a 3-level hierarchy with geography:
-- Level 1: 'World'
-- Level 2: 'Europe', 'Asia'
-- Level 3: 'Germany', 'France' (under Europe), 'Japan', 'China' (under Asia)
+Build a 3-level org hierarchy:
+- Level 1: 'Acme Inc'
+- Level 2: 'HR', 'Finance', 'IT'
+- Level 3: 'Recruiting', 'Payroll' (under HR), 'Accounting', 'Tax' (under Finance), 'DevOps', 'Support' (under IT)
 
 **Expected Output:**
 ```
-level | name    | parent_name
-------+---------+------------
-1     | World   | NULL
-2     | Europe  | World
-2     | Asia    | World
-3     | Germany | Europe
-3     | France  | Europe
-3     | Japan   | Asia
-3     | China   | Asia
+level | name       | parent_name | path
+------+------------+-------------+------------------------
+1     | Acme Inc   | NULL        | Acme Inc
+2     | HR         | Acme Inc    | Acme Inc > HR
+2     | Finance    | Acme Inc    | Acme Inc > Finance
+2     | IT         | Acme Inc    | Acme Inc > IT
+3     | Recruiting | HR          | Acme Inc > HR > Recruiting
+3     | Payroll    | HR          | Acme Inc > HR > Payroll
+3     | Accounting | Finance     | Acme Inc > Finance > Accounting
+3     | Tax        | Finance     | Acme Inc > Finance > Tax
+3     | DevOps     | IT          | Acme Inc > IT > DevOps
+3     | Support    | IT          | Acme Inc > IT > Support
 ```
 
 **Requirements:**
-- Mapping CTE with all parent-child pairs
-- Single anchor row ('World')
-- `WHERE h.level < 3`
+- Mapping CTE with all relationships
+- Include path column from the start
+- Write it WITHOUT looking at previous solutions
 
 **Difficulty Rating:** 3/5
 
-This is the SAME pattern as Day 3 Task 1. Write it from scratch without looking back.
-
 ---
 
-## Task 2: 3-Level with Path Building — Add Full Path
+## Task 2: 2-Level Real Data with Path — Categories → Products
 
 **Scenario:**
-Take Task 1 and add a `path` column showing the full hierarchy path.
-
-**Expected Output:**
-```
-level | name    | parent_name | path
-------+---------+-------------+--------------------
-1     | World   | NULL        | World
-2     | Europe  | World       | World > Europe
-2     | Asia    | World       | World > Asia
-3     | Germany | Europe      | World > Europe > Germany
-3     | France  | Europe      | World > Europe > France
-3     | Japan   | Asia        | World > Asia > Japan
-3     | China   | Asia        | World > Asia > China
-```
-
-**Requirements:**
-- Same structure as Task 1
-- Add `path` column using string concatenation (`||`)
-- Anchor path = just the name
-- Recursive path = parent's path || ' > ' || child's name
-
-**Difficulty Rating:** 3/5
-
-**Hint:** In anchor: `'World' AS path`. In recursive: `h.path || ' > ' || m.child AS path`
-
----
-
-## Task 3: Advanced — NTILE for Quartile Bucketing
-
-**Scenario:**
-Divide users into 4 equal groups (quartiles) based on their total order amounts.
+Build a 2-level hierarchy from `product_categories` and `products` with path column.
 
 **Expected Output Columns:**
-- `user_id` (integer)
-- `total_spent` (numeric) — sum of order amounts
-- `quartile` (integer) — 1 (lowest spenders) to 4 (highest spenders)
+- `level` (integer)
+- `name` (text)
+- `parent_name` (text)
+- `path` (text) — e.g., 'travel > Luggage'
 
 **Requirements:**
-- Aggregate orders by user_id
-- Use `NTILE(4)` window function
-- Order by total_spent to assign quartiles
-- Final output ordered by quartile, then total_spent DESC
+- Anchor: All categories from `product_categories`
+- Recursive: JOIN to `products` on category_id
+- Include path (category name for level 1, category > product for level 2)
+- Carry `category_id` through for the JOIN
+
+**Difficulty Rating:** 3/5
+
+This is simpler than Day 3's 3-level real data — just 2 levels.
+
+---
+
+## Task 3: Advanced — DENSE_RANK with Ties
+
+**Scenario:**
+Rank products by their total quantity sold across all orders. Use DENSE_RANK to handle ties (products with same quantity get same rank, no gaps).
+
+**Expected Output Columns:**
+- `product_id` (integer)
+- `product_name` (text)
+- `total_quantity` (bigint) — sum of quantity from orders_products
+- `sales_rank` (bigint) — DENSE_RANK by total_quantity DESC
+
+**Requirements:**
+- JOIN products and orders_products
+- Aggregate by product
+- Use DENSE_RANK() OVER (ORDER BY total_quantity DESC)
+- Order by sales_rank, then product_name
 
 **Difficulty Rating:** 4/5
 
-**Note:** `NTILE(n)` divides rows into n roughly equal buckets numbered 1 to n.
-
 ---
 
-## Week 8 Scaffolding Plan (Revised)
+## Week 8 Summary
 
-| Day | Focus | Status |
-|-----|-------|--------|
-| Day 1 | 2-level hierarchy with mapping CTE | ✓ Done |
-| Day 2 | 2-level with real table data | ✓ Done |
-| Day 3 | 3-level hierarchy introduction | ✓ Done (struggled) |
-| Day 4 | 3-level practice + path building (TODAY) | |
-| Day 5 | 3-level with simple real data | |
+| Day | Focus | Score |
+|-----|-------|-------|
+| Day 1 | 2-level hierarchy introduction | 28/30 |
+| Day 2 | 2-level with real data | 29/30 |
+| Day 3 | 3-level introduction (struggled) | 24/30 |
+| Day 4 | 3-level practice + path building | 29/30 |
+| Day 5 | Consolidation (TODAY) | |
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — 3-level hardcoded, same pattern (3/5)
-2. Task 2 — Add path column (3/5)
-3. Task 3 — NTILE quartile bucketing (4/5)
+1. Task 1 — 3-level org with path, from memory (3/5)
+2. Task 2 — 2-level real data with path (3/5)
+3. Task 3 — DENSE_RANK product ranking (4/5)
 
-Goal: Lock in the 3-level pattern through repetition.
+After today: Week 8 Recap, then Week 9 planning.
 

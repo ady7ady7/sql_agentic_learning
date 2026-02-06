@@ -1,23 +1,21 @@
 ## Agent Feedback on Student
 
-### Week 8, Day 4 Assessment — 29/30
+### Week 8, Day 5 Assessment — 30/30
 
-**Task 1 (3-Level Geography): 9/10**
-- Correct pattern execution
-- Had to look back but getting clearer
+**Task 1 (3-Level Org): 10/10**
+- Completed from memory, growing confidence
 
-**Task 2 (Path Building): 10/10**
-- Perfect path concatenation implementation
+**Task 2 (Categories → Products with Path): 10/10**
+- Clean real data hierarchy with path, no hesitation
 
-**Task 3 (NTILE Quartiles): 10/10**
-- Clean and correct
-
-**Progress:** 3-level pattern becoming more familiar through repetition.
+**Task 3 (DENSE_RANK): 10/10**
+- Trivial for student — needs harder multi-CTE tasks
 
 ## Student Feedback on Questions
 
-- 3-level hierarchies "feel clunky" but improving
-- Wants continued scaffolded approach for Week 9
-- Keep 1 window function/GROUP BY task per day
-- Completed in 30 minutes
+- Hierarchies getting stronger, still need daily practice
+- Single-CTE window function tasks are "SUPER easy" and trivial
+- Wants multi-CTE tasks that require actual thinking
+- 1 hierarchy task + 2 complex multi-step tasks per day preferred
+- Completed in 20 minutes
 

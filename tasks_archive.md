@@ -5234,3 +5234,77 @@ ORDER BY quartile, total_spent DESC
 
 **Day 4 Overall Score: 29/30**
 
+
+---
+
+### Task Archive: 2026-02-03 (Week 8, Day 5)
+
+**Focus:** Week Consolidation — Hierarchy Review + Window Functions
+
+---
+
+## Task 1: 3-Level Org Hierarchy with Path
+
+**Scenario:**
+Acme Inc → HR/Finance/IT → Teams (3 levels with path)
+
+**Difficulty Rating:** 3/5
+
+**Score: 10/10** - Completed from memory.
+
+---
+
+## Task 2: Categories → Products with Path (Real Data)
+
+**Scenario:**
+2-level hierarchy with path using product_categories and products.
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE HIERARCHY AS (
+SELECT 1 AS LEVEL, id AS id, name::TEXT, NULL::TEXT AS parent_name, name::TEXT AS path
+FROM product_categories
+UNION ALL
+SELECT h.LEVEL + 1, p.id, p.name, h.name, h.PATH || ' > ' || p.name
+FROM HIERARCHY H JOIN products p ON h.id = p.category_id
+WHERE h.LEVEL < 2
+)
+SELECT LEVEL, NAME, parent_name, path FROM hierarchy
+```
+
+**Score: 10/10** - Clean real data hierarchy with path.
+
+---
+
+## Task 3: DENSE_RANK Product Ranking
+
+**Scenario:**
+Rank products by total quantity sold.
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH products_quantities AS (
+SELECT op.product_id, p.name AS product_name, SUM(op.quantity) AS total_quantity
+FROM orders_products op
+JOIN products p ON op.product_id = p.id
+GROUP BY OP.product_id, p.name
+)
+SELECT *, DENSE_RANK() OVER (ORDER BY total_quantity DESC) AS sales_rank
+FROM products_quantities
+ORDER BY sales_rank, product_name
+```
+
+**Student Note:** "SUPER easy... I'd appreciate tasks that require multiple CTE"
+
+**Score: 10/10** - Trivial for student at this level.
+
+---
+
+**Day 5 Overall Score: 30/30**
+
+**Week 8 Overall: 28/30 average (9.33/10)**
+

@@ -1,110 +1,114 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-02-03
-**Week 8, Day 5 Focus:** Week Consolidation — Hierarchy Review + Window Functions
+**Generated:** 2026-02-04
+**Week 9, Day 1 Focus:** Hierarchy Practice + Multi-CTE Challenges
 
 ---
 
-## Final Day of Week 8
+## Welcome to Week 9!
 
-Consolidating what we've learned. No new complexity — just reinforcement.
+New format: 1 hierarchy task + 2 complex multi-CTE tasks that require actual thinking.
 
 ---
 
-## Task 1: 3-Level Hierarchy — Organization Structure
+## Task 1: 3-Level Hierarchy — Categories → Products → Price Tiers
 
 **Scenario:**
-Build a 3-level org hierarchy:
-- Level 1: 'Acme Inc'
-- Level 2: 'HR', 'Finance', 'IT'
-- Level 3: 'Recruiting', 'Payroll' (under HR), 'Accounting', 'Tax' (under Finance), 'DevOps', 'Support' (under IT)
+Build a 3-level hierarchy using hardcoded data:
+- Level 1: 'All Products'
+- Level 2: 'Budget' (< $50), 'Mid-Range' ($50-$150), 'Premium' (> $150)
+- Level 3: Specific price points — 'Under $20', '$20-$50' (under Budget), '$50-$100', '$100-$150' (under Mid-Range), '$150-$300', '$300+' (under Premium)
 
-**Expected Output:**
-```
-level | name       | parent_name | path
-------+------------+-------------+------------------------
-1     | Acme Inc   | NULL        | Acme Inc
-2     | HR         | Acme Inc    | Acme Inc > HR
-2     | Finance    | Acme Inc    | Acme Inc > Finance
-2     | IT         | Acme Inc    | Acme Inc > IT
-3     | Recruiting | HR          | Acme Inc > HR > Recruiting
-3     | Payroll    | HR          | Acme Inc > HR > Payroll
-3     | Accounting | Finance     | Acme Inc > Finance > Accounting
-3     | Tax        | Finance     | Acme Inc > Finance > Tax
-3     | DevOps     | IT          | Acme Inc > IT > DevOps
-3     | Support    | IT          | Acme Inc > IT > Support
-```
-
-**Requirements:**
-- Mapping CTE with all relationships
-- Include path column from the start
-- Write it WITHOUT looking at previous solutions
-
-**Difficulty Rating:** 3/5
-
----
-
-## Task 2: 2-Level Real Data with Path — Categories → Products
-
-**Scenario:**
-Build a 2-level hierarchy from `product_categories` and `products` with path column.
+Include path column.
 
 **Expected Output Columns:**
 - `level` (integer)
 - `name` (text)
 - `parent_name` (text)
-- `path` (text) — e.g., 'travel > Luggage'
+- `path` (text)
 
 **Requirements:**
-- Anchor: All categories from `product_categories`
-- Recursive: JOIN to `products` on category_id
-- Include path (category name for level 1, category > product for level 2)
-- Carry `category_id` through for the JOIN
+- Mapping CTE + recursive hierarchy with path
+- Same pattern as Week 8 — write from memory
 
 **Difficulty Rating:** 3/5
 
-This is simpler than Day 3's 3-level real data — just 2 levels.
-
 ---
 
-## Task 3: Advanced — DENSE_RANK with Ties
+## Task 2: Monthly Revenue Dashboard (Multi-CTE)
 
 **Scenario:**
-Rank products by their total quantity sold across all orders. Use DENSE_RANK to handle ties (products with same quantity get same rank, no gaps).
+Build a monthly revenue dashboard that shows for each month:
+- Total revenue
+- Month-over-month change (absolute and percentage)
+- 3-month moving average
+- Whether the month was above or below the overall average
 
 **Expected Output Columns:**
-- `product_id` (integer)
-- `product_name` (text)
-- `total_quantity` (bigint) — sum of quantity from orders_products
-- `sales_rank` (bigint) — DENSE_RANK by total_quantity DESC
+- `month` (date) — DATE_TRUNC'd
+- `monthly_revenue` (numeric)
+- `prev_month_revenue` (numeric) — LAG
+- `mom_change` (numeric) — current minus previous
+- `mom_pct_change` (numeric) — percentage change, rounded to 1 decimal
+- `moving_avg_3m` (numeric) — average of current + 2 preceding months, rounded to 2 decimals
+- `vs_overall` (text) — 'Above Average' or 'Below Average'
 
 **Requirements:**
-- JOIN products and orders_products
-- Aggregate by product
-- Use DENSE_RANK() OVER (ORDER BY total_quantity DESC)
-- Order by sales_rank, then product_name
+- CTE 1: Aggregate orders by month
+- CTE 2: Add LAG for previous month, calculate MoM change
+- CTE 3: Add moving average with window frame
+- Final SELECT: Compare to overall average using a subquery or additional CTE
+- Round percentages and averages appropriately
 
-**Difficulty Rating:** 4/5
+**Difficulty Rating:** 5/5
 
 ---
 
-## Week 8 Summary
+## Task 3: Product Category Performance Comparison (Multi-CTE)
 
-| Day | Focus | Score |
-|-----|-------|-------|
-| Day 1 | 2-level hierarchy introduction | 28/30 |
-| Day 2 | 2-level with real data | 29/30 |
-| Day 3 | 3-level introduction (struggled) | 24/30 |
-| Day 4 | 3-level practice + path building | 29/30 |
-| Day 5 | Consolidation (TODAY) | |
+**Scenario:**
+For each product category, calculate:
+- Total revenue (quantity * price)
+- Number of unique customers
+- Average order value for that category
+- Category's share of total revenue (as percentage)
+- Rank by revenue
+
+**Expected Output Columns:**
+- `category_name` (text)
+- `total_revenue` (numeric)
+- `unique_customers` (bigint)
+- `avg_order_value` (numeric) — average revenue per order containing this category, rounded to 2 decimals
+- `revenue_share_pct` (numeric) — percentage of total revenue, rounded to 1 decimal
+- `revenue_rank` (bigint)
+
+**Requirements:**
+- CTE 1: Join orders_products → products → product_categories → orders, aggregate by category
+- CTE 2: Calculate total revenue across ALL categories (for percentage)
+- Final SELECT: Combine with window function for rank
+- Order by revenue_rank
+
+**Difficulty Rating:** 5/5
+
+---
+
+## Week 9 Plan
+
+| Day | Focus |
+|-----|-------|
+| Day 1 | Hierarchy + multi-CTE dashboards (TODAY) |
+| Day 2 | Hierarchy + complex aggregation challenges |
+| Day 3 | Hierarchy + subquery & CTE combinations |
+| Day 4 | Hierarchy + HackerRank-style puzzles |
+| Day 5 | Week consolidation |
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — 3-level org with path, from memory (3/5)
-2. Task 2 — 2-level real data with path (3/5)
-3. Task 3 — DENSE_RANK product ranking (4/5)
+1. Task 1 — 3-level hierarchy from memory (3/5)
+2. Task 2 — Monthly revenue dashboard, 4 CTEs (5/5)
+3. Task 3 — Category performance comparison (5/5)
 
-After today: Week 8 Recap, then Week 9 planning.
+These should make you think. Take your time.
 

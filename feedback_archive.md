@@ -2059,3 +2059,82 @@ No specific feedback. Happy with direction — good to refresh previously learne
 - Keep 1 window function/GROUP BY task per day
 - Completed in 30 minutes
 
+
+---
+
+### Feedback Archive: 2026-02-03 (Week 8, Day 5)
+
+## Agent Feedback on Student
+
+**Overall Score: 30/30**
+
+**Task 1 (3-Level Org): 10/10**
+- Completed from memory, growing confidence
+
+**Task 2 (Categories → Products with Path): 10/10**
+- Clean real data hierarchy with path, no hesitation
+
+**Task 3 (DENSE_RANK): 10/10**
+- Trivial for student — needs harder multi-CTE tasks
+
+## Student Feedback on Questions
+
+- Hierarchies getting stronger, still need daily practice
+- Single-CTE window function tasks are "SUPER easy" and trivial
+- Wants multi-CTE tasks that require actual thinking
+- 1 hierarchy task + 2 complex multi-step tasks per day preferred
+- Completed in 20 minutes
+
+
+---
+
+## Week 8 Weekly Recap
+
+### Progress Bar: ████████░░ 80-85% toward HackerRank Advanced
+
+### Weekly Scores
+| Day | Score | Notes |
+|-----|-------|-------|
+| Day 1 | 28/30 | 2-level hierarchy learned with scaffolding |
+| Day 2 | 29/30 | Applied to real table data |
+| Day 3 | 24/30 | 3-level too steep, adjusted curriculum |
+| Day 4 | 29/30 | 3-level practice + path building |
+| Day 5 | 30/30 | Consolidation, perfect execution |
+
+**Weekly Average: 28/30 (9.33/10)**
+
+### Key Wins This Week
+1. **2-level hierarchical CTE pattern mastered** — mapping CTE + recursive JOIN
+2. **3-level hierarchical CTE pattern learned** — WHERE h.level < 3
+3. **Path building** — string concatenation through recursion
+4. **Carrying IDs through recursion** — key insight for real data hierarchies
+5. **Window functions remain strong** — PERCENT_RANK, LAG, NTILE, DENSE_RANK all trivial
+
+### Focus Areas for Improvement
+- 3-level hierarchies still "clunky" — needs continued daily practice
+- Multi-table 3-level hierarchies (conditional JOINs) — not yet comfortable
+- Simple window function tasks are now too easy — needs multi-step challenges
+
+### Concepts Mastered (Week 8)
+- 2-level hierarchical recursive CTEs (hardcoded + real data)
+- 3-level hierarchical recursive CTEs (hardcoded)
+- Path building with string concatenation
+- PERCENT_RANK, LAG, NTILE, DENSE_RANK window functions
+- Carrying FK columns through recursion for JOINs
+
+### Concepts Still Developing
+- 3-level hierarchies with real multi-table data
+- Complex conditional JOINs in recursive CTEs
+
+### Week 9 Plan
+- **1 hierarchy task per day** (continued practice to build muscle memory)
+- **2 complex multi-CTE tasks per day** (3+ CTEs, combining window functions with aggregations, subqueries, real business scenarios)
+- Gradually reintroduce real-data hierarchies as hardcoded pattern solidifies
+- Target difficulty: 4-5/5 for non-hierarchy tasks
+
+### Student Learning Style Notes (Updated)
+- Scaffolded approach works — frustration on Day 3 led to successful recovery by Day 5
+- Needs ~3-5 repetitions of a new pattern before confidence builds
+- Simple tasks are demotivating — prefers thinking over rote execution
+- 20-30 minute sessions are ideal pace
+

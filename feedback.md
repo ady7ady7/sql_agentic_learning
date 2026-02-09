@@ -1,21 +1,23 @@
 ## Agent Feedback on Student
 
-### Week 8, Day 5 Assessment — 30/30
+### Week 9, Day 1 Assessment — 30/30
 
-**Task 1 (3-Level Org): 10/10**
-- Completed from memory, growing confidence
+**Task 1 (3-Level Hierarchy): 10/10**
+- Written 100% from memory, weekend consolidation worked
 
-**Task 2 (Categories → Products with Path): 10/10**
-- Clean real data hierarchy with path, no hesitation
+**Task 2 (Monthly Revenue Dashboard): 10/10**
+- Excellent multi-CTE layered approach
+- Originally scored 9/10 for vs_overall comparison, but student correctly argued the wording was ambiguous
 
-**Task 3 (DENSE_RANK): 10/10**
-- Trivial for student — needs harder multi-CTE tasks
+**Task 3 (Category Performance): 10/10**
+- Smart split into two aggregation CTEs + JOIN
+- Originally scored 9/10 for avg_order_value, but student correctly pointed out the task description matched their interpretation
+
+**Agent Error:** Two incorrect deductions reversed after valid student pushback. Task descriptions need to be more precise.
 
 ## Student Feedback on Questions
 
-- Hierarchies getting stronger, still need daily practice
-- Single-CTE window function tasks are "SUPER easy" and trivial
-- Wants multi-CTE tasks that require actual thinking
-- 1 hierarchy task + 2 complex multi-step tasks per day preferred
-- Completed in 20 minutes
+- "Fun and I loved it" — multi-CTE tasks at the right difficulty
+- Tasks need more precise wording to avoid ambiguous interpretations
+- Completed in 40 minutes
 

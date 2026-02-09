@@ -5308,3 +5308,127 @@ ORDER BY sales_rank, product_name
 
 **Week 8 Overall: 28/30 average (9.33/10)**
 
+
+---
+
+### Task Archive: 2026-02-04 (Week 9, Day 1)
+
+**Focus:** Hierarchy Practice + Multi-CTE Challenges
+
+---
+
+## Task 1: 3-Level Price Tier Hierarchy
+
+**Scenario:**
+All Products → Budget/Mid-Range/Premium → Price sub-tiers (3 levels with path)
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE mapping(child, parent) AS (
+VALUES
+('Budget (<$50)', 'All Products'),
+('Mid-Range ($50 - $150)', 'All Products'),
+('Premium (>$150)', 'All Products'),
+('Under $20', 'Budget (<$50)'),
+('$20-$50', 'Budget (<$50)'),
+('$50-$100', 'Mid-Range ($50 - $150)'),
+('$100-$150', 'Mid-Range ($50 - $150)'),
+('$150-$300', 'Premium (>$150)'),
+('$300+', 'Premium (>$150)')
+),
+HIERARCHY AS (
+SELECT 1 AS LEVEL, 'All Products' AS name, NULL::TEXT AS parent_name, 'All Products' AS PATH
+UNION ALL
+SELECT h.LEVEL + 1, m.child, h.name, h.PATH || ' > ' || m.child
+FROM HIERARCHY h JOIN MAPPING m ON h.name = m.parent
+)
+SELECT * FROM hierarchy
+```
+
+**Student Note:** "Written 100% from memory, weekend break helped consolidate"
+
+**Score: 10/10** - From memory, pattern solidified.
+
+---
+
+## Task 2: Monthly Revenue Dashboard (Multi-CTE)
+
+**Scenario:**
+Monthly revenue with MoM change, percentage, 3-month moving avg, vs overall.
+
+**Difficulty Rating:** 5/5
+
+**Student Solution:**
+```sql
+WITH monthly_revenues AS (
+SELECT DATE_TRUNC('Month', created_at) AS month_, SUM(amount) AS monthly_revenue
+FROM orders GROUP BY DATE_TRUNC('Month', created_at)
+),
+prev_monthly_revs AS (
+SELECT *, LAG(monthly_revenue) OVER (ORDER BY month_) AS prev_month_revenue
+FROM monthly_revenues
+),
+revenues_changes_averages AS (
+SELECT *,
+    monthly_revenue - prev_month_revenue AS mom_change,
+    ROUND((monthly_revenue - prev_month_revenue)::NUMERIC / prev_month_revenue::NUMERIC * 100, 1) AS mom_pct_change,
+    ROUND(AVG(monthly_revenue::NUMERIC) OVER (ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 2) AS moving_avg_3d
+FROM prev_monthly_revs
+)
+SELECT month_, monthly_revenue, prev_month_revenue, mom_change,
+    mom_pct_change || '%' AS mom_pct_change, moving_avg_3d,
+    CASE WHEN monthly_revenue > moving_avg_3d THEN 'Above Average' ELSE 'Below Average' END AS vs_overall
+FROM revenues_changes_averages
+```
+
+**Student Note:** "I enjoyed this task... great way to review advanced queries"
+
+**Score: 10/10** - Excellent multi-CTE layered approach.
+
+---
+
+## Task 3: Category Performance Comparison (Multi-CTE)
+
+**Scenario:**
+Category revenue, unique customers, avg order value, revenue share %, rank.
+
+**Difficulty Rating:** 5/5
+
+**Student Solution:**
+```sql
+WITH categories_revenues AS (
+SELECT p.category_id, SUM(op.quantity * p.price) AS total_revenue
+FROM orders_products op JOIN products p ON op.product_id = p.id
+GROUP BY P.category_id
+),
+categories_ranked AS (
+SELECT *, RANK() OVER (ORDER BY total_revenue DESC) AS revenue_rank,
+    ROUND(total_revenue / (SELECT SUM(total_revenue) FROM categories_revenues) * 100, 1) || '%' AS revenue_share_pct
+FROM categories_revenues
+),
+categories_customers_avg_order AS (
+SELECT p.category_id, pc.name AS category_name,
+    COUNT(DISTINCT(o.user_id)) AS unique_customers,
+    ROUND(AVG(o.amount)::NUMERIC, 2) AS avg_order_value
+FROM orders_products op
+JOIN products p ON op.product_id = p.id
+JOIN orders o ON op.order_id = o.id
+JOIN product_categories pc ON p.category_id = pc.id
+GROUP BY p.category_id, pc.name
+)
+SELECT cca.category_name, cr.total_revenue, cca.unique_customers,
+    cca.avg_order_value, cr.revenue_share_pct, cr.revenue_rank
+FROM categories_ranked cr
+JOIN categories_customers_avg_order cca ON cr.category_id = cca.category_id
+```
+
+**Student Note:** "Everything works as intended, it was fun and I loved it!"
+
+**Score: 10/10** - Smart split into separate aggregation CTEs.
+
+---
+
+**Day 1 Overall Score: 30/30**
+

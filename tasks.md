@@ -1,114 +1,98 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-02-04
-**Week 9, Day 1 Focus:** Hierarchy Practice + Multi-CTE Challenges
+**Generated:** 2026-02-05
+**Week 9, Day 2 Focus:** Hierarchy Practice + Complex Aggregation Challenges
 
 ---
 
-## Welcome to Week 9!
-
-New format: 1 hierarchy task + 2 complex multi-CTE tasks that require actual thinking.
-
----
-
-## Task 1: 3-Level Hierarchy — Categories → Products → Price Tiers
+## Task 1: 3-Level Hierarchy with Real Data — Categories → Products → Delivery Status
 
 **Scenario:**
-Build a 3-level hierarchy using hardcoded data:
-- Level 1: 'All Products'
-- Level 2: 'Budget' (< $50), 'Mid-Range' ($50-$150), 'Premium' (> $150)
-- Level 3: Specific price points — 'Under $20', '$20-$50' (under Budget), '$50-$100', '$100-$150' (under Mid-Range), '$150-$300', '$300+' (under Premium)
+Build a 3-level hierarchy from real tables:
+- Level 1: Product categories (from `product_categories`)
+- Level 2: Products (from `products` via category_id)
+- Level 3: Delivery statuses for orders containing that product (from `orders_products` → `deliveries`)
 
-Include path column.
+Limit to category 'travel' to keep output manageable.
 
 **Expected Output Columns:**
 - `level` (integer)
-- `name` (text)
+- `name` (text) — category name, product name, or delivery status
 - `parent_name` (text)
 - `path` (text)
 
 **Requirements:**
-- Mapping CTE + recursive hierarchy with path
-- Same pattern as Week 8 — write from memory
+- Anchor: Category 'travel' from product_categories
+- Level 2: JOIN products on category_id
+- Level 3: JOIN orders_products → deliveries to get statuses
+- Carry necessary IDs through recursion
+- Include path column
 
-**Difficulty Rating:** 3/5
+**Difficulty Rating:** 4/5
+
+**Hint:** You'll need `category_id` at level 1→2 and `product_id` at level 2→3. Use LEFT JOINs with level conditions like Day 3 of Week 8.
 
 ---
 
-## Task 2: Monthly Revenue Dashboard (Multi-CTE)
+## Task 2: Customer Lifetime Value Segmentation (Multi-CTE)
 
 **Scenario:**
-Build a monthly revenue dashboard that shows for each month:
-- Total revenue
-- Month-over-month change (absolute and percentage)
-- 3-month moving average
-- Whether the month was above or below the overall average
+Build a customer segmentation report that classifies users into value tiers based on their total spending, order frequency, and average order value.
 
 **Expected Output Columns:**
-- `month` (date) — DATE_TRUNC'd
-- `monthly_revenue` (numeric)
-- `prev_month_revenue` (numeric) — LAG
-- `mom_change` (numeric) — current minus previous
-- `mom_pct_change` (numeric) — percentage change, rounded to 1 decimal
-- `moving_avg_3m` (numeric) — average of current + 2 preceding months, rounded to 2 decimals
-- `vs_overall` (text) — 'Above Average' or 'Below Average'
+- `user_id` (integer)
+- `total_spent` (numeric) — sum of all order amounts
+- `order_count` (bigint) — number of orders
+- `avg_order_value` (numeric) — average order amount, rounded to 2 decimals
+- `days_as_customer` (integer) — days between first and last order
+- `orders_per_month` (numeric) — order_count / (days_as_customer / 30.0), rounded to 2 decimals
+- `value_tier` (text) — 'Platinum' (top 10%), 'Gold' (top 25%), 'Silver' (top 50%), 'Bronze' (bottom 50%) based on total_spent
 
 **Requirements:**
-- CTE 1: Aggregate orders by month
-- CTE 2: Add LAG for previous month, calculate MoM change
-- CTE 3: Add moving average with window frame
-- Final SELECT: Compare to overall average using a subquery or additional CTE
-- Round percentages and averages appropriately
+- CTE 1: Aggregate per user — total_spent, order_count, avg_order, first/last order dates
+- CTE 2: Calculate days_as_customer and orders_per_month
+- CTE 3: Add PERCENT_RANK to determine value tier
+- Final SELECT: Apply CASE WHEN on percentile for tier labels
+- Filter out users with only 1 order (days_as_customer = 0 causes division issues)
+- Order by total_spent DESC
 
 **Difficulty Rating:** 5/5
 
 ---
 
-## Task 3: Product Category Performance Comparison (Multi-CTE)
+## Task 3: Order Gap Analysis by User (Multi-CTE)
 
 **Scenario:**
-For each product category, calculate:
-- Total revenue (quantity * price)
-- Number of unique customers
-- Average order value for that category
-- Category's share of total revenue (as percentage)
-- Rank by revenue
+For each user, find the gaps between consecutive orders and identify patterns:
+- Average gap between orders
+- Longest gap
+- Whether they're "accelerating" (recent gaps shorter than average) or "slowing down"
 
 **Expected Output Columns:**
-- `category_name` (text)
-- `total_revenue` (numeric)
-- `unique_customers` (bigint)
-- `avg_order_value` (numeric) — average revenue per order containing this category, rounded to 2 decimals
-- `revenue_share_pct` (numeric) — percentage of total revenue, rounded to 1 decimal
-- `revenue_rank` (bigint)
+- `user_id` (integer)
+- `order_count` (bigint)
+- `avg_gap_days` (numeric) — average days between consecutive orders, rounded to 1 decimal
+- `max_gap_days` (integer) — longest gap in days
+- `last_gap_days` (integer) — most recent gap
+- `trend` (text) — 'Accelerating' if last_gap < avg_gap, 'Slowing Down' if last_gap > avg_gap, 'Steady' if equal
 
 **Requirements:**
-- CTE 1: Join orders_products → products → product_categories → orders, aggregate by category
-- CTE 2: Calculate total revenue across ALL categories (for percentage)
-- Final SELECT: Combine with window function for rank
-- Order by revenue_rank
+- CTE 1: Get all orders per user with LAG to find previous order date
+- CTE 2: Calculate gap in days (current_date - prev_date) using DATE_PART or EXTRACT
+- CTE 3: Aggregate per user — AVG gap, MAX gap, and get the last gap (most recent)
+- Final SELECT: Determine trend
+- Only include users with 3+ orders
+- Order by avg_gap_days
 
 **Difficulty Rating:** 5/5
 
----
-
-## Week 9 Plan
-
-| Day | Focus |
-|-----|-------|
-| Day 1 | Hierarchy + multi-CTE dashboards (TODAY) |
-| Day 2 | Hierarchy + complex aggregation challenges |
-| Day 3 | Hierarchy + subquery & CTE combinations |
-| Day 4 | Hierarchy + HackerRank-style puzzles |
-| Day 5 | Week consolidation |
+**Hint for last gap:** Use FIRST_VALUE with ORDER BY created_at DESC within PARTITION BY user_id to get the most recent gap.
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — 3-level hierarchy from memory (3/5)
-2. Task 2 — Monthly revenue dashboard, 4 CTEs (5/5)
-3. Task 3 — Category performance comparison (5/5)
-
-These should make you think. Take your time.
+1. Task 1 — 3-level real data hierarchy with path (4/5)
+2. Task 2 — Customer lifetime value segmentation (5/5)
+3. Task 3 — Order gap analysis with trend (5/5)
 

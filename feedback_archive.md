@@ -2166,3 +2166,31 @@ No specific feedback. Happy with direction — good to refresh previously learne
 - Tasks need more precise wording
 - Completed in 40 minutes
 
+
+---
+
+### Feedback Archive: 2026-02-05 (Week 9, Day 2)
+
+## Agent Feedback on Student
+
+**Overall Score: 27/30**
+
+**Task 1 (3-Level Real Data Hierarchy): 9/10**
+- Solved multi-table conditional JOIN independently
+- Major improvement from Week 8 Day 3 — previously a blocker
+- Missing WHERE h.LEVEL < 3
+
+**Task 2 (Customer Lifetime Value): 9/10**
+- Efficiently combined CTEs, smart division handling
+- Missing explicit single-order user filter
+
+**Task 3 (Order Gap Analysis): 9/10**
+- Clean 4-CTE structure with FIRST_VALUE for last gap
+- Missing 3+ orders filter
+
+## Student Feedback on Questions
+
+- Tasks took 1 hour, "quite satisfying"
+- All completed without AI help
+- Right difficulty level
+

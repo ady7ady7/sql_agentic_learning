@@ -5432,3 +5432,111 @@ JOIN categories_customers_avg_order cca ON cr.category_id = cca.category_id
 
 **Day 1 Overall Score: 30/30**
 
+
+---
+
+### Task Archive: 2026-02-05 (Week 9, Day 2)
+
+**Focus:** Hierarchy Practice + Complex Aggregation Challenges
+
+---
+
+## Task 1: 3-Level Real Data Hierarchy (Categories → Products → Delivery Status)
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE HIERARCHY AS (
+SELECT 1 AS LEVEL, id AS category_id, name::NAME AS name,
+       NULL::TEXT AS parent_name, name::TEXT AS path
+FROM product_categories pc WHERE name = 'travel'
+UNION ALL
+SELECT h.LEVEL + 1, COALESCE(p.id, op.order_id) AS id,
+       COALESCE(p.name, d.status) AS name, h.name,
+       h.PATH || ' > ' || COALESCE(p.name, d.status)
+FROM HIERARCHY h
+LEFT JOIN products p ON p.category_id = h.category_id AND h.LEVEL = 1
+LEFT JOIN orders_products op ON h.category_id = op.product_id AND h.LEVEL = 2
+LEFT JOIN deliveries d ON op.order_id = d.order_id
+)
+SELECT * FROM hierarchy
+```
+
+**Student Note:** "Kind of difficult, but I managed... without help"
+
+**Score: 9/10** - Solved independently. Missing WHERE h.LEVEL < 3.
+
+---
+
+## Task 2: Customer Lifetime Value Segmentation
+
+**Difficulty Rating:** 5/5
+
+**Student Solution:**
+```sql
+WITH users_metrics_spending_orders AS (
+SELECT user_id, ROUND(SUM(amount)::NUMERIC, 2) AS total_spent,
+       COUNT(id) AS order_count, ROUND(AVG(amount)::NUMERIC, 2) AS avg_order_value,
+       EXTRACT('Days' FROM MAX(created_at) - MIN(created_at)) AS days_as_customer
+FROM ORDERS GROUP BY USER_id
+),
+users_orders_per_month_prct_rank AS (
+SELECT *,
+    CASE WHEN days_as_customer = 0 THEN order_count
+    ELSE ROUND(order_count / (days_as_customer / 30.0), 2) END AS orders_per_month,
+    PERCENT_RANK() OVER (ORDER BY total_spent)
+FROM users_metrics_spending_orders
+)
+SELECT *,
+    CASE WHEN percent_rank >= 0.9 THEN 'Platinum'
+         WHEN percent_rank >= 0.75 THEN 'Gold'
+         WHEN percent_rank >= 0.5 THEN 'Silver'
+         WHEN percent_rank < 0.5 THEN 'Bronze' END AS value_tier
+FROM users_orders_per_month_prct_rank ORDER BY total_spent DESC
+```
+
+**Score: 9/10** - Efficient CTE combination. Missing single-order user filter.
+
+---
+
+## Task 3: Order Gap Analysis with Trend
+
+**Difficulty Rating:** 5/5
+
+**Student Solution:**
+```sql
+WITH users_orders AS (
+SELECT *, DATE_TRUNC('Day', created_at) AS day_,
+       LAG(DATE_TRUNC('Day', created_at)) OVER (PARTITION BY user_id ORDER BY created_at) AS previous_order_day
+FROM orders
+),
+users_order_gaps AS (
+SELECT *, day_ - previous_order_day AS gap_days
+FROM users_orders WHERE previous_order_day IS NOT NULL
+),
+users_last_gaps AS (
+SELECT DISTINCT user_id,
+       FIRST_VALUE(gap_days) OVER (PARTITION BY user_id ORDER BY created_at DESC) AS last_gap_days
+FROM users_order_gaps
+),
+users_gap_metrics AS (
+SELECT user_id, COUNT(id) AS order_count,
+       AVG(gap_days) AS avg_gap_days, MAX(gap_days) AS max_gap_days
+FROM users_order_gaps GROUP BY user_id
+)
+SELECT *,
+    CASE WHEN ugm.avg_gap_days > ulg.last_gap_days THEN 'Accelerating'
+         WHEN ugm.avg_gap_days < ulg.last_gap_days THEN 'Slowing Down'
+         WHEN ugm.avg_gap_days = ulg.last_gap_days THEN 'Steady' END AS trend
+FROM users_gap_metrics ugm
+JOIN users_last_gaps ulg ON ulg.user_id = ugm.user_id
+ORDER BY avg_gap_days DESC
+```
+
+**Score: 9/10** - Clean 4-CTE structure. Missing 3+ orders filter.
+
+---
+
+**Day 2 Overall Score: 27/30**
+

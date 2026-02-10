@@ -1,23 +1,24 @@
 ## Agent Feedback on Student
 
-### Week 9, Day 1 Assessment — 30/30
+### Week 9, Day 2 Assessment — 27/30
 
-**Task 1 (3-Level Hierarchy): 10/10**
-- Written 100% from memory, weekend consolidation worked
+**Task 1 (3-Level Real Data Hierarchy): 9/10**
+- Solved multi-table conditional JOIN independently (major improvement from Week 8 Day 3)
+- Missing WHERE h.LEVEL < 3
 
-**Task 2 (Monthly Revenue Dashboard): 10/10**
-- Excellent multi-CTE layered approach
-- Originally scored 9/10 for vs_overall comparison, but student correctly argued the wording was ambiguous
+**Task 2 (Customer Lifetime Value): 9/10**
+- Efficiently combined suggested CTEs 2+3 into one
+- Smart division-by-zero handling, missing explicit filter
 
-**Task 3 (Category Performance): 10/10**
-- Smart split into two aggregation CTEs + JOIN
-- Originally scored 9/10 for avg_order_value, but student correctly pointed out the task description matched their interpretation
+**Task 3 (Order Gap Analysis): 9/10**
+- Clean 4-CTE structure with FIRST_VALUE for last gap
+- Missing 3+ orders filter
 
-**Agent Error:** Two incorrect deductions reversed after valid student pushback. Task descriptions need to be more precise.
+**Key Win:** Multi-table 3-level hierarchy solved without help — previously a blocker.
 
 ## Student Feedback on Questions
 
-- "Fun and I loved it" — multi-CTE tasks at the right difficulty
-- Tasks need more precise wording to avoid ambiguous interpretations
-- Completed in 40 minutes
+- Tasks took 1 hour, "quite satisfying"
+- All completed without AI help
+- Right difficulty level for growth
 

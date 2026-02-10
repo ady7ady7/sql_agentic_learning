@@ -1,98 +1,84 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-02-05
-**Week 9, Day 2 Focus:** Hierarchy Practice + Complex Aggregation Challenges
+**Generated:** 2026-02-06
+**Week 9, Day 3 Focus:** Hierarchy + Subquery & CTE Combinations
 
 ---
 
-## Task 1: 3-Level Hierarchy with Real Data — Categories → Products → Delivery Status
+## Task 1: 3-Level Hierarchy — Users → Order Count Tiers → Specific Users
 
 **Scenario:**
-Build a 3-level hierarchy from real tables:
-- Level 1: Product categories (from `product_categories`)
-- Level 2: Products (from `products` via category_id)
-- Level 3: Delivery statuses for orders containing that product (from `orders_products` → `deliveries`)
-
-Limit to category 'travel' to keep output manageable.
+Build a 3-level hierarchy with hardcoded tiers and real user data:
+- Level 1: 'All Users'
+- Level 2: 'Power Users' (10+ orders), 'Regular Users' (3-9 orders), 'New Users' (1-2 orders)
+- Level 3: Actual user emails from the `orders` table, matched to their tier
 
 **Expected Output Columns:**
 - `level` (integer)
-- `name` (text) — category name, product name, or delivery status
+- `name` (text) — tier name or user email
 - `parent_name` (text)
-- `path` (text)
 
 **Requirements:**
-- Anchor: Category 'travel' from product_categories
-- Level 2: JOIN products on category_id
-- Level 3: JOIN orders_products → deliveries to get statuses
-- Carry necessary IDs through recursion
-- Include path column
+- CTE 1: Aggregate orders per user, classify into tier based on COUNT
+- Recursive hierarchy: Anchor = 'All Users', Level 2 = tier names, Level 3 = user emails
+- The tricky part: Level 2→3 maps real users to hardcoded tier names
+- Limit level 3 to first 3 users per tier (use ROW_NUMBER in the classification CTE)
 
 **Difficulty Rating:** 4/5
 
-**Hint:** You'll need `category_id` at level 1→2 and `product_id` at level 2→3. Use LEFT JOINs with level conditions like Day 3 of Week 8.
-
 ---
 
-## Task 2: Customer Lifetime Value Segmentation (Multi-CTE)
+## Task 2: Revenue Anomaly Detection (Multi-CTE)
 
 **Scenario:**
-Build a customer segmentation report that classifies users into value tiers based on their total spending, order frequency, and average order value.
+Find days where revenue was "anomalous" — significantly above or below the norm. Define anomalous as more than 1.5x the 7-day moving average, or less than 0.5x.
 
 **Expected Output Columns:**
-- `user_id` (integer)
-- `total_spent` (numeric) — sum of all order amounts
-- `order_count` (bigint) — number of orders
-- `avg_order_value` (numeric) — average order amount, rounded to 2 decimals
-- `days_as_customer` (integer) — days between first and last order
-- `orders_per_month` (numeric) — order_count / (days_as_customer / 30.0), rounded to 2 decimals
-- `value_tier` (text) — 'Platinum' (top 10%), 'Gold' (top 25%), 'Silver' (top 50%), 'Bronze' (bottom 50%) based on total_spent
+- `order_date` (date)
+- `daily_revenue` (numeric)
+- `moving_avg_7d` (numeric) — 7-day trailing average, rounded to 2 decimals
+- `ratio_to_avg` (numeric) — daily_revenue / moving_avg_7d, rounded to 2 decimals
+- `anomaly_type` (text) — 'Spike' (> 1.5x), 'Drop' (< 0.5x), or 'Normal'
 
 **Requirements:**
-- CTE 1: Aggregate per user — total_spent, order_count, avg_order, first/last order dates
-- CTE 2: Calculate days_as_customer and orders_per_month
-- CTE 3: Add PERCENT_RANK to determine value tier
-- Final SELECT: Apply CASE WHEN on percentile for tier labels
-- Filter out users with only 1 order (days_as_customer = 0 causes division issues)
-- Order by total_spent DESC
+- CTE 1: Aggregate orders by date
+- CTE 2: Add 7-day moving average (ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)
+- CTE 3: Calculate ratio and classify anomaly
+- Final SELECT: Show ALL days but order by ratio_to_avg DESC to see spikes first
+- Handle NULL moving averages for first 6 days (use NULLIF or CASE)
 
 **Difficulty Rating:** 5/5
 
 ---
 
-## Task 3: Order Gap Analysis by User (Multi-CTE)
+## Task 3: Cross-Category Buyers Analysis (Multi-CTE)
 
 **Scenario:**
-For each user, find the gaps between consecutive orders and identify patterns:
-- Average gap between orders
-- Longest gap
-- Whether they're "accelerating" (recent gaps shorter than average) or "slowing down"
+Find users who buy from multiple product categories. For each such user, show how many categories they buy from, their total spending per category, and their "favorite" category (highest spending).
 
 **Expected Output Columns:**
 - `user_id` (integer)
-- `order_count` (bigint)
-- `avg_gap_days` (numeric) — average days between consecutive orders, rounded to 1 decimal
-- `max_gap_days` (integer) — longest gap in days
-- `last_gap_days` (integer) — most recent gap
-- `trend` (text) — 'Accelerating' if last_gap < avg_gap, 'Slowing Down' if last_gap > avg_gap, 'Steady' if equal
+- `categories_count` (bigint) — number of distinct categories purchased
+- `favorite_category` (text) — category with highest spending
+- `favorite_category_revenue` (numeric) — spending in favorite category
+- `total_spent` (numeric) — total across all categories
+- `favorite_pct` (numeric) — what % of total spending goes to favorite category, rounded to 1 decimal
 
 **Requirements:**
-- CTE 1: Get all orders per user with LAG to find previous order date
-- CTE 2: Calculate gap in days (current_date - prev_date) using DATE_PART or EXTRACT
-- CTE 3: Aggregate per user — AVG gap, MAX gap, and get the last gap (most recent)
-- Final SELECT: Determine trend
-- Only include users with 3+ orders
-- Order by avg_gap_days
+- CTE 1: Join orders → orders_products → products → product_categories, aggregate by user_id + category
+- CTE 2: For each user, count categories and get total spending
+- CTE 3: Rank categories per user by spending to find favorite (ROW_NUMBER or RANK)
+- Final SELECT: Combine and calculate percentage
+- Only include users who buy from 2+ categories
+- Order by categories_count DESC, total_spent DESC
 
 **Difficulty Rating:** 5/5
-
-**Hint for last gap:** Use FIRST_VALUE with ORDER BY created_at DESC within PARTITION BY user_id to get the most recent gap.
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — 3-level real data hierarchy with path (4/5)
-2. Task 2 — Customer lifetime value segmentation (5/5)
-3. Task 3 — Order gap analysis with trend (5/5)
+1. Task 1 — Hierarchy mixing hardcoded + real data (4/5)
+2. Task 2 — Revenue anomaly detection (5/5)
+3. Task 3 — Cross-category buyer analysis (5/5)
 

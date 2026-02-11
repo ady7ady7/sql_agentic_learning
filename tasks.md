@@ -1,76 +1,78 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-02-06
-**Week 9, Day 3 Focus:** Hierarchy + Subquery & CTE Combinations
+**Generated:** 2026-02-11
+**Week 9, Day 4 Focus:** Hierarchy + HackerRank-Style Multi-CTE Puzzles
 
 ---
 
-## Task 1: 3-Level Hierarchy — Users → Order Count Tiers → Specific Users
+## Task 1: 3-Level Hierarchy — Delivery Statuses from Real Data
 
 **Scenario:**
-Build a 3-level hierarchy with hardcoded tiers and real user data:
-- Level 1: 'All Users'
-- Level 2: 'Power Users' (10+ orders), 'Regular Users' (3-9 orders), 'New Users' (1-2 orders)
-- Level 3: Actual user emails from the `orders` table, matched to their tier
+Build a 3-level hierarchy where Level 2 comes from **real data** (not hardcoded):
+- Level 1: 'All Deliveries'
+- Level 2: Distinct delivery statuses pulled from the `deliveries` table (e.g., 'pending', 'delivered', etc.)
+- Level 3: Specific order IDs for each status, limited to the top 3 orders by amount per status
 
 **Expected Output Columns:**
 - `level` (integer)
-- `name` (text) — tier name or user email
+- `name` (text) — status name or order identifier
 - `parent_name` (text)
+- `path` (text) — full path from root
 
 **Requirements:**
-- CTE 1: Aggregate orders per user, classify into tier based on COUNT
-- Recursive hierarchy: Anchor = 'All Users', Level 2 = tier names, Level 3 = user emails
-- The tricky part: Level 2→3 maps real users to hardcoded tier names
-- Limit level 3 to first 3 users per tier (use ROW_NUMBER in the classification CTE)
+- Level 2 nodes should be dynamically pulled from `deliveries.status` (no hardcoded VALUES)
+- Level 3 should show actual order IDs (as text), joined via `deliveries.order_id` → `orders`
+- Limit Level 3 to top 3 orders per status by `orders.amount` DESC
+- Include the path column showing the full hierarchy trail
 
 **Difficulty Rating:** 4/5
 
 ---
 
-## Task 2: Revenue Anomaly Detection (Multi-CTE)
+## Task 2: Pareto Analysis — Revenue Concentration (80/20 Rule)
 
 **Scenario:**
-Find days where revenue was "anomalous" — significantly above or below the norm. Define anomalous as more than 1.5x the 7-day moving average, or less than 0.5x.
+The business wants to understand revenue concentration. Apply the Pareto Principle: identify which users contribute to the top 80% of total revenue, and label them as "Key Accounts" vs "Standard Accounts."
 
 **Expected Output Columns:**
-- `order_date` (date)
-- `daily_revenue` (numeric)
-- `moving_avg_7d` (numeric) — 7-day trailing average, rounded to 2 decimals
-- `ratio_to_avg` (numeric) — daily_revenue / moving_avg_7d, rounded to 2 decimals
-- `anomaly_type` (text) — 'Spike' (> 1.5x), 'Drop' (< 0.5x), or 'Normal'
+- `user_id` (integer)
+- `total_revenue` (numeric) — sum of all order amounts for this user
+- `revenue_rank` (integer) — rank by total revenue descending
+- `revenue_share_pct` (numeric) — this user's share of overall revenue, rounded to 2 decimals
+- `cumulative_share_pct` (numeric) — running cumulative % of total revenue, rounded to 2 decimals
+- `account_type` (text) — 'Key Account' if within top 80% cumulative, 'Standard Account' otherwise
 
 **Requirements:**
-- CTE 1: Aggregate orders by date
-- CTE 2: Add 7-day moving average (ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)
-- CTE 3: Calculate ratio and classify anomaly
-- Final SELECT: Show ALL days but order by ratio_to_avg DESC to see spikes first
-- Handle NULL moving averages for first 6 days (use NULLIF or CASE)
+- Use `orders` table
+- Calculate each user's total revenue and their percentage share of overall revenue
+- Calculate a running cumulative share (ordered by revenue DESC)
+- Label users whose cumulative share is still within 80% as 'Key Account'
+- Order by revenue_rank ASC
 
 **Difficulty Rating:** 5/5
 
 ---
 
-## Task 3: Cross-Category Buyers Analysis (Multi-CTE)
+## Task 3: Support Ticket Complexity Scoring
 
 **Scenario:**
-Find users who buy from multiple product categories. For each such user, show how many categories they buy from, their total spending per category, and their "favorite" category (highest spending).
+The support team wants to identify complex tickets. Score each ticket based on message count and conversation duration, then rank them within each priority level.
 
 **Expected Output Columns:**
-- `user_id` (integer)
-- `categories_count` (bigint) — number of distinct categories purchased
-- `favorite_category` (text) — category with highest spending
-- `favorite_category_revenue` (numeric) — spending in favorite category
-- `total_spent` (numeric) — total across all categories
-- `favorite_pct` (numeric) — what % of total spending goes to favorite category, rounded to 1 decimal
+- `ticket_id` (bigint)
+- `priority` (text)
+- `status` (text) — ticket status
+- `message_count` (bigint) — total messages in the ticket
+- `duration_hours` (numeric) — hours between first and last message, rounded to 1 decimal
+- `complexity_score` (numeric) — `message_count * (duration_hours + 1)`, rounded to 1 decimal
+- `priority_rank` (integer) — rank within priority level by complexity_score DESC
 
 **Requirements:**
-- CTE 1: Join orders → orders_products → products → product_categories, aggregate by user_id + category
-- CTE 2: For each user, count categories and get total spending
-- CTE 3: Rank categories per user by spending to find favorite (ROW_NUMBER or RANK)
-- Final SELECT: Combine and calculate percentage
-- Only include users who buy from 2+ categories
-- Order by categories_count DESC, total_spent DESC
+- Use `chat_tickets` and `chat_messages` tables
+- Only count tickets that have at least 2 messages
+- Duration = time between earliest and latest message in the ticket
+- The `+1` in complexity formula prevents zero-duration tickets from scoring 0
+- Order by priority, then priority_rank ASC
 
 **Difficulty Rating:** 5/5
 
@@ -78,7 +80,6 @@ Find users who buy from multiple product categories. For each such user, show ho
 
 ## Submission Instructions
 
-1. Task 1 — Hierarchy mixing hardcoded + real data (4/5)
-2. Task 2 — Revenue anomaly detection (5/5)
-3. Task 3 — Cross-category buyer analysis (5/5)
-
+1. Task 1 — Hierarchy with real-data Level 2 nodes (4/5)
+2. Task 2 — Pareto / revenue concentration analysis (5/5)
+3. Task 3 — Support ticket complexity scoring (5/5)

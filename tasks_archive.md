@@ -5540,3 +5540,128 @@ ORDER BY avg_gap_days DESC
 
 **Day 2 Overall Score: 27/30**
 
+
+---
+
+### Task Archive: 2026-02-06 (Week 9, Day 3)
+
+**Focus:** Hierarchy + Subquery & CTE Combinations
+
+---
+
+## Task 1: 3-Level Hierarchy — Users → Order Count Tiers → Specific Users
+
+**Scenario:**
+Build a 3-level hierarchy with hardcoded tiers and real user data:
+- Level 1: 'All Users'
+- Level 2: 'Power Users' (10+ orders), 'Regular Users' (3-9 orders), 'New Users' (1-2 orders)
+- Level 3: Actual user emails from the `orders` table, matched to their tier
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE mapping(child, parent) AS (
+VALUES
+('Power Users', 'All Users'),
+('Regular Users', 'All Users'),
+('New Users', 'All Users')
+),
+users_order_counts AS (
+SELECT user_id, COUNT(id) AS order_count
+FROM orders GROUP BY user_id
+),
+users_tiers AS (
+SELECT *, CASE WHEN uoc.order_count > 10 THEN 'Power Users'
+    WHEN uoc.order_count >= 3 THEN 'Regular Users' ELSE 'New Users' END AS user_tier
+FROM users_order_counts uoc JOIN users u ON uoc.user_id = u.id
+),
+users_limited_tiers AS (
+SELECT *, ROW_NUMBER() OVER (PARTITION BY user_tier ORDER BY order_count DESC) AS tier_count_ranking
+FROM users_tiers
+),
+HIERARCHY AS (
+SELECT 1 AS LEVEL, NULL AS id, 'All Users'::TEXT AS name, NULL::TEXT AS parent_name, NULL::NUMERIC AS cnt
+UNION ALL
+SELECT h.LEVEL + 1, COALESCE(h.id, ut.user_id::TEXT), COALESCE(m.child, ut.email::TEXT), h.name,
+    COALESCE(h.cnt::NUMERIC, ut.order_count::NUMERIC)
+FROM HIERARCHY h
+LEFT JOIN MAPPING m ON m.parent = h.name AND h.LEVEL = 1
+LEFT JOIN users_limited_tiers ut ON h.name = ut.user_tier AND h.LEVEL = 2 AND ut.tier_count_ranking <= 3
+WHERE h.LEVEL < 3
+)
+SELECT LEVEL, name, parent_name FROM HIERARCHY WHERE name IS NOT NULL
+```
+
+**Student Note:** "It was a loooong task, that took me around 30+ minutes and got me a hella long query + I've realized that limiting requirement in the end, but I've managed to do everything and it's quite satisfying."
+
+**Score: 10/10** - Most complex hierarchy yet. 5 CTEs combining hardcoded mapping + real data with ROW_NUMBER limiting. Fully independent.
+
+---
+
+## Task 2: Revenue Anomaly Detection (Multi-CTE)
+
+**Scenario:**
+Find days where revenue was "anomalous" — significantly above or below the norm. Define anomalous as more than 1.5x the 7-day moving average, or less than 0.5x.
+
+**Difficulty Rating:** 5/5
+
+**Student Solution:**
+```sql
+WITH daily_order_revenues AS (
+SELECT DATE_TRUNC('Day', created_at) AS day_, SUM(amount) AS daily_revenue
+FROM orders GROUP BY DATE_TRUNC('Day', created_at) ORDER BY day_
+),
+daily_revs_moving_avg AS (
+SELECT *, ROUND(AVG(daily_revenue) OVER (ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)::NUMERIC, 2) AS moving_avg_7d
+FROM daily_order_revenues
+)
+SELECT *, ROUND(daily_revenue::NUMERIC / moving_avg_7d::numeric, 2) AS ratio_to_avg,
+    CASE WHEN ROUND(daily_revenue::NUMERIC / moving_avg_7d::numeric, 2) > 1.5 THEN 'Spike'
+         WHEN ROUND(daily_revenue::NUMERIC / moving_avg_7d::numeric, 2) < 0.5 THEN 'Drop' ELSE 'Normal'
+    END AS anomaly_type
+FROM daily_revs_moving_avg ORDER BY ratio_to_avg DESC
+```
+
+**Student Note:** "It was a playful task for me - didn't have to use NULLIF with this approach, but I simply skipped days without orders - reasonable approach."
+
+**Score: 10/10** - Clean 2-CTE + final SELECT approach. Reasonable interpretation of "all days".
+
+---
+
+## Task 3: Cross-Category Buyers Analysis (Multi-CTE)
+
+**Scenario:**
+Find users who buy from multiple product categories. Show categories count, favorite category, spending breakdown, and percentage.
+
+**Difficulty Rating:** 5/5
+
+**Student Solution:**
+```sql
+WITH users_category_spending AS (
+SELECT o.user_id, p.category_id, pc.name AS category_name, SUM(p.price * op.quantity) AS category_spending
+FROM orders_products op JOIN products p ON op.product_id = p.id
+JOIN product_categories pc ON p.category_id = pc.id JOIN orders o ON op.order_id = o.id
+GROUP BY o.user_id, p.category_id, pc.name ORDER BY o.user_id
+),
+categories_total_spent AS (
+SELECT user_id, COUNT(category_id) AS categories_count, SUM(category_spending) AS total_spent,
+    MAX(category_spending) AS favorite_category_revenue
+FROM users_category_spending GROUP BY user_id
+)
+SELECT cts.user_id, cts.categories_count, ucs.category_name, cts.favorite_category_revenue,
+    cts.total_spent, ROUND(cts.favorite_category_revenue / cts.total_spent * 100, 1) || '%' AS favorite_pct
+FROM categories_total_spent cts
+JOIN users_category_spending ucs ON cts.user_id = ucs.user_id
+WHERE cts.favorite_category_revenue = ucs.category_spending AND cts.categories_count >= 2
+ORDER BY cts.categories_count DESC, cts.total_spent DESC
+```
+
+**Student Note:** "I enjoyed that task - it really prompted me to combine my SQL skills and I had to stop for a while - it offered some kind of a challenge and thinking."
+
+**Score: 10/10** - Smart MAX + JOIN alternative to ROW_NUMBER for finding favorite category.
+
+---
+
+**Day 3 Overall Score: 30/30**
+

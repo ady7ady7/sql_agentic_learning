@@ -2194,3 +2194,31 @@ No specific feedback. Happy with direction — good to refresh previously learne
 - All completed without AI help
 - Right difficulty level
 
+
+---
+
+### Feedback Archive: 2026-02-06 (Week 9, Day 3)
+
+## Agent Feedback on Student
+
+### Week 9, Day 3 Assessment — 30/30
+
+**Task 1 (Hierarchy + Real Data Tiers): 10/10**
+- Most complex hierarchy yet — 5 CTEs combining hardcoded + real data
+- 30+ minutes, fully independent
+- ROW_NUMBER for limiting, conditional LEFT JOINs, WHERE IS NOT NULL cleanup
+
+**Task 2 (Revenue Anomaly Detection): 10/10**
+- Clean 2-CTE + final SELECT approach
+- Reasonable interpretation of "all days"
+
+**Task 3 (Cross-Category Buyers): 10/10**
+- Smart MAX + JOIN alternative to ROW_NUMBER for finding favorite category
+
+## Student Feedback on Questions
+
+- All tasks enjoyable, took 60+ minutes total
+- Task 1 was longest (~30 min) and most satisfying
+- Tasks offer challenge and thinking without feeling forced
+- All completed without AI help
+

@@ -83,3 +83,60 @@ The support team wants to identify complex tickets. Score each ticket based on m
 1. Task 1 — Hierarchy with real-data Level 2 nodes (4/5)
 2. Task 2 — Pareto / revenue concentration analysis (5/5)
 3. Task 3 — Support ticket complexity scoring (5/5)
+
+
+
+------------------------------------
+
+Week 9 Day 4 - since we've hit weekly limits, I couldn't ask you for standard task generation/assessment etc. - I've figured out I have to use an outside model to assess the tasks and took a few RANDOM tasks that we've been doing over the span of the past 3 months and did them with ease - pasting the questions + resolutions. I've also created a commit.
+
+The tasks you generated for Day 4 can be moved to Day 5. As we will speaking, it's already Day 5 as the limits will reset then.
+
+
+
+
+Q1: Find users who are active in BOTH orders (placed at least 1 order) AND sessions (had at least 1 session with count_sessions > 0). Use INTERSECT or an alternative approach.
+
+WITH users_with_orders AS (
+SELECT 
+user_id,
+COUNT(id) AS order_cnt
+FROM orders
+GROUP BY user_id
+)
+SELECT 
+	usd.user_id,
+	uwo.order_cnt,
+	SUM(usd.count_sessions) AS total_sessions
+FROM user_sessions_daily usd JOIN users_with_orders uwo ON uwo.user_id = usd.user_id 
+GROUP BY usd.user_id, uwo.order_cnt
+
+Q2:  How many users are there who did a purchase transaction but never did a deposit transaction?
+
+SELECT 
+	COUNT(DISTINCT(user_id))
+FROM transactions
+WHERE type = 'purchase' AND user_id NOT IN (SELECT user_id FROM transactions WHERE TYPE = 'deposit')
+
+Q   3: The marketing team wants to segment customers into high-value (total lifetime spending > $1000) and low-value (total lifetime spending <= $1000) groups. Show counts and average metrics for each segment.
+
+
+WITH users_spending AS (
+SELECT 
+	user_id,
+	SUM(amount) AS total_spending
+FROM orders
+GROUP BY user_id
+),
+users_segments AS (
+SELECT 
+	*,
+	CASE WHEN total_spending >= 1000 THEN 'High Value' ELSE 'Low Value' END AS customer_segment
+FROM users_spending
+)
+SELECT 
+	customer_segment,
+	ROUND(AVG(total_spending)::NUMERIC, 2) AS avg_segment_spending,
+	COUNT(user_id) AS segment_user_counts
+FROM users_segments
+GROUP BY customer_segment

@@ -1,7 +1,7 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-02-11
-**Week 9, Day 4 Focus:** Hierarchy + HackerRank-Style Multi-CTE Puzzles
+**Generated:** 2026-02-13
+**Week 9, Day 5 Focus:** Hierarchy + HackerRank-Style Multi-CTE Puzzles
 
 ---
 
@@ -27,6 +27,36 @@ Build a 3-level hierarchy where Level 2 comes from **real data** (not hardcoded)
 
 **Difficulty Rating:** 4/5
 
+WITH RECURSIVE HIERARCHY AS (
+SELECT
+	1 AS LEVEL,
+	NULL::TEXT AS id,
+	'All Deliveries'::TEXT AS name,
+	NULL::TEXT AS amount,
+	NULL::TEXT AS parent_name,
+	'All Deliveries'::TEXT AS PATH
+UNION ALL
+SELECT
+	h.LEVEL + 1,
+	d.order_id::TEXT,
+	COALESCE(d.status, o.id::TEXT)::TEXT,
+	COALESCE(NULL, o.amount)::TEXT,
+	h.name,
+	h.PATH || ' > ' || h.name
+FROM HIERARCHY h
+LEFT JOIN deliveries d ON h.LEVEL = 1
+LEFT JOIN orders o ON (o.id)::TEXT = h.id AND h.LEVEL = 2 
+)
+SELECT 
+	LEVEL,
+	name,
+	parent_name,
+	path
+FROM HIERARCHY
+
+
+I tried to add amount ordering, but the queries take forever and I just can't wait anymore at some point and cancel it. I'm not sure why that's the case, but it's annoying
+
 ---
 
 ## Task 2: Pareto Analysis — Revenue Concentration (80/20 Rule)
@@ -50,6 +80,29 @@ The business wants to understand revenue concentration. Apply the Pareto Princip
 - Order by revenue_rank ASC
 
 **Difficulty Rating:** 5/5
+
+
+WITH users_revenues AS (
+SELECT 
+	user_id,
+	SUM(amount) AS total_user_revenue,
+	(SELECT ROUND(SUM(amount)::NUMERIC, 2) FROM orders) AS total_revenue
+FROM orders
+GROUP BY user_id
+),
+users_rev_rank AS (
+SELECT 
+	*,
+	RANK() OVER (ORDER BY total_user_revenue DESC) AS revenue_rank,
+	ROUND(total_user_revenue::NUMERIC / total_revenue::NUMERIC * 100, 2) AS revenue_share_pct
+FROM users_revenues
+)
+SELECT 
+	*,
+	SUM(revenue_share_pct) OVER (ORDER BY revenue_share_pct DESC) AS cumulative_share_pct,
+	CASE WHEN (SUM(revenue_share_pct) OVER (ORDER BY revenue_share_pct DESC)) < 80 THEN 'Key Account' ELSE 'Standard Account' END AS account_type
+FROM users_rev_rank
+
 
 ---
 
@@ -76,6 +129,36 @@ The support team wants to identify complex tickets. Score each ticket based on m
 
 **Difficulty Rating:** 5/5
 
+WITH tickets_priority_duration AS (
+SELECT 
+cm.ticket_id,
+ct.priority,
+MAX(cm.created_at) - MIN(cm.created_at) AS conversation_duration
+FROM chat_tickets ct
+JOIN chat_messages cm ON ct.id  = cm.ticket_id
+GROUP BY cm.ticket_id, ct.priority 
+),
+tickets_msg_cnt AS (
+SELECT 
+	ticket_id,
+	COUNT(id) AS messages_cnt
+FROM chat_messages
+WHERE message_type = 'text'
+GROUP BY ticket_id
+)
+SELECT 
+	tpd.ticket_id,
+	tpd.priority,
+	tpd.conversation_duration,
+	tmc.messages_cnt,
+	tmc.messages_cnt * EXTRACT('Minute' FROM tpd.conversation_duration) AS complexity_score,
+	RANK() OVER (PARTITION BY tpd.priority ORDER BY (tmc.messages_cnt * EXTRACT('Minute' FROM tpd.conversation_duration)) DESC) AS rank
+FROM tickets_priority_duration tpd
+JOIN tickets_msg_cnt tmc ON tpd.ticket_id = tmc.ticket_id
+ORDER BY priority
+
+One caveat here - I extracted minutes AS almost all tickets were solved within one hour, so I didn't see a point in it - perhaps it's wrong - let me know, but my logic is definitelly flawless and makes a lot of sense in this context.
+
 ---
 
 ## Submission Instructions
@@ -83,60 +166,3 @@ The support team wants to identify complex tickets. Score each ticket based on m
 1. Task 1 — Hierarchy with real-data Level 2 nodes (4/5)
 2. Task 2 — Pareto / revenue concentration analysis (5/5)
 3. Task 3 — Support ticket complexity scoring (5/5)
-
-
-
-------------------------------------
-
-Week 9 Day 4 - since we've hit weekly limits, I couldn't ask you for standard task generation/assessment etc. - I've figured out I have to use an outside model to assess the tasks and took a few RANDOM tasks that we've been doing over the span of the past 3 months and did them with ease - pasting the questions + resolutions. I've also created a commit.
-
-The tasks you generated for Day 4 can be moved to Day 5. As we will speaking, it's already Day 5 as the limits will reset then.
-
-
-
-
-Q1: Find users who are active in BOTH orders (placed at least 1 order) AND sessions (had at least 1 session with count_sessions > 0). Use INTERSECT or an alternative approach.
-
-WITH users_with_orders AS (
-SELECT 
-user_id,
-COUNT(id) AS order_cnt
-FROM orders
-GROUP BY user_id
-)
-SELECT 
-	usd.user_id,
-	uwo.order_cnt,
-	SUM(usd.count_sessions) AS total_sessions
-FROM user_sessions_daily usd JOIN users_with_orders uwo ON uwo.user_id = usd.user_id 
-GROUP BY usd.user_id, uwo.order_cnt
-
-Q2:  How many users are there who did a purchase transaction but never did a deposit transaction?
-
-SELECT 
-	COUNT(DISTINCT(user_id))
-FROM transactions
-WHERE type = 'purchase' AND user_id NOT IN (SELECT user_id FROM transactions WHERE TYPE = 'deposit')
-
-Q   3: The marketing team wants to segment customers into high-value (total lifetime spending > $1000) and low-value (total lifetime spending <= $1000) groups. Show counts and average metrics for each segment.
-
-
-WITH users_spending AS (
-SELECT 
-	user_id,
-	SUM(amount) AS total_spending
-FROM orders
-GROUP BY user_id
-),
-users_segments AS (
-SELECT 
-	*,
-	CASE WHEN total_spending >= 1000 THEN 'High Value' ELSE 'Low Value' END AS customer_segment
-FROM users_spending
-)
-SELECT 
-	customer_segment,
-	ROUND(AVG(total_spending)::NUMERIC, 2) AS avg_segment_spending,
-	COUNT(user_id) AS segment_user_counts
-FROM users_segments
-GROUP BY customer_segment

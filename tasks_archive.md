@@ -5665,3 +5665,173 @@ ORDER BY cts.categories_count DESC, cts.total_spent DESC
 
 **Day 3 Overall Score: 30/30**
 
+
+---
+
+### Task Archive: 2026-02-11 (Week 9, Day 4)
+
+**Note:** Weekly limits hit — student assessed independently using an outside model. Completed 3 random review tasks from prior curriculum with ease.
+
+---
+
+## Task 1: Active Users in Both Orders and Sessions
+
+**Scenario:**
+Find users who are active in BOTH orders (placed at least 1 order) AND sessions (had at least 1 session with count_sessions > 0).
+
+**Student Solution:**
+```sql
+WITH users_with_orders AS (
+SELECT user_id, COUNT(id) AS order_cnt
+FROM orders GROUP BY user_id
+)
+SELECT usd.user_id, uwo.order_cnt, SUM(usd.count_sessions) AS total_sessions
+FROM user_sessions_daily usd JOIN users_with_orders uwo ON uwo.user_id = usd.user_id
+GROUP BY usd.user_id, uwo.order_cnt
+```
+
+---
+
+## Task 2: Purchase Without Deposit Users
+
+**Scenario:**
+How many users did a purchase transaction but never did a deposit transaction?
+
+**Student Solution:**
+```sql
+SELECT COUNT(DISTINCT(user_id))
+FROM transactions
+WHERE type = 'purchase' AND user_id NOT IN (SELECT user_id FROM transactions WHERE TYPE = 'deposit')
+```
+
+---
+
+## Task 3: Customer Segmentation by Lifetime Spending
+
+**Scenario:**
+Segment customers into high-value (> $1000) and low-value (<= $1000) groups with counts and average metrics.
+
+**Student Solution:**
+```sql
+WITH users_spending AS (
+SELECT user_id, SUM(amount) AS total_spending
+FROM orders GROUP BY user_id
+),
+users_segments AS (
+SELECT *, CASE WHEN total_spending >= 1000 THEN 'High Value' ELSE 'Low Value' END AS customer_segment
+FROM users_spending
+)
+SELECT customer_segment, ROUND(AVG(total_spending)::NUMERIC, 2) AS avg_segment_spending,
+    COUNT(user_id) AS segment_user_counts
+FROM users_segments GROUP BY customer_segment
+```
+
+**Day 4 Note:** Foundational SQL patterns review — all completed independently with ease.
+
+
+---
+
+### Task Archive: 2026-02-13 (Week 9, Day 5)
+
+**Focus:** Hierarchy with Dynamic Level 2 + HackerRank-Style Multi-CTE Puzzles
+
+---
+
+## Task 1: 3-Level Hierarchy — Delivery Statuses from Real Data
+
+**Scenario:**
+3-level hierarchy where Level 2 is pulled dynamically from `deliveries.status` (no hardcoded VALUES). Level 3: top 3 orders per status by amount DESC.
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:**
+```sql
+WITH RECURSIVE HIERARCHY AS (
+SELECT 1 AS LEVEL, NULL::TEXT AS id, 'All Deliveries'::TEXT AS name,
+       NULL::TEXT AS amount, NULL::TEXT AS parent_name, 'All Deliveries'::TEXT AS PATH
+UNION ALL
+SELECT h.LEVEL + 1, d.order_id::TEXT, COALESCE(d.status, o.id::TEXT)::TEXT,
+       COALESCE(NULL, o.amount)::TEXT, h.name, h.PATH || ' > ' || h.name
+FROM HIERARCHY h
+LEFT JOIN deliveries d ON h.LEVEL = 1
+LEFT JOIN orders o ON (o.id)::TEXT = h.id AND h.LEVEL = 2
+)
+SELECT LEVEL, name, parent_name, path FROM HIERARCHY
+```
+
+**Student Note:** "I tried to add amount ordering, but the queries take forever and I just can't wait anymore at some point and cancel it."
+
+**Score: 6/10**
+- Bug 1: Missing WHERE h.LEVEL < 3 — infinite recursion causing the performance freeze
+- Bug 2: Path appends h.name (parent) instead of new node name
+- Bug 3: Non-distinct statuses — joins all delivery rows, not DISTINCT statuses
+
+---
+
+## Task 2: Pareto Analysis — Revenue Concentration (80/20 Rule)
+
+**Scenario:**
+Identify users contributing to the top 80% of total revenue. Label as 'Key Account' vs 'Standard Account'.
+
+**Difficulty Rating:** 5/5
+
+**Student Solution:**
+```sql
+WITH users_revenues AS (
+SELECT user_id, SUM(amount) AS total_user_revenue,
+       (SELECT ROUND(SUM(amount)::NUMERIC, 2) FROM orders) AS total_revenue
+FROM orders GROUP BY user_id
+),
+users_rev_rank AS (
+SELECT *, RANK() OVER (ORDER BY total_user_revenue DESC) AS revenue_rank,
+    ROUND(total_user_revenue::NUMERIC / total_revenue::NUMERIC * 100, 2) AS revenue_share_pct
+FROM users_revenues
+)
+SELECT *,
+    SUM(revenue_share_pct) OVER (ORDER BY revenue_share_pct DESC) AS cumulative_share_pct,
+    CASE WHEN (SUM(revenue_share_pct) OVER (ORDER BY revenue_share_pct DESC)) < 80
+         THEN 'Key Account' ELSE 'Standard Account' END AS account_type
+FROM users_rev_rank
+```
+
+**Score: 10/10** - Correct cumulative window function and classification. ORDER BY via window function equivalent to revenue_rank ASC.
+
+---
+
+## Task 3: Support Ticket Complexity Scoring
+
+**Scenario:**
+Score tickets by message count × duration, rank within priority level.
+
+**Difficulty Rating:** 5/5
+
+**Student Solution:**
+```sql
+WITH tickets_priority_duration AS (
+SELECT cm.ticket_id, ct.priority,
+       MAX(cm.created_at) - MIN(cm.created_at) AS conversation_duration
+FROM chat_tickets ct JOIN chat_messages cm ON ct.id = cm.ticket_id
+GROUP BY cm.ticket_id, ct.priority
+),
+tickets_msg_cnt AS (
+SELECT ticket_id, COUNT(id) AS messages_cnt
+FROM chat_messages WHERE message_type = 'text'
+GROUP BY ticket_id
+)
+SELECT tpd.ticket_id, tpd.priority, tpd.conversation_duration, tmc.messages_cnt,
+       tmc.messages_cnt * EXTRACT('Minute' FROM tpd.conversation_duration) AS complexity_score,
+       RANK() OVER (PARTITION BY tpd.priority ORDER BY (tmc.messages_cnt * EXTRACT('Minute' FROM tpd.conversation_duration)) DESC) AS rank
+FROM tickets_priority_duration tpd JOIN tickets_msg_cnt tmc ON tpd.ticket_id = tmc.ticket_id
+ORDER BY priority
+```
+
+**Student Note:** "I extracted minutes as almost all tickets were solved within one hour — data-driven decision."
+
+**Score: 9/10** - Good logic and adaptation. Missing: ROUND on complexity_score, +1 in formula, HAVING messages_cnt >= 2.
+
+---
+
+**Day 5 Overall Score: 25/30**
+
+**Week 9 Overall: 28/30 average (9.33/10)**
+

@@ -2222,3 +2222,65 @@ No specific feedback. Happy with direction — good to refresh previously learne
 - Tasks offer challenge and thinking without feeling forced
 - All completed without AI help
 
+
+---
+
+### Feedback Archive: 2026-02-13 (Week 9, Day 5)
+
+## Agent Feedback on Student
+
+### Week 9, Day 5 Assessment — 25/30
+
+**Task 1 (Hierarchy — Real Data Level 2): 6/10**
+- Bug 1: Missing WHERE h.LEVEL < 3 — infinite recursion, root cause of performance freeze
+- Bug 2: Path appends h.name (parent) instead of new node name
+- Bug 3: Non-distinct statuses — LEFT JOIN to all deliveries creates duplicate Level 2 nodes
+- Correct concept (conditional LEFT JOINs by level), wrong execution
+
+**Task 2 (Pareto Analysis): 10/10**
+- Correct cumulative window function and classification logic
+- ORDER BY via window function equivalent to revenue_rank ASC — valid
+
+**Task 3 (Support Ticket Complexity): 9/10**
+- Good data-driven decision to use minutes
+- Missing: ROUND on complexity_score, +1 in formula, HAVING messages_cnt >= 2
+
+## Student Feedback on Questions
+
+No specific feedback — headed into the weekend.
+
+---
+
+## Week 9 Weekly Recap
+
+### Weekly Scores
+| Day | Score | Notes |
+|-----|-------|-------|
+| Day 1 | 30/30 | 3-level hierarchy from memory + multi-CTE mastery |
+| Day 2 | 27/30 | First solo complex tasks — 1h, satisfying |
+| Day 3 | 30/30 | Perfect — most complex hierarchy yet (5 CTEs) |
+| Day 4 | — | Weekly limit hit — reviewed foundational patterns independently |
+| Day 5 | 25/30 | Hierarchy termination bug; Pareto + ticket scoring solid |
+
+**Scored Average: 28/30 (9.33/10)**
+
+### Progress Bar: █████████░ 90% toward HackerRank Advanced
+
+### Key Wins This Week
+1. **3-level hierarchy from memory** — pattern is now internalized (Day 1)
+2. **Complex multi-CTE fluency** — revenue dashboard, anomaly detection, cross-category analysis all executed independently
+3. **Pareto analysis** — cumulative window function + threshold classification, first time, near-perfect
+4. **Data-driven adaptation** — minutes vs hours in Task 3, validated against actual data
+5. **Pushback on ambiguous specs** — correctly challenged three deductions and reversed two
+
+### Focus Areas for Improvement
+- **Hierarchy termination `WHERE h.LEVEL < 3`** — recurring bug across multiple sessions, must become automatic
+- **Dynamic Level 2 hierarchies** — pulling Level 2 from real data (DISTINCT + pre-CTE) is the next step
+- **Formula completeness** — +1 in scoring formulas, HAVING filters, ROUND specifications
+
+### Week 10 Plan
+- **1 hierarchy task per day** — dynamic Level 2 nodes + termination condition drilled in
+- **2 HackerRank Hard-style puzzles** — gaps-and-islands, multi-step business problems
+- **Query optimization concepts** — EXPLAIN ANALYZE, index strategies (theoretical)
+- Target: solidify everything before final push to HackerRank Advanced qualification
+

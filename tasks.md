@@ -1,168 +1,208 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-02-13
-**Week 9, Day 5 Focus:** Hierarchy + HackerRank-Style Multi-CTE Puzzles
+**Generated:** 2026-02-16
+**Week 10, Day 1 Focus:** Dynamic Hierarchies + HackerRank Hard Puzzles
 
 ---
 
-## Task 1: 3-Level Hierarchy — Delivery Statuses from Real Data
+## Task 1: 3-Level Hierarchy — Transaction Types from Real Data
 
 **Scenario:**
-Build a 3-level hierarchy where Level 2 comes from **real data** (not hardcoded):
-- Level 1: 'All Deliveries'
-- Level 2: Distinct delivery statuses pulled from the `deliveries` table (e.g., 'pending', 'delivered', etc.)
-- Level 3: Specific order IDs for each status, limited to the top 3 orders by amount per status
+Build a 3-level hierarchy where Level 2 is pulled dynamically from real data:
+- Level 1: 'All Transactions'
+- Level 2: Distinct transaction types from the `transactions` table (no hardcoded VALUES)
+- Level 3: Top 3 transactions per type by amount DESC (show transaction ID as text)
 
 **Expected Output Columns:**
 - `level` (integer)
-- `name` (text) — status name or order identifier
+- `name` (text) — type name or transaction ID
 - `parent_name` (text)
 - `path` (text) — full path from root
 
 **Requirements:**
-- Level 2 nodes should be dynamically pulled from `deliveries.status` (no hardcoded VALUES)
-- Level 3 should show actual order IDs (as text), joined via `deliveries.order_id` → `orders`
-- Limit Level 3 to top 3 orders per status by `orders.amount` DESC
-- Include the path column showing the full hierarchy trail
+- Pre-aggregate distinct types and top-3-per-type before the recursive CTE
+- Carry the type name through Level 2 to use as the join key at Level 3
+- Include path column
+- Do not forget the termination condition
 
 **Difficulty Rating:** 4/5
 
-WITH RECURSIVE HIERARCHY AS (
+WITH RECURSIVE transactions_rank AS (
+SELECT 
+	*,
+	RANK() OVER (PARTITION BY TYPE ORDER BY amount DESC) AS transaction_rank
+FROM transactions
+),
+top_three AS (
+SELECT * FROM transactions_rank
+WHERE transaction_rank <= 3
+),
+distinct_types AS (
+SELECT DISTINCT TYPE FROM top_three
+),
+HIERARCHY AS (
 SELECT
 	1 AS LEVEL,
-	NULL::TEXT AS id,
-	'All Deliveries'::TEXT AS name,
-	NULL::TEXT AS amount,
+	'All Transactions' AS name,
 	NULL::TEXT AS parent_name,
-	'All Deliveries'::TEXT AS PATH
+	'All Transactions' AS PATH
 UNION ALL
 SELECT
 	h.LEVEL + 1,
-	d.order_id::TEXT,
-	COALESCE(d.status, o.id::TEXT)::TEXT,
-	COALESCE(NULL, o.amount)::TEXT,
+	COALESCE(dt.TYPE::TEXT, tt.id::TEXT),
 	h.name,
-	h.PATH || ' > ' || h.name
+	h.PATH || ' > ' || COALESCE(dt.TYPE, tt.id::TEXT)
 FROM HIERARCHY h
-LEFT JOIN deliveries d ON h.LEVEL = 1
-LEFT JOIN orders o ON (o.id)::TEXT = h.id AND h.LEVEL = 2 
+LEFT JOIN distinct_types dt ON h.LEVEL = 1
+LEFT JOIN top_three tt ON h.name = tt."type" AND h.LEVEL = 2
+WHERE h.LEVEL < 3
 )
-SELECT 
-	LEVEL,
-	name,
-	parent_name,
-	path
-FROM HIERARCHY
+SELECT * FROM hierarchy
 
 
-I tried to add amount ordering, but the queries take forever and I just can't wait anymore at some point and cancel it. I'm not sure why that's the case, but it's annoying
+Finally got it, but it was difficult!
+
 
 ---
 
-## Task 2: Pareto Analysis — Revenue Concentration (80/20 Rule)
+## Task 2: Consecutive Month Buyers
 
 **Scenario:**
-The business wants to understand revenue concentration. Apply the Pareto Principle: identify which users contribute to the top 80% of total revenue, and label them as "Key Accounts" vs "Standard Accounts."
+The retention team wants to identify users with strong purchasing streaks. Find users who placed orders in at least 3 consecutive calendar months. For each qualifying user, show their longest streak.
 
 **Expected Output Columns:**
 - `user_id` (integer)
-- `total_revenue` (numeric) — sum of all order amounts for this user
-- `revenue_rank` (integer) — rank by total revenue descending
-- `revenue_share_pct` (numeric) — this user's share of overall revenue, rounded to 2 decimals
-- `cumulative_share_pct` (numeric) — running cumulative % of total revenue, rounded to 2 decimals
-- `account_type` (text) — 'Key Account' if within top 80% cumulative, 'Standard Account' otherwise
+- `streak_start` (date) — first month of the longest streak (truncated to month)
+- `streak_end` (date) — last month of the longest streak
+- `streak_length` (bigint) — number of consecutive months in the streak
+- `streak_revenue` (numeric) — total order revenue during the streak, rounded to 2 decimals
 
 **Requirements:**
 - Use `orders` table
-- Calculate each user's total revenue and their percentage share of overall revenue
-- Calculate a running cumulative share (ordered by revenue DESC)
-- Label users whose cumulative share is still within 80% as 'Key Account'
-- Order by revenue_rank ASC
+- A streak is a sequence of months with no gaps (each month follows the previous by exactly 1 month)
+- Only show users whose longest streak is 3+ months
+- If a user has multiple streaks of equal length, show the most recent one
+- Order by streak_length DESC, streak_revenue DESC
 
 **Difficulty Rating:** 5/5
 
-
-WITH users_revenues AS (
+WITH users_orders_months AS (
+SELECT 
+	*,
+	date_trunc('Month', created_at) AS month_
+FROM orders
+),
+users_order_cnt AS (
 SELECT 
 	user_id,
-	SUM(amount) AS total_user_revenue,
-	(SELECT ROUND(SUM(amount)::NUMERIC, 2) FROM orders) AS total_revenue
-FROM orders
-GROUP BY user_id
+	month_,
+	COUNT(id) AS order_cnt
+FROM users_orders_months
+GROUP BY user_id, month_
+ORDER BY user_id, month_
 ),
-users_rev_rank AS (
+prev_month_check AS (
 SELECT 
 	*,
-	RANK() OVER (ORDER BY total_user_revenue DESC) AS revenue_rank,
-	ROUND(total_user_revenue::NUMERIC / total_revenue::NUMERIC * 100, 2) AS revenue_share_pct
-FROM users_revenues
+	month_ - INTERVAL '1' MONTH AS valid_month,
+	LAG(month_) OVER (PARTITION BY user_id) AS prev_month
+FROM users_order_cnt
 )
-SELECT 
+SELECT
 	*,
-	SUM(revenue_share_pct) OVER (ORDER BY revenue_share_pct DESC) AS cumulative_share_pct,
-	CASE WHEN (SUM(revenue_share_pct) OVER (ORDER BY revenue_share_pct DESC)) < 80 THEN 'Key Account' ELSE 'Standard Account' END AS account_type
-FROM users_rev_rank
+	CASE WHEN valid_month = prev_month THEN 1 ELSE 0 END AS valid_streak_
+FROM prev_month_check 
+WHERE prev_month IS NOT NULL
 
+
+I STOPPED HERE - BECAUSE THERE ARE NO SUCH STREAKS.
+At this point I was able to visually scan data and there were no users with streaks MORE THAN 2 MONTHS - literally nobody. That would be the time I'd report it to the business. Anyway, I didn't feel like I'm making the smoothest approach here, but I might be wrong!
 
 ---
 
-## Task 3: Support Ticket Complexity Scoring
+## Task 3: User Cohort Activation Funnel
 
 **Scenario:**
-The support team wants to identify complex tickets. Score each ticket based on message count and conversation duration, then rank them within each priority level.
+The growth team wants to understand how quickly new users make their first purchase after registering. Group users by their registration month (cohort), then classify them based on time to firstc order.
 
 **Expected Output Columns:**
-- `ticket_id` (bigint)
-- `priority` (text)
-- `status` (text) — ticket status
-- `message_count` (bigint) — total messages in the ticket
-- `duration_hours` (numeric) — hours between first and last message, rounded to 1 decimal
-- `complexity_score` (numeric) — `message_count * (duration_hours + 1)`, rounded to 1 decimal
-- `priority_rank` (integer) — rank within priority level by complexity_score DESC
+- `cohort_month` (date) — registration month, truncated to month
+- `total_users` (bigint) — users registered in that cohort
+- `activated_within_30d` (bigint) — users who placed their first order within 30 days of registration
+- `activated_31_to_90d` (bigint) — first order between 31 and 90 days after registration
+- `never_activated` (bigint) — users who never placed any order
+- `activation_rate_pct` (numeric) — % of cohort who activated within 90 days, rounded to 1 decimal
 
 **Requirements:**
-- Use `chat_tickets` and `chat_messages` tables
-- Only count tickets that have at least 2 messages
-- Duration = time between earliest and latest message in the ticket
-- The `+1` in complexity formula prevents zero-duration tickets from scoring 0
-- Order by priority, then priority_rank ASC
+- Use `users` and `orders` tables
+- First order = earliest order by created_at per user
+- Users with no orders count as never_activated
+- Order by cohort_month ASC
 
 **Difficulty Rating:** 5/5
 
-WITH tickets_priority_duration AS (
+
+WITH cohort_months AS (
 SELECT 
-cm.ticket_id,
-ct.priority,
-MAX(cm.created_at) - MIN(cm.created_at) AS conversation_duration
-FROM chat_tickets ct
-JOIN chat_messages cm ON ct.id  = cm.ticket_id
-GROUP BY cm.ticket_id, ct.priority 
+DATE_TRUNC('Month', created_at) AS cohort_month,
+COUNT(id) AS total_users
+FROM users u
+GROUP BY DATE_TRUNC('Month', created_at)
+ORDER BY cohort_month
 ),
-tickets_msg_cnt AS (
+users_first_orders AS (
 SELECT 
-	ticket_id,
-	COUNT(id) AS messages_cnt
-FROM chat_messages
-WHERE message_type = 'text'
-GROUP BY ticket_id
+	DISTINCT
+	o.user_id,
+	u.created_at AS acc_creation_time,
+	FIRST_VALUE(o.created_at) OVER (PARTITION BY o.user_id) AS first_order_time
+FROM users u
+JOIN orders o ON u.id = o.user_id
+),
+users_activation_time AS (
+SELECT 
+	u.id AS user_id,
+	u.created_at,
+	ufo.first_order_time,
+	COALESCE(EXTRACT('Day' FROM ufo.first_order_time - ufo.acc_creation_time), 0) AS activation_days
+FROM users u LEFT JOIN users_first_orders ufo ON u.id = ufo.user_id
+),
+users_cohorts_check AS (
+SELECT
+	date_trunc('Month', created_at) AS creation_month,
+	CASE WHEN activation_days > 20 THEN 1 ELSE 0 END AS activated_after_20d,
+	CASE WHEN activation_days >= 0 AND activation_days <= 20 AND firsT_order_time IS NOT NULL THEN 1 ELSE 0 END AS activated_within_20d,
+	CASE WHEN activation_days = 0 THEN 1 ELSE 0 END AS never_activated
+FROM users_activation_time
+),
+grouped_monthly_cohorts AS (
+SELECT 
+creation_month,
+SUM(activated_after_20d) AS activated_after_20d,
+SUM(activated_within_20d) AS activated_within_20d,
+SUM(never_activated) AS never_activated
+FROM users_cohorts_check
+GROUP BY creation_month
 )
 SELECT 
-	tpd.ticket_id,
-	tpd.priority,
-	tpd.conversation_duration,
-	tmc.messages_cnt,
-	tmc.messages_cnt * EXTRACT('Minute' FROM tpd.conversation_duration) AS complexity_score,
-	RANK() OVER (PARTITION BY tpd.priority ORDER BY (tmc.messages_cnt * EXTRACT('Minute' FROM tpd.conversation_duration)) DESC) AS rank
-FROM tickets_priority_duration tpd
-JOIN tickets_msg_cnt tmc ON tpd.ticket_id = tmc.ticket_id
-ORDER BY priority
+	cm.cohort_month,
+	cm.total_users,
+	gmc.activated_after_20d,
+	gmc.activated_within_20d,
+	gmc.never_activated,
+	ROUND(((gmc.activated_after_20d + gmc.activated_within_20d)::NUMERIC / cm.total_users::NUMERIC) * 100, 1) || '%' AS activation_rate_pct
+FROM grouped_monthly_cohorts gmc 
+JOIN cohort_months cm ON gmc.creation_month = cm.cohort_month
+ORDER BY cohort_month
 
-One caveat here - I extracted minutes AS almost all tickets were solved within one hour, so I didn't see a point in it - perhaps it's wrong - let me know, but my logic is definitelly flawless and makes a lot of sense in this context.
+I must admit that this was A REALLY DEMANDING and time consuming task. I had to stop for a few times and get back e.g. to include users that didn't make any orders, to make 100% sure that users who made the order the very same day that they registered will not be taken for users without any orders etc.
+
+But I'm sure I've done it properly in the end as I've verified and checked data in between the steps. Pretty satisfying.
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Hierarchy with real-data Level 2 nodes (4/5)
-2. Task 2 — Pareto / revenue concentration analysis (5/5)
-3. Task 3 — Support ticket complexity scoring (5/5)
+1. Task 1 — Dynamic hierarchy from transactions (4/5)
+2. Task 2 — Consecutive month buyer streaks (5/5)
+3. Task 3 — Cohort activation funnel (5/5)

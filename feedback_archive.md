@@ -2284,3 +2284,23 @@ No specific feedback — headed into the weekend.
 - **Query optimization concepts** — EXPLAIN ANALYZE, index strategies (theoretical)
 - Target: solidify everything before final push to HackerRank Advanced qualification
 
+
+### Session: 2026-02-17 (Week 10, Day 2)
+## Agent Feedback on Student — Week 10, Day 2
+
+**Task 1 — 3-Level Hierarchy (Delivery Statuses): 9/10**
+Clean solution. WITH RECURSIVE placed correctly at the top. distinct_statuses CTE pattern applied correctly — no hardcoded values. Termination condition present. DENSE_RANK without explicit alias works but is a minor style point. Path building and Level 2/3 join logic correct.
+
+**Task 2 — User Session Streaks (Gaps-and-Islands): 7/10**
+Got the core pattern right — RN subtraction to generate streak keys, GROUP BY streak_key, HAVING for minimum length. Data-aware decision to skip `count_sessions > 0` filter (table only logs active days). Main issue: `WHERE prev_session_date IS NOT NULL` in users_dates_rn drops the first row per user, causing RN to start at 2 instead of 1, which shifts streak keys and produces incorrect streak_start dates. Also missing the final step to pick only the longest streak per user (task asks for 1 row per user). Student flagged low confidence with this pattern — scaffolded drill planned for Day 3.
+
+**Task 3 — Category Revenue Ranking: 9/10**
+Efficient single-CTE-plus-SELECT approach. Four-table join correct. RANK partitioned by month, LAG partitioned by category — both correct. Missing ROUND on monthly_revenue and prev_month_revenue in final output. COALESCE(LAG, NULL) is redundant but was a deliberate stylistic choice — noted, not penalized.
+
+**Session Total: 25/30**
+
+---
+
+## Student Feedback on Questions
+
+All tasks were good and necessary for mastering HackerRank Hard level SQL. No specific questions flagged as bad.

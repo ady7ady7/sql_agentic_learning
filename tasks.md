@@ -1,116 +1,126 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-02-17
-**Week 10, Day 2 Focus:** Gaps-and-Islands, Session Engagement Analysis, Product Category Ranking
+**Generated:** 2026-02-18
+**Week 10, Day 3 Focus:** Gaps-and-Islands Mastery (Scaffolded) + Hierarchy + Rolling Windows
 
 ---
 
-## Task 1: 3-Level Hierarchy — Delivery Statuses by Month
+## Task 1: 3-Level Hierarchy — Product Categories and Top Products
 
 **Scenario:**
-Build a 3-level hierarchy over delivery data:
-- Level 1: `'All Deliveries'`
-- Level 2: Distinct delivery statuses from the `deliveries` table (pulled dynamically, no hardcoded VALUES)
-- Level 3: The 3 most recent deliveries per status (show delivery ID as text)
+Build a 3-level hierarchy over product data:
+- Level 1: `'All Products'`
+- Level 2: Distinct category names from `product_categories` (pulled dynamically)
+- Level 3: Top 3 most expensive products per category (show product name as text)
 
 **Expected Output Columns:**
 - `level` (integer)
-- `name` (text) — status name at Level 2, delivery ID at Level 3
+- `name` (text) — category name at Level 2, product name at Level 3
 - `parent_name` (text)
 - `path` (text) — full path from root
 
 **Requirements:**
-- Pre-aggregate distinct statuses and top-3-per-status before the recursive CTE
-- Use `created_at DESC` to define "most recent"
-- Do not forget the termination condition
-- Do not hardcode status values
+- Pre-aggregate distinct categories and top-3-per-category before the recursive CTE
+- Use `price DESC` to define "most expensive"
+- Termination condition required
+- No hardcoded category values
 
 **Difficulty Rating:** 3/5
 
-WITH RECURSIVE delivery_ranks AS (
+
+WITH RECURSIVE products_categories_rank AS (
 SELECT 
-	*,
-	DENSE_RANK() OVER (PARTITION BY status ORDER BY created_at DESC)
-FROM deliveries
+	p.name AS product_name,
+	pc.name AS category_name,
+	pc.id AS category_id,
+	p.price,
+	RANK() OVER (PARTITION BY category_id ORDER BY price DESC) AS category_price_rank
+FROM products p JOIN product_categories pc ON p.category_id  = pc.id
 ),
-three_recent_deliveries_by_status AS (
+distinct_categories AS (
+SELECT 
+	DISTINCT id AS category_id,
+	name AS category_name
+FROM product_categories
+),
+top_three_products_per_category AS (
 SELECT 
 	*
-FROM delivery_ranks
-WHERE DENSE_RANK <= 3
-),
-distinct_statuses AS (
-SELECT DISTINCT status FROM deliveries
+FROM products_categories_rank
+WHERE category_price_rank <= 3
 ),
 HIERARCHY AS (
 SELECT
-	1 AS level,
-	'All Deliveries' AS name,
+	1 AS LEVEL,
+	'All Products' AS name,
 	NULL::TEXT AS parent_name,
-	'All Deliveries' AS PATH
+	'All Products' AS PATH
 UNION ALL
 SELECT
 	h.LEVEL + 1,
-	COALESCE(ds.status, trd.id::TEXT),
+	COALESCE(dc.category_name::TEXT, ttp.product_name::TEXT),
 	h.name,
-	h.PATH || ' > ' || COALESCE(ds.status, trd.id::TEXT)
+	h.path || ' > ' || COALESCE(dc.category_name::TEXT, ttp.product_name::TEXT)
 FROM HIERARCHY h
-LEFT JOIN distinct_statuses ds ON h.LEVEL = 1
-LEFT JOIN three_recent_deliveries_by_status trd ON trd.status = h.name
-WHERE h.LEVEL < 3
+LEFT JOIN distinct_categories dc ON h.LEVEL = 1
+LEFT JOIN top_three_products_per_category ttp ON h.name = ttp.category_name AND h.LEVEL = 2
+WHERE H.LEVEL < 3
 )
-SELECT * FROM HIERARCHY
+SELECT * FROM hierarchy
+
+
+Everything works properly.
 
 ---
 
-## Task 2: User Session Streaks (Gaps-and-Islands)
+## Task 2: Gaps-and-Islands — Scaffolded Drill (User Sessions)
 
-**Scenario:**
-The engagement team wants to identify "power users" — users with long streaks of consecutive days where they had at least one session (`count_sessions > 0`).
+This task is broken into 3 sub-questions that build the pattern incrementally. Complete each step before moving to the next.
 
-Find users whose longest active streak is at least 5 consecutive days. For each qualifying user, show their longest streak only.
+### Step A — Generate the streak key
+Using `user_sessions_daily`, write a query that:
+- Filters to active days only (the table only contains active days, so no filter needed)
+- Assigns a `ROW_NUMBER()` per user ordered by date
+- Computes `streak_key` as `date - (rn * INTERVAL '1 day')`
 
-**Expected Output Columns:**
-- `user_id` (integer)
-- `streak_start` (date)
-- `streak_end` (date)
-- `streak_length` (bigint) — number of consecutive active days
-- `avg_daily_sessions` (numeric) — average `count_sessions` during the streak, rounded to 2 decimals
+Output: `user_id`, `date`, `count_sessions`, `rn`, `streak_key`
 
-**Requirements:**
-- Use `user_sessions_daily` table
-- Active day = `count_sessions > 0`
-- A streak is a sequence of consecutive calendar days with no gaps
-- If a user has multiple streaks of equal max length, show the most recent one
-- Order by `streak_length DESC`, `avg_daily_sessions DESC`
+No aggregation yet — just show the raw rows with the computed key. Pick user_id = 1 to inspect visually.
 
-**Hint:** The gaps-and-islands pattern — subtract `ROW_NUMBER()` from the date to create a streak group key. Dates within the same streak will share the same group key.
+**Expected insight:** Dates within the same consecutive streak share the same `streak_key`. A gap in dates causes `streak_key` to shift.
 
-**Difficulty Rating:** 5/5
+---
 
+### Step B — Aggregate streaks
+Using Step A as a CTE, GROUP BY `(user_id, streak_key)` to produce one row per streak.
 
-WITH users_dates AS (
-SELECT 
-	user_id,
-	date,
-	LAG(date) OVER (PARTITION BY user_id ORDER BY date) AS prev_session_date,
-	count_sessions
-FROM user_sessions_daily usd
-ORDER BY user_id
-),
-users_dates_rn AS (
-SELECT 
-	*,
-	ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY date) AS rn
-FROM users_dates
-WHERE prev_session_date IS NOT NULL
-),
-users_streak_keys AS (
+Output: `user_id`, `streak_key`, `streak_start` (MIN date), `streak_end` (MAX date), `streak_length` (COUNT), `avg_daily_sessions` (AVG, rounded to 2 decimals)
+
+No filtering yet — show all streaks for all users.
+
+---
+
+### Step C — Pick the longest streak per user
+Using Step B as a CTE, add a final step that:
+- Ranks streaks per user by `streak_length DESC`, then `streak_end DESC` (most recent if tied)
+- Keeps only rank = 1 (longest streak per user)
+- Filters to users whose longest streak is >= 5 days
+- Orders by `streak_length DESC`, `avg_daily_sessions DESC`
+
+Final output: `user_id`, `streak_start`, `streak_end`, `streak_length`, `avg_daily_sessions`
+
+**This is the complete solution to Day 2 Task 2 — assembled step by step.**
+
+**Difficulty Rating:** 4/5 (scaffolded, but you must write all three steps)
+
+WITH users_sessions_streak_keys AS (
 SELECT 
 	*,
-	date - rn * INTERVAL '1' DAY AS streak_key
-FROM users_dates_rn
-)
+	ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY date) AS rn,
+	date - (ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY date) * INTERVAL '1' DAY) AS streak_key
+FROM user_sessions_daily
+),
+users_session_streaks_consecutive_days AS (
 SELECT 
 	user_id,
 	streak_key,
@@ -118,74 +128,71 @@ SELECT
 	MAX(date) AS streak_end,
 	COUNT(*) AS streak_length,
 	ROUND(AVG(count_sessions), 2) AS avg_daily_sessions
-FROM users_streak_keys
+FROM users_sessions_streak_keys
 GROUP BY user_id, streak_key
-HAVING COUNT(*) >= 5
-ORDER BY streak_length DESC, avg_daily_sessions DESC
+ORDER BY user_id
+),
+users_streak_ranks AS (
+SELECT 
+	*,
+	RANK() OVER (PARTITION BY user_id ORDER BY streak_length DESC, streak_end DESC) AS streak_rank
+FROM users_session_streaks_consecutive_days
+)
+SELECT 
+	user_id,
+	streak_start,
+	streak_end,
+	streak_length,
+	avg_daily_sessions
+FROM users_streak_ranks 
+WHERE streak_rank = 1
 
 
-Completed after a long struggle, but I definitely don't feel strong with this pattern AND I'M FEELING like it looks a bit weird e.g. streak_keys differ from the actual streak_starts and I wouldn't trust this with 100% trust score.
+Nice, it makes sense now - we definitely MUST practice this pattern more.
 
 ---
 
-## Task 3: Category Revenue Ranking with Rolling Comparison
+## Task 3: 7-Day Rolling Order Revenue
 
 **Scenario:**
-The product team wants a monthly revenue leaderboard by product category.
-
-For each month and category, calculate:
-- Total revenue from that category in that month (`quantity × price`)
-- The category's rank that month (by revenue, highest first)
-- Revenue from the same category in the previous month (LAG)
-- Month-over-month revenue change (current − previous), NULL if no previous month
-
-Show only months and categories where total revenue > 0.
+The finance team wants a daily rolling revenue report. For each day in the `dates` table (within the range of actual order data), calculate the total order revenue for the past 7 days (including that day).
 
 **Expected Output Columns:**
-- `month` (date) — truncated to month
-- `category_name` (text)
-- `monthly_revenue` (numeric) — total revenue, rounded to 2 decimals
-- `revenue_rank` (bigint) — rank within that month (1 = highest revenue)
-- `prev_month_revenue` (numeric) — previous month's revenue for same category, rounded to 2 decimals, NULL if none
-- `mom_change` (numeric) — month-over-month change, rounded to 2 decimals, NULL if no previous month
+- `date` (date)
+- `daily_revenue` (numeric) — total order revenue on that specific day, rounded to 2 decimals (0 if no orders)
+- `rolling_7d_revenue` (numeric) — sum of daily_revenue over the past 7 days including today, rounded to 2 decimals
 
 **Requirements:**
-- Use `orders`, `orders_products`, `products`, `product_categories`
-- Revenue = `orders_products.quantity × products.price`
-- Order by `month ASC`, `revenue_rank ASC`
+- Use `dates` table as the spine (left join orders to it)
+- Only include dates within the min/max range of `orders.created_at`
+- Use a window frame: `ROWS BETWEEN 6 PRECEDING AND CURRENT ROW`
+- Days with no orders should show 0, not NULL
+- Order by `date ASC`
 
 **Difficulty Rating:** 4/5
 
-
-WITH categories_monthly_revenues AS (
+WITH daily_orders_revenues AS (
 SELECT 
-	DATE_TRUNC('Month', o.created_at) AS month_,
-	pc."name" AS category_name,
-	SUM(p.price * op.quantity) AS monthly_revenue
-FROM orders_products op
-JOIN orders o ON op.order_id = o.id
-JOIN products p ON op.product_id = p.id
-JOIN product_categories pc ON p.category_id = pc.id
-GROUP BY DATE_TRUNC('Month', o.created_at), pc.name
+	d.date,
+	COALESCE(COUNT(o.id), 0) AS order_cnt,
+	COALESCE(SUM(o.amount), 0) AS orders_revenue
+FROM dates d
+LEFT JOIN orders o ON d."date" = DATE(o.created_at)
+GROUP BY d.date
+ORDER BY d.date
 )
 SELECT 
-	month_,
-	category_name,
-	monthly_revenue,
-	RANK() OVER (PARTITION BY month_ ORDER BY monthly_revenue DESC) AS revenue_rank,
-	COALESCE(LAG(monthly_revenue) OVER (PARTITION BY category_name ORDER BY month_), NULL) AS prev_month_revenue,
-	monthly_revenue - COALESCE(LAG(monthly_revenue) OVER (PARTITION BY category_name ORDER BY month_), NULL) AS mom_change
-FROM categories_monthly_revenues
+	date,
+	orders_revenue AS daily_revenue,
+	ROUND(SUM(orders_revenue) OVER (ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)::NUMERIC, 2) AS rolling_7d_revenue
+FROM daily_orders_revenues
 
-
-Your requirements were met in this case and the order also matches as I've checked everything. I could add one more CTE for more clarity, but I decieded to make it the most efficient instead and did one-liner with mom_change.
-
-It all works and definitely satisfies all the requirements
+Here, exactly as you wanted.
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — 3-level delivery hierarchy (3/5)
-2. Task 2 — User session streaks (5/5)
-3. Task 3 — Category revenue ranking with rolling comparison (4/5)
+1. Task 1 — Product category hierarchy (3/5)
+2. Task 2 — Gaps-and-islands scaffolded drill, Steps A + B + C (4/5)
+3. Task 3 — 7-day rolling revenue (4/5)

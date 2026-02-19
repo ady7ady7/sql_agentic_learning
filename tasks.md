@@ -1,198 +1,181 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-02-18
-**Week 10, Day 3 Focus:** Gaps-and-Islands Mastery (Scaffolded) + Hierarchy + Rolling Windows
+**Generated:** 2026-02-19
+**Week 10, Day 4 Focus:** Advanced Window Functions + Gaps-and-Islands Variant + Hierarchy Consolidation
 
 ---
 
-## Task 1: 3-Level Hierarchy — Product Categories and Top Products
+## Task 1: 3-Level Hierarchy — Users by Country and City
 
 **Scenario:**
-Build a 3-level hierarchy over product data:
-- Level 1: `'All Products'`
-- Level 2: Distinct category names from `product_categories` (pulled dynamically)
-- Level 3: Top 3 most expensive products per category (show product name as text)
+Build a 3-level hierarchy over user location data:
+- Level 1: `'All Users'`
+- Level 2: Distinct countries from the `users` table (exclude NULLs)
+- Level 3: Distinct cities within each country (exclude NULLs), show city name
 
 **Expected Output Columns:**
 - `level` (integer)
-- `name` (text) — category name at Level 2, product name at Level 3
+- `name` (text) — country at Level 2, city at Level 3
 - `parent_name` (text)
 - `path` (text) — full path from root
 
 **Requirements:**
-- Pre-aggregate distinct categories and top-3-per-category before the recursive CTE
-- Use `price DESC` to define "most expensive"
+- Pre-aggregate distinct countries and distinct country+city pairs before the recursive CTE
+- Exclude NULL countries and NULL cities
 - Termination condition required
-- No hardcoded category values
+- No hardcoded values
 
 **Difficulty Rating:** 3/5
 
-
-WITH RECURSIVE products_categories_rank AS (
+WITH RECURSIVE distinct_countries AS (
 SELECT 
-	p.name AS product_name,
-	pc.name AS category_name,
-	pc.id AS category_id,
-	p.price,
-	RANK() OVER (PARTITION BY category_id ORDER BY price DESC) AS category_price_rank
-FROM products p JOIN product_categories pc ON p.category_id  = pc.id
+	DISTINCT country
+FROM users u 
+WHERE country IS NOT NULL
 ),
-distinct_categories AS (
-SELECT 
-	DISTINCT id AS category_id,
-	name AS category_name
-FROM product_categories
-),
-top_three_products_per_category AS (
-SELECT 
-	*
-FROM products_categories_rank
-WHERE category_price_rank <= 3
+distinct_cities AS (
+SELECT DISTINCT 
+COUNTRY, CITY FROM users
+WHERE city IS NOT NULL
 ),
 HIERARCHY AS (
 SELECT
 	1 AS LEVEL,
-	'All Products' AS name,
+	'All Users' AS name,
 	NULL::TEXT AS parent_name,
-	'All Products' AS PATH
+	'All Users' AS PATH
 UNION ALL
-SELECT
+SELECT 
 	h.LEVEL + 1,
-	COALESCE(dc.category_name::TEXT, ttp.product_name::TEXT),
+	COALESCE(dc.country::TEXT, dcit.city::TEXT),
 	h.name,
-	h.path || ' > ' || COALESCE(dc.category_name::TEXT, ttp.product_name::TEXT)
+	h.PATH || ' > ' || COALESCE(dc.country::TEXT, dcit.city::TEXT)
 FROM HIERARCHY h
-LEFT JOIN distinct_categories dc ON h.LEVEL = 1
-LEFT JOIN top_three_products_per_category ttp ON h.name = ttp.category_name AND h.LEVEL = 2
+LEFT JOIN distinct_countries dc ON h.LEVEL = 1
+LEFT JOIN distinct_cities dcit ON h.LEVEL = 2 AND dcit.country = h.name
 WHERE H.LEVEL < 3
 )
-SELECT * FROM hierarchy
-
-
-Everything works properly.
+SELECT * FROM HIERARCHY
 
 ---
 
-## Task 2: Gaps-and-Islands — Scaffolded Drill (User Sessions)
-
-This task is broken into 3 sub-questions that build the pattern incrementally. Complete each step before moving to the next.
-
-### Step A — Generate the streak key
-Using `user_sessions_daily`, write a query that:
-- Filters to active days only (the table only contains active days, so no filter needed)
-- Assigns a `ROW_NUMBER()` per user ordered by date
-- Computes `streak_key` as `date - (rn * INTERVAL '1 day')`
-
-Output: `user_id`, `date`, `count_sessions`, `rn`, `streak_key`
-
-No aggregation yet — just show the raw rows with the computed key. Pick user_id = 1 to inspect visually.
-
-**Expected insight:** Dates within the same consecutive streak share the same `streak_key`. A gap in dates causes `streak_key` to shift.
-
----
-
-### Step B — Aggregate streaks
-Using Step A as a CTE, GROUP BY `(user_id, streak_key)` to produce one row per streak.
-
-Output: `user_id`, `streak_key`, `streak_start` (MIN date), `streak_end` (MAX date), `streak_length` (COUNT), `avg_daily_sessions` (AVG, rounded to 2 decimals)
-
-No filtering yet — show all streaks for all users.
-
----
-
-### Step C — Pick the longest streak per user
-Using Step B as a CTE, add a final step that:
-- Ranks streaks per user by `streak_length DESC`, then `streak_end DESC` (most recent if tied)
-- Keeps only rank = 1 (longest streak per user)
-- Filters to users whose longest streak is >= 5 days
-- Orders by `streak_length DESC`, `avg_daily_sessions DESC`
-
-Final output: `user_id`, `streak_start`, `streak_end`, `streak_length`, `avg_daily_sessions`
-
-**This is the complete solution to Day 2 Task 2 — assembled step by step.**
-
-**Difficulty Rating:** 4/5 (scaffolded, but you must write all three steps)
-
-WITH users_sessions_streak_keys AS (
-SELECT 
-	*,
-	ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY date) AS rn,
-	date - (ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY date) * INTERVAL '1' DAY) AS streak_key
-FROM user_sessions_daily
-),
-users_session_streaks_consecutive_days AS (
-SELECT 
-	user_id,
-	streak_key,
-	MIN(date) AS streak_start,
-	MAX(date) AS streak_end,
-	COUNT(*) AS streak_length,
-	ROUND(AVG(count_sessions), 2) AS avg_daily_sessions
-FROM users_sessions_streak_keys
-GROUP BY user_id, streak_key
-ORDER BY user_id
-),
-users_streak_ranks AS (
-SELECT 
-	*,
-	RANK() OVER (PARTITION BY user_id ORDER BY streak_length DESC, streak_end DESC) AS streak_rank
-FROM users_session_streaks_consecutive_days
-)
-SELECT 
-	user_id,
-	streak_start,
-	streak_end,
-	streak_length,
-	avg_daily_sessions
-FROM users_streak_ranks 
-WHERE streak_rank = 1
-
-
-Nice, it makes sense now - we definitely MUST practice this pattern more.
-
----
-
-## Task 3: 7-Day Rolling Order Revenue
+## Task 2: Gaps-and-Islands — Transaction Dry Spells
 
 **Scenario:**
-The finance team wants a daily rolling revenue report. For each day in the `dates` table (within the range of actual order data), calculate the total order revenue for the past 7 days (including that day).
+The finance team wants to identify periods of inactivity — gaps between transactions for each user. Specifically, find users who had a gap of **at least 30 days** between two consecutive transactions.
+
+For each such gap, show:
 
 **Expected Output Columns:**
-- `date` (date)
-- `daily_revenue` (numeric) — total order revenue on that specific day, rounded to 2 decimals (0 if no orders)
-- `rolling_7d_revenue` (numeric) — sum of daily_revenue over the past 7 days including today, rounded to 2 decimals
+- `user_id` (integer)
+- `last_transaction_date` (date) — date of the transaction before the gap
+- `next_transaction_date` (date) — date of the transaction after the gap
+- `gap_days` (integer) — number of days between the two transactions
+- `longest_gap` (boolean) — true if this is the longest gap for that user, false otherwise
 
 **Requirements:**
-- Use `dates` table as the spine (left join orders to it)
-- Only include dates within the min/max range of `orders.created_at`
-- Use a window frame: `ROWS BETWEEN 6 PRECEDING AND CURRENT ROW`
-- Days with no orders should show 0, not NULL
-- Order by `date ASC`
+- Use `transactions` table
+- Use `DATE(created_at)` to work at day granularity
+- Only include gaps >= 30 days
+- Order by `gap_days DESC`, `user_id ASC`
+
+**Note:** This is a gaps problem, not islands — you're finding the spaces *between* data points, not grouping consecutive ones. LAG is the right tool here, not the RN-subtraction pattern.
 
 **Difficulty Rating:** 4/5
 
-WITH daily_orders_revenues AS (
+WITH users_transactions AS (
 SELECT 
-	d.date,
-	COALESCE(COUNT(o.id), 0) AS order_cnt,
-	COALESCE(SUM(o.amount), 0) AS orders_revenue
-FROM dates d
-LEFT JOIN orders o ON d."date" = DATE(o.created_at)
-GROUP BY d.date
-ORDER BY d.date
+ id AS transaction_id,
+ user_id,
+ DATE_TRUNC('Day', created_at) AS current_transaction_date,
+ LAG(DATE_TRUNC('Day', created_at)) OVER (PARTITION BY user_id ORDER BY created_at) AS prev_transaction_date
+FROM transactions
+),
+users_gaps AS (
+SELECT 
+	*,
+	EXTRACT('Day' FROM current_transaction_date - prev_transaction_date) AS gap_days,
+	MAX(EXTRACT('Day' FROM current_transaction_date - prev_transaction_date)) OVER (PARTITION BY user_id) AS longest_gap
+FROM users_transactions ns
+WHERE prev_transaction_date IS NOT NULL
 )
 SELECT 
-	date,
-	orders_revenue AS daily_revenue,
-	ROUND(SUM(orders_revenue) OVER (ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)::NUMERIC, 2) AS rolling_7d_revenue
-FROM daily_orders_revenues
+	user_id,
+	transaction_id,
+	current_transaction_date,
+	prev_transaction_date,
+	gap_days
+FROM users_gaps
+WHERE longest_gap = gap_days
+AND gap_days >= 1
+ORDER BY gap_days DESC, user_id ASC
 
-Here, exactly as you wanted.
+
+Look, after this step It's clear to me THAT THERE ARE NO USERS WITH GAPS ABOVE 1 day - 1 day gap IS LITERALLY THE MAXIMUM in this dataset, so the best thing I could do is filter out users with 0 day gaps (there were a lot of them as well).
+
+IMO I handled it well and adapted to available data.
+
+
+---
+
+## Task 3: Percentile Bands + Cumulative Share
+
+**Scenario:**
+The analytics team wants a transaction amount distribution report. Bucket transactions into percentile bands and show what share of total volume each band represents.
+
+Classify each transaction into one of 4 quartile bands using `NTILE(4)`:
+- Band 1: Bottom 25%
+- Band 2: 25–50%
+- Band 3: 50–75%
+- Band 4: Top 25%
+
+Then aggregate by band and show:
+
+**Expected Output Columns:**
+- `quartile_band` (integer) — 1 to 4
+- `transaction_count` (bigint)
+- `band_revenue` (numeric) — total amount in this band, rounded to 2 decimals
+- `pct_of_total_revenue` (numeric) — this band's revenue as % of all revenue, rounded to 1 decimal
+- `cumulative_revenue_pct` (numeric) — running cumulative % from band 1 to 4, rounded to 1 decimal
+
+**Requirements:**
+- Use `transactions` table, exclude NULL amounts
+- Compute NTILE in a CTE, then aggregate
+- Cumulative % must use a window SUM over the aggregated results
+- Order by `quartile_band ASC`
+
+**Difficulty Rating:** 4/5
+
+
+WITH transactions_amount_quartiles AS (
+SELECT 
+	*,
+	ntile(4) OVER (ORDER BY amount DESC) AS quartile_band
+FROM transactions
+),
+quartile_bands_revenues AS (
+SELECT
+	quartile_band,
+	COUNT(*) AS transaction_count,
+	SUM(amount) AS band_revenue,
+	(SELECT sum(amount) FROM transactions) AS total_revenue
+FROM transactions_amount_quartiles
+GROUP BY quartile_band
+ORDER BY band_revenue DESC
+)
+SELECT 
+	*,
+	ROUND((band_revenue / total_revenue) * 100, 1) || ' %' AS pct_of_total_revenue,
+	ROUND(SUM((band_revenue / total_revenue) * 100) OVER (ORDER BY quartile_band), 1) || '%' AS cumulative_revenue_pct
+FROM quartile_bands_revenues
+
+
+Done, your requirements satisfied with 100% effect :)).
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Product category hierarchy (3/5)
-2. Task 2 — Gaps-and-islands scaffolded drill, Steps A + B + C (4/5)
-3. Task 3 — 7-day rolling revenue (4/5)
+1. Task 1 — Users by country/city hierarchy (3/5)
+2. Task 2 — Transaction dry spells / gaps (4/5)
+3. Task 3 — Percentile bands + cumulative share (4/5)

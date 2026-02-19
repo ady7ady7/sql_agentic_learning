@@ -112,3 +112,22 @@ Let the student discover NTILE or figure out an alternative approach.
 - Focus on business requirements and expected results
 - Allow student to practice decision-making between equivalent approaches
 - Don't include redundant or unnecessary syntax specifications
+
+---
+
+### Week 10, Day 4 - Task 2: Gap Detection on Dense Transaction Data
+
+**Issue:** Asked for users with gaps >= 30 days between transactions, but the transactions table has extremely dense data — max gap between consecutive transactions per user is 1 day.
+
+**Why it's bad:**
+- The business question (find long inactivity periods) is completely unsupported by the data
+- Student cannot demonstrate the concept meaningfully — only adaptation (reducing threshold to 1 day) is possible
+- Wastes time on a task that produces no interesting results
+
+**Tables to avoid for gap-detection tasks:**
+- `transactions` — too frequent, gaps rarely exceed 1 day
+
+**Better approach:**
+- Use `orders` table for gap detection (less frequent, more realistic gaps)
+- Or use `user_sessions_daily` with date gaps (already validated as having meaningful gaps)
+- Always verify data density before designing gap-detection tasks

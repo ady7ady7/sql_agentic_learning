@@ -2323,3 +2323,22 @@ Correct spine approach with dates table, LEFT JOIN, COALESCE for zeros, correct 
 ## Student Feedback on Questions
 
 All three tasks were well-calibrated — ~40 minutes, satisfying session. Hierarchies feeling stronger every day. Gaps-and-islands pattern fully clicked after scaffolded approach. Difficulty level was perfect for today.
+n### Session: 2026-02-19 (Week 10, Day 4)n
+## Agent Feedback on Student — Week 10, Day 4
+
+**Task 1 — Users by Country/City Hierarchy: 10/10**
+Flawless. distinct_countries and distinct_cities pre-aggregated before recursive CTE, NULL filters in both, correct join conditions at each level, termination condition, clean path building. Pattern fully internalized.
+
+**Task 2 — Transaction Dry Spells: 9/10**
+Correct approach — LAG for previous transaction date, EXTRACT for gap days, MAX window to identify longest gap per user. Data-aware adaptation: no gaps >= 30 days in dataset (max gap is 1 day), correctly reported as a finding. Missing: boolean longest_gap flag column in final output (filtered to longest gap rows instead, which achieves the same result but drops the explicit column). Minor scope miss.
+
+**Task 3 — Percentile Bands + Cumulative Share: 10/10**
+Clean NTILE(4) bucketing, efficient subquery for total revenue inside aggregation CTE, correct pct_of_total_revenue calculation, correct cumulative window SUM ordered by quartile_band. Rounding applied at percentage stage where precision matters — raw intermediates left unrounded intentionally. All requirements met.
+
+**Session Total: 29/30**
+
+---
+
+## Student Feedback on Questions
+
+All tasks liked. Task 2 (transaction dry spells) flagged as poorly matched to data — transactions are too frequent in the dataset, max gap is 1 day, so no meaningful gaps exist. Avoid gap-detection tasks on the transactions table in future sessions.

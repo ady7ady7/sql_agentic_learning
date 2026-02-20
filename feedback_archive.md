@@ -2342,3 +2342,56 @@ Clean NTILE(4) bucketing, efficient subquery for total revenue inside aggregatio
 ## Student Feedback on Questions
 
 All tasks liked. Task 2 (transaction dry spells) flagged as poorly matched to data — transactions are too frequent in the dataset, max gap is 1 day, so no meaningful gaps exist. Avoid gap-detection tasks on the transactions table in future sessions.
+n### Session: 2026-02-20 (Week 10, Day 5 + Weekly Recap)n
+## Agent Feedback on Student — Week 10, Day 5
+
+**Task 1 — Order Status Hierarchy: 10/10**
+Textbook execution. Correct pre-aggregation of order counts per user+status, distinct_delivery_statuses CTE for Level 2, top_three_users_per_order_status for Level 3, correct join conditions, termination condition, clean path. The deliveries → orders join to get user_id handled cleanly.
+
+**Task 2 — Order Gap Analysis: 10/10**
+Clean multi-CTE architecture — early HAVING filter to eliminate single-order users, LAG for consecutive gaps, window AVG to broadcast per-user average without double-aggregation, clean GROUP BY collapse. Data-driven threshold adaptation (3/6 days vs 30/90) is correct professional behavior — same concept, realistic numbers.
+
+**Task 3 — Power User Leaderboard: 9/10**
+Three clean independent aggregation CTEs, correct INNER JOIN logic, composite score formula correct, RANK and PERCENT_RANK both correct. Minor: total_transaction_amount unrounded in final output (spec asked for 2 decimals). Self-corrected from LEFT JOIN to INNER JOIN after checking requirements — good discipline.
+
+**Session Total: 29/30**
+
+---
+
+## Student Feedback on Questions
+
+Great session, satisfying, feeling really strong. All tasks well-matched to data and skill level.
+
+---
+
+## Weekly Summary — Week 10 (2026-02-17 to 2026-02-20)
+
+### Progress Bar
+█████████░ 90% toward HackerRank Advanced SQL qualification
+
+### Daily Scores
+- Day 1: 26/30
+- Day 2: 25/30
+- Day 3: 28/30
+- Day 4: 29/30
+- Day 5: 29/30
+- **Week Average: 27.4/30 (91.3%)**
+
+### Key Wins This Week
+- **Recursive hierarchy pattern fully internalized** — consistent 9-10/10 on all hierarchy tasks, no more termination condition bugs, dynamic pre-aggregation applied cleanly every time
+- **Gaps-and-islands mastered** — after scaffolded drill on Day 3, pattern clicked completely; Day 5 gap analysis on orders was clean and confident
+- **Multi-source aggregation joins** — Day 5 Task 3 demonstrated ability to orchestrate 3 independent aggregations and combine cleanly with INNER JOINs
+- **Data-aware adaptation** — consistently adapting thresholds to match actual data distribution (order gaps, cohort thresholds) — professional behavior
+- **PERCENT_RANK, NTILE, cumulative window SUM** — all demonstrated correctly this week
+
+### Focus Areas / Minor Recurring Misses
+- **ROUND on output columns** — occasionally forgetting to round intermediate values that appear in final SELECT (Tasks 3 Day 2, Day 5)
+- **Scope completeness** — Task 2 Day 2: missing final RANK step to pick 1 row per user; Task 2 Day 4: boolean flag column omitted
+- **Data validation mindset is strong** — but gaps-and-islands on `transactions` table was a bad question (data too dense); avoid in future
+
+### Next Week Plan (Week 11)
+- **Query optimization** — EXPLAIN ANALYZE interpretation, index strategies (theoretical), identifying expensive operations
+- **Complex subquery patterns** — correlated subqueries, EXISTS vs IN vs JOIN performance
+- **HackerRank Hard simulation** — timed full-exam simulations (3 questions, 45-minute target)
+- **One gaps-and-islands variant per session** — keep the pattern warm with different twist each time
+- Continue hierarchy as Task 1 warmup

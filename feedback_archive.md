@@ -2414,3 +2414,22 @@ Correct and clean. Minor: spec asked for 1 decimal on rolling average, used 2. T
 ## Student Feedback on Questions
 
 Warm-up session completed in ~30 minutes without issues. Rough day — lighter difficulty was appropriate. Standard difficulty to resume from Day 2.
+n### Session: 2026-02-24 (Week 11, Day 2)n
+## Agent Feedback on Student — Week 11, Day 2
+
+**Task 1 — Chat Ticket Priority Hierarchy: 9/10**
+Clean execution. Distinct priorities CTE, top-3 per priority, correct join conditions, termination condition, path building all correct. Minor: used created_at instead of updated_at for ranking — wrong column per spec, though logic is identical.
+
+**Task 2 — Order Value Outliers: 10/10**
+Efficient CTE approach — per-user average first, join back to orders, filter by ratio > 1.5. Clean and correct. Data-aware observation that NULL amount guard is unnecessary (every order has an amount).
+
+**Task 3 — Message Response Time: 9/10**
+Two-CTE architecture correct. Data-aware adaptation: no cases where agent message preceded user message, so missing "after" condition didn't affect results. EXTRACT('Minute') worked correctly since no gaps exceeded 59 minutes — but EPOCH/60 is the universal correct approach and has been noted for future use. NULLS LAST omitted correctly — no NULLs in data.
+
+**Session Total: 28/30**
+
+---
+
+## Student Feedback on Questions
+
+All tasks good. Task 3 prompted useful learning moment around EXTRACT('Epoch') vs EXTRACT('Minute') for interval calculations — student wants to practice EPOCH pattern more.

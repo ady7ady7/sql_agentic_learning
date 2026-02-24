@@ -1,68 +1,65 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-02-23
-**Week 11, Day 1 Focus:** Warm-Up — Consolidation + Light Review
+**Generated:** 2026-02-24
+**Week 11, Day 2 Focus:** HackerRank Hard — Correlated Subqueries + Advanced Aggregations + Hierarchy
 
 ---
 
-## Task 1: 3-Level Hierarchy — Transaction Types by Top Users
+## Task 1: 3-Level Hierarchy — Chat Ticket Priorities and Top Tickets
 
 **Scenario:**
-Build a 3-level hierarchy over transactions:
-- Level 1: `'All Transactions'`
-- Level 2: Distinct transaction types (dynamic, from `transactions`)
-- Level 3: For each type, the 3 users with the highest total transaction amount (show user_id as text)
+Build a 3-level hierarchy over support tickets:
+- Level 1: `'All Tickets'`
+- Level 2: Distinct priority levels from `chat_tickets` (dynamic)
+- Level 3: For each priority, the 3 most recently updated tickets (show ticket ID as text)
 
 **Expected Output Columns:**
 - `level` (integer)
-- `name` (text) — type at Level 2, user_id at Level 3
+- `name` (text) — priority at Level 2, ticket ID at Level 3
 - `parent_name` (text)
 - `path` (text)
 
 **Requirements:**
-- Pre-aggregate totals per user+type, then rank before the recursive CTE
+- Pre-aggregate distinct priorities and top-3-per-priority before the recursive CTE
+- Use `updated_at DESC` to define "most recently updated"
 - Termination condition required
-- No hardcoded values
 
 **Difficulty Rating:** 3/5
 
-
-WITH RECURSIVE distinct_transaction_types AS (
-SELECT DISTINCT TYPE FROM transactions
-),
-transaction_types_totals AS (
-SELECT
-	user_id,
-	type,
-	SUM(amount) AS total_transactions_amt
-FROM transactions
-GROUP BY user_id, TYPE
-),
-transaction_types_ranks AS (
+WITH RECURSIVE priorities AS (
 SELECT 
-	*,
-	RANK() OVER (PARTITION BY TYPE ORDER BY total_transactions_amt DESC) AS transaction_type_rank
-FROM transaction_types_totals
+DISTINCT priority 
+FROM chat_tickets
 ),
-transaction_types_top_three AS (
-SELECT * FROM transaction_types_ranks
-WHERE transaction_type_rank <= 3
+recently_updated_tickets AS (
+SELECT
+	priority,
+	created_at,
+	id,
+	RANK() OVER (PARTITION BY priority ORDER BY created_at DESC) AS recent_update_rank
+FROM chat_tickets
+),
+top3_recently_updated_tickets AS (
+SELECT 
+* 
+FROM recently_updated_tickets
+WHERE recent_update_rank <= 3
 ),
 HIERARCHY AS (
 SELECT
 	1 AS LEVEL,
-	'All Transactions' AS name,
+	'All Tickets' AS name,
 	NULL::TEXT AS parent_name,
-	'All Transactions' AS PATH
+	'All Tickets' AS PATH
 UNION ALL
-SELECT 
-	H.LEVEL + 1,
-	COALESCE(dtt.TYPE, ttt.user_id::TEXT),
+SELECT
+	h.LEVEL + 1,
+	COALESCE(pr.priority, t3r.id::TEXT),
 	h.name,
-	h.PATH || ' > ' || COALESCE(dtt.TYPE, ttt.user_id::TEXT)
+	h.PATH || ' > ' || COALESCE(pr.priority, t3r.id::TEXT)
 FROM HIERARCHY h
-LEFT JOIN distinct_transaction_types dtt ON h.LEVEL = 1
-LEFT JOIN transaction_types_top_three ttt ON h.LEVEL = 2 AND ttt."type" = h."name"
+LEFT JOIN priorities pr ON h.LEVEL = 1
+LEFT JOIN top3_recently_updated_tickets t3r ON h.name = t3r.priority AND h.LEVEL = 2
 WHERE h.LEVEL < 3
 )
 SELECT * FROM hierarchy
@@ -70,98 +67,106 @@ SELECT * FROM hierarchy
 
 ---
 
-## Task 2: User Order Frequency Cohorts
+## Task 2: Order Value Outliers (Correlated Subquery)
 
 **Scenario:**
-The product team wants to understand how many orders users typically place. Group users into frequency buckets based on their total order count:
+The analytics team wants to flag orders that are significantly above average for that user — specifically, orders where the amount is more than **1.5x the user's own average order value**.
 
-- `one_time`: exactly 1 order
-- `occasional`: 2 to 4 orders
-- `regular`: 5 to 9 orders
-- `loyal`: 10 or more orders
-
-For each bucket, show how many users fall in it and their average order value (avg of all order amounts for users in that bucket), rounded to 2 decimals.
+For each such outlier order, show:
 
 **Expected Output Columns:**
-- `frequency_bucket` (text)
-- `user_count` (bigint)
-- `avg_order_value` (numeric)
+- `order_id` (integer)
+- `user_id` (integer)
+- `order_amount` (numeric) — rounded to 2 decimals
+- `user_avg_order_value` (numeric) — that user's average order amount, rounded to 2 decimals
+- `ratio` (numeric) — order_amount / user_avg_order_value, rounded to 2 decimals
 
 **Requirements:**
-- Use `users` and `orders` tables
-- Include users with 0 orders in `one_time`? No — only users who appear in `orders`
-- Order by `user_count DESC`
+- Use `orders` table only
+- Exclude NULL amounts
+- A correlated subquery OR a CTE-based approach is both acceptable — choose what feels right
+- Order by `ratio DESC`
 
-**Difficulty Rating:** 3/5
+**Difficulty Rating:** 4/5
 
-WITH users_orders AS (
-SELECT 
+WITH avg_users_orders AS (
+SELECT
 	user_id,
-	COUNT(*) AS order_cnt
-FROM orders
+	ROUND(AVG(amount)::NUMERIC, 2) AS user_avg_order_value
+FROM ORDERS
 GROUP BY user_id
 ),
-users_frequencies AS (
+users_avg_orders_comparison AS (
 SELECT 
-	*,
-	CASE
-		WHEN order_cnt = 1 THEN 'one_time'
-		WHEN order_cnt > 1 AND order_cnt < 5 THEN 'occasional'
-		WHEN order_cnt > 4 AND order_cnt < 10 THEN 'regular'
-		WHEN order_cnt >= 10 THEN 'loyal'
-	END AS frequency_bucket
-FROM USERS_ORDERS
+	auo.user_id,
+	auo.user_avg_order_value,
+	o.id AS order_id,
+	o.amount AS order_amount,
+	ROUND(o.amount::NUMERIC / auo.user_avg_order_value, 2) AS ratio
+FROM avg_users_orders auo
+JOIN orders o ON auo.user_id = o.user_id
 )
-SELECT 
-	uf.frequency_bucket,
-	COUNT(uf.user_id) AS user_count,
-	ROUND(AVG(o.amount)::numeric, 2) AS avg_order_value
-FROM users_frequencies uf
-JOIN orders o ON uf.user_id = o.user_id
-GROUP BY uf.frequency_bucket
-ORDER BY user_count DESC
+SELECT * FROM users_avg_orders_comparison
+WHERE ratio > 1.5
+ORDER BY ratio DESC
 
-There was literally no need to use users table, so I didn't do it and followed best practices.
+Please mind THAT excluding null amounts is pointless, as every order has an amount.
 
 ---
 
-## Task 3: Daily Session Trends with 3-Day Rolling Average
+## Task 3: Message Response Time Analysis
 
 **Scenario:**
-The analytics team wants a daily overview of platform engagement. For each day in the `user_sessions_daily` data, calculate:
-- Total sessions across all users that day
-- A 3-day rolling average of total sessions (current day + 2 preceding days), rounded to 1 decimal
+The support team wants to understand how quickly agents respond to users within each ticket. For each ticket, find the first user message and the first agent response after it, then calculate the response time in minutes.
+
+A user message has `author_id IS NULL` (sent by the client).
+An agent message has `user_id IS NULL` (sent by the agent).
 
 **Expected Output Columns:**
-- `date` (date)
-- `total_daily_sessions` (bigint)
-- `rolling_3d_avg` (numeric)
+- `ticket_id` (bigint)
+- `first_user_message_at` (timestamp)
+- `first_agent_response_at` (timestamp) — first agent message AFTER the first user message, NULL if none
+- `response_time_minutes` (numeric) — minutes between the two, rounded to 1 decimal, NULL if no response
 
 **Requirements:**
-- Use `user_sessions_daily`
-- Rolling average window: `ROWS BETWEEN 2 PRECEDING AND CURRENT ROW`
-- Order by `date ASC`
+- Use `chat_messages` table
+- First user message = earliest message where `author_id IS NULL`
+- First agent response = earliest message where `user_id IS NULL` AND `created_at > first_user_message_at`
+- Order by `response_time_minutes ASC NULLS LAST`
 
-**Difficulty Rating:** 2/5
-
-WITH dates_sessions AS (
+**Difficulty Rating:** 5/5
+WITH users_first_msg AS (
 SELECT 
-	date,
-	SUM(count_sessions) AS total_daily_sessions
-FROM user_sessions_daily
-GROUP BY date
+	ticket_id,
+	MIN(created_at) AS first_user_message_at
+FROM chat_messages
+WHERE message_type = 'text' AND author_id IS NULL
+GROUP BY ticket_id
+),
+agents_response_times AS (
+SELECT 
+	ticket_id,
+	MIN(created_at) AS first_agent_response_at
+FROM chat_messages
+WHERE message_type = 'text' AND USER_ID IS NULL
+GROUP BY ticket_id
 )
 SELECT 
-	*,
-	ROUND(AVG(total_daily_sessions) OVER (ORDER BY date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 2) AS rolling_avg_3d
-FROM dates_sessions
+	ufm.ticket_id,
+	ufm.first_user_message_at,
+	art.first_agent_response_at,
+	EXTRACT('Minute' FROM art.first_agent_response_at - ufm.first_user_message_at) AS response_time_minutes
+FROM users_first_msg ufm
+JOIN agents_response_times art ON ufm.ticket_id = art.ticket_id
+ORDER BY response_time_minutes ASC
 
-Easy!
+
+Again, there were no nulls SO I OMITTED the NULLS LAST in order by, as it was pointless.
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Transaction type hierarchy (3/5)
-2. Task 2 — Order frequency cohorts (3/5)
-3. Task 3 — Daily session trends with rolling average (2/5)
+1. Task 1 — Chat ticket priority hierarchy (3/5)
+2. Task 2 — Order value outliers (4/5)
+3. Task 3 — Message response time analysis (5/5)

@@ -1,65 +1,73 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-02-24
-**Week 11, Day 2 Focus:** HackerRank Hard — Correlated Subqueries + Advanced Aggregations + Hierarchy
+**Generated:** 2026-02-25
+**Week 11, Day 3 Focus:** HackerRank Hard — Multi-CTE Combinations + EPOCH Practice + Hierarchy
 
 ---
 
-## Task 1: 3-Level Hierarchy — Chat Ticket Priorities and Top Tickets
+## Task 1: 3-Level Hierarchy — Users by Registration Month and Country
 
 **Scenario:**
-Build a 3-level hierarchy over support tickets:
-- Level 1: `'All Tickets'`
-- Level 2: Distinct priority levels from `chat_tickets` (dynamic)
-- Level 3: For each priority, the 3 most recently updated tickets (show ticket ID as text)
+Build a 3-level hierarchy over user registration data:
+- Level 1: `'All Users'`
+- Level 2: Distinct registration months (format: `YYYY-MM`, pulled dynamically from `users.created_at`)
+- Level 3: For each month, the 3 countries with the most registrations (show country name, exclude NULLs)
 
 **Expected Output Columns:**
 - `level` (integer)
-- `name` (text) — priority at Level 2, ticket ID at Level 3
+- `name` (text) — month string at Level 2, country at Level 3
 - `parent_name` (text)
 - `path` (text)
 
 **Requirements:**
-- Pre-aggregate distinct priorities and top-3-per-priority before the recursive CTE
-- Use `updated_at DESC` to define "most recently updated"
+- Pre-aggregate distinct months and top-3-countries-per-month before the recursive CTE
+- Format months as text using `TO_CHAR(created_at, 'YYYY-MM')`
+- Exclude NULL countries at Level 3
 - Termination condition required
 
-**Difficulty Rating:** 3/5
+**Difficulty Rating:** 4/5
 
-WITH RECURSIVE priorities AS (
+WITH RECURSIVE distinct_registration_months AS (
 SELECT 
-DISTINCT priority 
-FROM chat_tickets
+	DISTINCT date_trunc('Month', created_at) AS registration_month
+FROM users
+ORDER BY registration_month
 ),
-recently_updated_tickets AS (
-SELECT
-	priority,
-	created_at,
-	id,
-	RANK() OVER (PARTITION BY priority ORDER BY created_at DESC) AS recent_update_rank
-FROM chat_tickets
-),
-top3_recently_updated_tickets AS (
+countries_registrations AS (
 SELECT 
-* 
-FROM recently_updated_tickets
-WHERE recent_update_rank <= 3
+	date_trunc('Month', created_at) AS registration_month,
+	country,
+	COUNT(*) AS registered_users_cnt
+FROM users
+WHERE country IS NOT NULL
+GROUP BY date_trunc('Month', created_at), country
+ORDER BY registration_month
+),
+monthly_registration_rank AS (
+SELECT 
+	*,
+	RANK() OVER (PARTITION BY registration_month ORDER BY registered_users_cnt DESC) AS registration_rank
+FROM countries_registrations
+),
+top_three_countries_registration_rank AS (
+SELECT * FROM monthly_registration_rank
+WHERE registration_rank <= 3
 ),
 HIERARCHY AS (
 SELECT
 	1 AS LEVEL,
-	'All Tickets' AS name,
+	'All Users'::TEXT AS name,
 	NULL::TEXT AS parent_name,
-	'All Tickets' AS PATH
+	'All Users' AS PATH
 UNION ALL
 SELECT
 	h.LEVEL + 1,
-	COALESCE(pr.priority, t3r.id::TEXT),
+	COALESCE(TO_CHAR(drm.registration_month, 'YYYY-MM'), ttcr.country::TEXT),
 	h.name,
-	h.PATH || ' > ' || COALESCE(pr.priority, t3r.id::TEXT)
+	h.PATH || ' > ' || COALESCE(TO_CHAR(drm.registration_month, 'YYYY-MM'), ttcr.country::TEXT)
 FROM HIERARCHY h
-LEFT JOIN priorities pr ON h.LEVEL = 1
-LEFT JOIN top3_recently_updated_tickets t3r ON h.name = t3r.priority AND h.LEVEL = 2
+LEFT JOIN distinct_registration_months drm ON h.LEVEL = 1
+LEFT JOIN top_three_countries_registration_rank ttcr ON h.LEVEL = 2 AND h.name = TO_CHAR(ttcr.registration_month, 'YYYY-MM')
 WHERE h.LEVEL < 3
 )
 SELECT * FROM hierarchy
@@ -67,106 +75,103 @@ SELECT * FROM hierarchy
 
 ---
 
-## Task 2: Order Value Outliers (Correlated Subquery)
+## Task 2: Ticket Resolution Time Analysis (EPOCH Practice)
 
 **Scenario:**
-The analytics team wants to flag orders that are significantly above average for that user — specifically, orders where the amount is more than **1.5x the user's own average order value**.
+The support team wants to measure how long it takes to resolve tickets. For each resolved ticket (status = `'resolved'`), calculate the time between creation and last update (as a proxy for resolution time).
 
-For each such outlier order, show:
-
-**Expected Output Columns:**
-- `order_id` (integer)
-- `user_id` (integer)
-- `order_amount` (numeric) — rounded to 2 decimals
-- `user_avg_order_value` (numeric) — that user's average order amount, rounded to 2 decimals
-- `ratio` (numeric) — order_amount / user_avg_order_value, rounded to 2 decimals
-
-**Requirements:**
-- Use `orders` table only
-- Exclude NULL amounts
-- A correlated subquery OR a CTE-based approach is both acceptable — choose what feels right
-- Order by `ratio DESC`
-
-**Difficulty Rating:** 4/5
-
-WITH avg_users_orders AS (
-SELECT
-	user_id,
-	ROUND(AVG(amount)::NUMERIC, 2) AS user_avg_order_value
-FROM ORDERS
-GROUP BY user_id
-),
-users_avg_orders_comparison AS (
-SELECT 
-	auo.user_id,
-	auo.user_avg_order_value,
-	o.id AS order_id,
-	o.amount AS order_amount,
-	ROUND(o.amount::NUMERIC / auo.user_avg_order_value, 2) AS ratio
-FROM avg_users_orders auo
-JOIN orders o ON auo.user_id = o.user_id
-)
-SELECT * FROM users_avg_orders_comparison
-WHERE ratio > 1.5
-ORDER BY ratio DESC
-
-Please mind THAT excluding null amounts is pointless, as every order has an amount.
-
----
-
-## Task 3: Message Response Time Analysis
-
-**Scenario:**
-The support team wants to understand how quickly agents respond to users within each ticket. For each ticket, find the first user message and the first agent response after it, then calculate the response time in minutes.
-
-A user message has `author_id IS NULL` (sent by the client).
-An agent message has `user_id IS NULL` (sent by the agent).
+Then segment tickets by resolution speed:
+- `fast`: resolved in under 1 hour
+- `medium`: 1 to 24 hours
+- `slow`: more than 24 hours
 
 **Expected Output Columns:**
 - `ticket_id` (bigint)
-- `first_user_message_at` (timestamp)
-- `first_agent_response_at` (timestamp) — first agent message AFTER the first user message, NULL if none
-- `response_time_minutes` (numeric) — minutes between the two, rounded to 1 decimal, NULL if no response
+- `priority` (text)
+- `resolution_hours` (numeric) — hours between created_at and updated_at, rounded to 2 decimals
+- `resolution_segment` (text)
 
 **Requirements:**
-- Use `chat_messages` table
-- First user message = earliest message where `author_id IS NULL`
-- First agent response = earliest message where `user_id IS NULL` AND `created_at > first_user_message_at`
-- Order by `response_time_minutes ASC NULLS LAST`
+- Use `chat_tickets` table
+- Only include tickets where `status = 'resolved'`
+- Use `EXTRACT(EPOCH FROM ...)` to calculate the interval in seconds, then convert to hours
+- Order by `resolution_hours ASC`
 
-**Difficulty Rating:** 5/5
-WITH users_first_msg AS (
+**Difficulty Rating:** 3/5
+
+WITH resolved_tickets_resolUtion_times AS (
 SELECT 
-	ticket_id,
-	MIN(created_at) AS first_user_message_at
-FROM chat_messages
-WHERE message_type = 'text' AND author_id IS NULL
-GROUP BY ticket_id
-),
-agents_response_times AS (
-SELECT 
-	ticket_id,
-	MIN(created_at) AS first_agent_response_at
-FROM chat_messages
-WHERE message_type = 'text' AND USER_ID IS NULL
-GROUP BY ticket_id
+  cm.ticket_id,
+  ct.created_at AS ticket_creation_time,
+  cm.created_at AS ticket_resolve_time,
+  EXTRACT('Epoch' FROM cm.created_at - ct.created_at) / 60 AS resolution_minutes
+FROM chat_messages cm
+JOIN chat_tickets ct ON cm.ticket_id = ct.id
+WHERE cm.status = 'resolved'
 )
 SELECT 
-	ufm.ticket_id,
-	ufm.first_user_message_at,
-	art.first_agent_response_at,
-	EXTRACT('Minute' FROM art.first_agent_response_at - ufm.first_user_message_at) AS response_time_minutes
-FROM users_first_msg ufm
-JOIN agents_response_times art ON ufm.ticket_id = art.ticket_id
-ORDER BY response_time_minutes ASC
+	*,
+	CASE 
+		WHEN resolution_minutes <= 5 THEN 'fast'
+		WHEN resolution_minutes <= 10 THEN 'medium'
+		WHEN resolution_minutes > 10 THEN 'slow'
+	END AS resolution_segment
+FROM resolved_tickets_resolUtion_times
+ORDER BY resolution_minutes
+
+Adapted this to the acutal data, where 26 MINUTES was the maximum amount, so I adapted the resolution to minutes and used relevant values as filters for fast/medium/slow.
 
 
-Again, there were no nulls SO I OMITTED the NULLS LAST in order by, as it was pointless.
+---
+
+## Task 3: Product Affinity — Frequently Co-Purchased Products
+
+**Scenario:**
+The recommendations team wants to find product pairs that are frequently bought together in the same order. Find all pairs of products that appear together in at least 2 orders.
+
+**Expected Output Columns:**
+- `product_a_id` (integer)
+- `product_b_id` (integer)
+- `product_a_name` (text)
+- `product_b_name` (text)
+- `co_purchase_count` (bigint) — number of orders containing both products
+- `co_purchase_rank` (bigint) — rank by co_purchase_count DESC
+
+**Requirements:**
+- Use `orders_products` and `products` tables
+- A pair is defined as `product_a_id < product_b_id` to avoid duplicates
+- Only include pairs appearing in >= 2 orders
+- Order by `co_purchase_count DESC`, `product_a_id ASC`
+
+**Difficulty Rating:** 5/5
+
+There's a lot of co purchase count 3 and 2, so I used row number to actually rank them based on co_purchase_count and product_a_id ASC, as otherwise it wouldn't make sense :))
+
+WITH orders_product_pairs AS (
+SELECT 
+	op1.product_id AS product_a_id,
+	op2.product_id AS product_b_id,
+	p1."name" AS product_a_name,
+	p2.name AS product_b_name,
+	COUNT(op1.order_id) AS co_purchase_count
+FROM orders_products op1
+JOIN orders_products op2 ON op1.order_id = op2.order_id
+JOIN products p1 ON op1.product_id = p1.id
+JOIN products p2 ON op2.product_id = p2.id
+WHERE op1.product_id > op2.product_id
+GROUP BY op1.product_id, op2.product_id, p1."name", p2."name"
+ORDER BY co_purchase_count DESC, product_a_id
+)
+SELECT 
+	*,
+	ROW_NUMBER() OVER (ORDER BY co_purchase_count DESC)
+FROM orders_product_pairs
+WHERE co_purchase_count >= 2
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Chat ticket priority hierarchy (3/5)
-2. Task 2 — Order value outliers (4/5)
-3. Task 3 — Message response time analysis (5/5)
+1. Task 1 — Registration month/country hierarchy (4/5)
+2. Task 2 — Ticket resolution time with EPOCH (3/5)
+3. Task 3 — Product affinity pairs (5/5)

@@ -2433,3 +2433,22 @@ Two-CTE architecture correct. Data-aware adaptation: no cases where agent messag
 ## Student Feedback on Questions
 
 All tasks good. Task 3 prompted useful learning moment around EXTRACT('Epoch') vs EXTRACT('Minute') for interval calculations — student wants to practice EPOCH pattern more.
+n### Session: 2026-02-25 (Week 11, Day 3)n
+## Agent Feedback on Student — Week 11, Day 3
+
+**Task 1 — Registration Month/Country Hierarchy: 9/10**
+Solid execution. Key challenge — matching h.name (formatted string) against TO_CHAR(ttcr.registration_month, 'YYYY-MM') at Level 3 — handled correctly. NULL countries excluded in countries_registrations CTE. Termination condition present. Minor style point: storing raw date_trunc in distinct_registration_months and applying TO_CHAR in the recursive SELECT works correctly but formatting the string directly in the CTE would be cleaner.
+
+**Task 2 — Ticket Resolution Time: 9/10**
+EPOCH used correctly — EXTRACT('Epoch' FROM interval) / 60 for minutes is the right universal pattern. Joining chat_messages to find the actual statuschange to 'resolved' is more precise than using updated_at as a proxy — better real-world engineering. Data-driven adaptation (minutes instead of hours, thresholds 5/10 min) is correct — max resolution was 26 minutes, so hours would be meaningless. Minor: resolution_minutes appears via SELECT * without explicit alias in outer query.
+
+**Task 3 — Product Affinity Pairs: 9/10**
+Self-join pattern nailed. op1.product_id > op2.product_id correctly avoids duplicate pairs. Both product name joins correct. COUNT correct. ROW_NUMBER used instead of RANK — produces unique sequential ranks rather than tied ranks, but reasonable choice given the data. ROW_NUMBER() window function missing explicit alias in output.
+
+**Session Total: 27/30**
+
+---
+
+## Student Feedback on Questions
+
+All tasks enjoyed. No specific issues flagged.

@@ -1,73 +1,72 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-02-25
-**Week 11, Day 3 Focus:** HackerRank Hard — Multi-CTE Combinations + EPOCH Practice + Hierarchy
+**Generated:** 2026-02-26
+**Week 11, Day 4 Focus:** HackerRank Hard — Session Outliers + Multi-Table Aggregation + Hierarchy
 
 ---
 
-## Task 1: 3-Level Hierarchy — Users by Registration Month and Country
+## Task 1: 3-Level Hierarchy — Product Categories, Products, and Order Count
 
 **Scenario:**
-Build a 3-level hierarchy over user registration data:
-- Level 1: `'All Users'`
-- Level 2: Distinct registration months (format: `YYYY-MM`, pulled dynamically from `users.created_at`)
-- Level 3: For each month, the 3 countries with the most registrations (show country name, exclude NULLs)
+Build a 3-level hierarchy over product sales:
+- Level 1: `'All Categories'`
+- Level 2: Distinct category names (dynamic, from `product_categories`)
+- Level 3: For each category, the 3 products with the highest total quantity sold (show product name)
 
 **Expected Output Columns:**
 - `level` (integer)
-- `name` (text) — month string at Level 2, country at Level 3
+- `name` (text) — category name at Level 2, product name at Level 3
 - `parent_name` (text)
 - `path` (text)
 
 **Requirements:**
-- Pre-aggregate distinct months and top-3-countries-per-month before the recursive CTE
-- Format months as text using `TO_CHAR(created_at, 'YYYY-MM')`
-- Exclude NULL countries at Level 3
+- Pre-aggregate total quantity sold per product before the recursive CTE
+- Use `orders_products` and `products` and `product_categories`
 - Termination condition required
 
 **Difficulty Rating:** 4/5
 
-WITH RECURSIVE distinct_registration_months AS (
+
+WITH RECURSIVE product_sold_amt AS (
 SELECT 
-	DISTINCT date_trunc('Month', created_at) AS registration_month
-FROM users
-ORDER BY registration_month
+	op.product_id,
+	p."name" AS product_name,
+	p.category_id AS category_id,
+	pc.name AS category_name,
+	SUM(op.quantity) AS total_quantity_sold
+FROM orders_products op
+JOIN products p ON op.product_id = p.id
+JOIN product_categories pc ON pc.id = p.category_id
+GROUP BY op.product_id, p."name", p.category_id, pc.name
 ),
-countries_registrations AS (
-SELECT 
-	date_trunc('Month', created_at) AS registration_month,
-	country,
-	COUNT(*) AS registered_users_cnt
-FROM users
-WHERE country IS NOT NULL
-GROUP BY date_trunc('Month', created_at), country
-ORDER BY registration_month
-),
-monthly_registration_rank AS (
+product_sales_ranking AS (
 SELECT 
 	*,
-	RANK() OVER (PARTITION BY registration_month ORDER BY registered_users_cnt DESC) AS registration_rank
-FROM countries_registrations
+	RANK() OVER (PARTITION BY category_id ORDER BY total_quantity_sold DESC) AS product_sales_rank
+FROM product_sold_amt
 ),
-top_three_countries_registration_rank AS (
-SELECT * FROM monthly_registration_rank
-WHERE registration_rank <= 3
+top_three_products AS (
+SELECT * FROM product_sales_ranking
+WHERE product_sales_rank <= 3
+),
+distinct_categories AS (
+SELECT DISTINCT id, name FROM product_categories PC
 ),
 HIERARCHY AS (
 SELECT
 	1 AS LEVEL,
-	'All Users'::TEXT AS name,
+	'All Categories' AS name,
 	NULL::TEXT AS parent_name,
-	'All Users' AS PATH
+	'All Categories' AS PATH
 UNION ALL
 SELECT
 	h.LEVEL + 1,
-	COALESCE(TO_CHAR(drm.registration_month, 'YYYY-MM'), ttcr.country::TEXT),
+	COALESCE(dc.name::TEXT, ttp.product_name),
 	h.name,
-	h.PATH || ' > ' || COALESCE(TO_CHAR(drm.registration_month, 'YYYY-MM'), ttcr.country::TEXT)
+	h.PATH || ' > ' || COALESCE(dc.name::TEXT, ttp.product_name)
 FROM HIERARCHY h
-LEFT JOIN distinct_registration_months drm ON h.LEVEL = 1
-LEFT JOIN top_three_countries_registration_rank ttcr ON h.LEVEL = 2 AND h.name = TO_CHAR(ttcr.registration_month, 'YYYY-MM')
+LEFT JOIN distinct_categories dc ON h.LEVEL = 1
+LEFT JOIN top_three_products ttp ON h.LEVEL = 2 AND h.name = ttp.category_name
 WHERE h.LEVEL < 3
 )
 SELECT * FROM hierarchy
@@ -75,103 +74,107 @@ SELECT * FROM hierarchy
 
 ---
 
-## Task 2: Ticket Resolution Time Analysis (EPOCH Practice)
+## Task 2: User Session Outlier Days
 
 **Scenario:**
-The support team wants to measure how long it takes to resolve tickets. For each resolved ticket (status = `'resolved'`), calculate the time between creation and last update (as a proxy for resolution time).
+The engagement team wants to identify days where a user's session count was unusually high — specifically, days where their session count was more than **2 standard deviations above their own mean**.
 
-Then segment tickets by resolution speed:
-- `fast`: resolved in under 1 hour
-- `medium`: 1 to 24 hours
-- `slow`: more than 24 hours
+For each such outlier day, show:
 
 **Expected Output Columns:**
-- `ticket_id` (bigint)
-- `priority` (text)
-- `resolution_hours` (numeric) — hours between created_at and updated_at, rounded to 2 decimals
-- `resolution_segment` (text)
+- `user_id` (integer)
+- `date` (date)
+- `count_sessions` (integer)
+- `user_avg_sessions` (numeric) — that user's average daily sessions, rounded to 2 decimals
+- `user_stddev_sessions` (numeric) — that user's standard deviation of daily sessions, rounded to 2 decimals
+- `z_score` (numeric) — (count_sessions - user_avg) / user_stddev, rounded to 2 decimals
 
 **Requirements:**
-- Use `chat_tickets` table
-- Only include tickets where `status = 'resolved'`
-- Use `EXTRACT(EPOCH FROM ...)` to calculate the interval in seconds, then convert to hours
-- Order by `resolution_hours ASC`
+- Use `user_sessions_daily`
+- Use `AVG()` and `STDDEV()` as window functions (no GROUP BY needed)
+- Exclude rows where stddev = 0 (user has identical session count every day — no outliers possible)
+- Order by `z_score DESC`
 
-**Difficulty Rating:** 3/5
+**Difficulty Rating:** 4/5
 
-WITH resolved_tickets_resolUtion_times AS (
-SELECT 
-  cm.ticket_id,
-  ct.created_at AS ticket_creation_time,
-  cm.created_at AS ticket_resolve_time,
-  EXTRACT('Epoch' FROM cm.created_at - ct.created_at) / 60 AS resolution_minutes
-FROM chat_messages cm
-JOIN chat_tickets ct ON cm.ticket_id = ct.id
-WHERE cm.status = 'resolved'
+WITH users_sessions_metrics AS (
+SELECT
+	user_id,
+	ROUND(STDDEV(count_sessions), 2) AS user_stddev_sessions,
+	ROUND(AVG(count_sessions), 2) AS avg_user_daily_sessions
+FROM user_sessions_daily usd 
+GROUP BY user_id
 )
 SELECT 
-	*,
-	CASE 
-		WHEN resolution_minutes <= 5 THEN 'fast'
-		WHEN resolution_minutes <= 10 THEN 'medium'
-		WHEN resolution_minutes > 10 THEN 'slow'
-	END AS resolution_segment
-FROM resolved_tickets_resolUtion_times
-ORDER BY resolution_minutes
-
-Adapted this to the acutal data, where 26 MINUTES was the maximum amount, so I adapted the resolution to minutes and used relevant values as filters for fast/medium/slow.
-
+	usd.user_id,
+	usd.date,
+	usd.count_sessions,
+	usm.avg_user_daily_sessions AS user_avg_sessions,
+	usm.user_stddev_sessions,
+	ROUND((usd.count_sessions - usm.avg_user_daily_sessions) / usm.user_stddev_sessions, 2) AS z_score
+FROM users_sessions_metrics usm
+JOIN user_sessions_daily usd ON usd.user_id = usm.user_id
+WHERE usm.user_stddev_sessions != 0
+ORDER BY z_score DESC
 
 ---
 
-## Task 3: Product Affinity — Frequently Co-Purchased Products
+## Task 3: Monthly Revenue vs Previous Year Same Month
 
 **Scenario:**
-The recommendations team wants to find product pairs that are frequently bought together in the same order. Find all pairs of products that appear together in at least 2 orders.
+The finance team wants a year-over-year comparison of monthly order revenue. For each month, show the revenue and compare it to the same month in the previous year.
 
 **Expected Output Columns:**
-- `product_a_id` (integer)
-- `product_b_id` (integer)
-- `product_a_name` (text)
-- `product_b_name` (text)
-- `co_purchase_count` (bigint) — number of orders containing both products
-- `co_purchase_rank` (bigint) — rank by co_purchase_count DESC
+- `month` (date) — truncated to month
+- `monthly_revenue` (numeric) — total order amount that month, rounded to 2 decimals
+- `same_month_prev_year_revenue` (numeric) — revenue for the same month 1 year ago, rounded to 2 decimals, NULL if no data
+- `yoy_change` (numeric) — monthly_revenue minus same_month_prev_year_revenue, rounded to 2 decimals, NULL if no previous year data
+- `yoy_pct_change` (numeric) — percentage change vs previous year, rounded to 1 decimal, NULL if no previous year data
 
 **Requirements:**
-- Use `orders_products` and `products` tables
-- A pair is defined as `product_a_id < product_b_id` to avoid duplicates
-- Only include pairs appearing in >= 2 orders
-- Order by `co_purchase_count DESC`, `product_a_id ASC`
+- Use `orders` table
+- Use `LAG` with `OFFSET 12` to get the same month from the previous year
+- Exclude NULL order amounts
+- Order by `month ASC`
 
-**Difficulty Rating:** 5/5
+**Difficulty Rating:** 4/5
 
-There's a lot of co purchase count 3 and 2, so I used row number to actually rank them based on co_purchase_count and product_a_id ASC, as otherwise it wouldn't make sense :))
-
-WITH orders_product_pairs AS (
+WITH orders_months AS (
 SELECT 
-	op1.product_id AS product_a_id,
-	op2.product_id AS product_b_id,
-	p1."name" AS product_a_name,
-	p2.name AS product_b_name,
-	COUNT(op1.order_id) AS co_purchase_count
-FROM orders_products op1
-JOIN orders_products op2 ON op1.order_id = op2.order_id
-JOIN products p1 ON op1.product_id = p1.id
-JOIN products p2 ON op2.product_id = p2.id
-WHERE op1.product_id > op2.product_id
-GROUP BY op1.product_id, op2.product_id, p1."name", p2."name"
-ORDER BY co_purchase_count DESC, product_a_id
+	*,
+	DATE_TRUNC('Month', created_at) AS month_
+	--DATE_TRUNC('Month', (DATE_TRUNC('Month', created_at) - INTERVAL '365' DAY)) AS prev_year
+FROM orders
+),
+monthly_revenueS AS (
+SELECT 
+	month_,
+	--prev_year,
+	SUM(amount) AS total_revenue
+FROM orders_months
+GROUP BY month_
+ORDER BY month_
+),
+revenues_prev_year AS (
+SELECT 
+	*,
+	LAG(total_revenue, 12) OVER (ORDER BY month_) AS same_month_prev_year_revenue
+FROM monthly_revenues
 )
 SELECT 
 	*,
-	ROW_NUMBER() OVER (ORDER BY co_purchase_count DESC)
-FROM orders_product_pairs
-WHERE co_purchase_count >= 2
+	total_revenue - same_month_prev_year_revenue AS yoy_change,
+	ROUND(total_revenue::NUMERIC / same_month_prev_year_revenue::NUMERIC * 100, 1) || '%' AS yoy_pct_change
+FROM revenues_prev_year
+WHERE same_month_prev_year_revenue IS NOT NULL
+
+Learning that we can specify the offset number in LAG is very useful - I didn't know that to be honest.
+
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Registration month/country hierarchy (4/5)
-2. Task 2 — Ticket resolution time with EPOCH (3/5)
-3. Task 3 — Product affinity pairs (5/5)
+1. Task 1 — Category/product hierarchy by quantity sold (4/5)
+2. Task 2 — User session outlier days with z-score (4/5)
+3. Task 3 — Monthly revenue vs previous year (4/5)

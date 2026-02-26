@@ -2452,3 +2452,22 @@ Self-join pattern nailed. op1.product_id > op2.product_id correctly avoids dupli
 ## Student Feedback on Questions
 
 All tasks enjoyed. No specific issues flagged.
+n### Session: 2026-02-26 (Week 11, Day 4)n
+## Agent Feedback on Student — Week 11, Day 4
+
+**Task 1 — Product Category Hierarchy: 10/10**
+Flawless. Three-table pre-aggregation clean, distinct_categories for Level 2, top_three_products for Level 3, correct join conditions, termination condition, path building correct.
+
+**Task 2 — User Session Outlier Days: 9/10**
+Correct result. GROUP BY + JOIN approach instead of window functions — equivalent output, valid choice. STDDEV + AVG per user, z-score formula correct, stddev != 0 guard correct. Minor: spec asked for window function approach (no GROUP BY needed); GROUP BY + self-join is slightly less elegant but produces identical results. Prefer `> 0` over `!= 0` for stddev guard since STDDEV can return NULL for single-row users.
+
+**Task 3 — Monthly Revenue YoY: 9/10**
+LAG(total_revenue, 12) correct — key learning that LAG accepts an offset parameter. Commented-out alternative shows good thinking. WHERE filter for NULL prev-year correct. Minor: yoy_pct_change formula shows percentage-of (e.g. 150%) rather than percentage-change (e.g. +50%) — spec asked for change. Missing ROUND on total_revenue and yoy_change in final SELECT.
+
+**Session Total: 28/30**
+
+---
+
+## Student Feedback on Questions
+
+Interesting session, ~40 minutes. Key learning: LAG with specified offset (LAG(col, 12)) — student was unaware of this syntax. All tasks enjoyed.

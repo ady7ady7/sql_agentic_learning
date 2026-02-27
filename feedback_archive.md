@@ -2471,3 +2471,56 @@ LAG(total_revenue, 12) correct — key learning that LAG accepts an offset param
 ## Student Feedback on Questions
 
 Interesting session, ~40 minutes. Key learning: LAG with specified offset (LAG(col, 12)) — student was unaware of this syntax. All tasks enjoyed.
+n### Session: 2026-02-27 (Week 11, Day 5 + Weekly Recap)n
+## Agent Feedback on Student — Week 11, Day 5
+
+**Task 1 — Chat Ticket Status/Priority Hierarchy: 10/10**
+Flawless. String formatting in Level 3 (priority || ' (' || ticket_cnt || ')') handled cleanly inside COALESCE. distinct_statuses for Level 2, top_three_counts for Level 3, correct join conditions, termination condition. Nothing to fault.
+
+**Task 2 — Monthly Order Streaks: 10/10**
+Excellent. Monthly gaps-and-islands applied correctly — DATE_TRUNC('Month') + ROW_NUMBER() * INTERVAL '1 MONTH' subtraction for streak key. Revenue join using WHERE order_month BETWEEN streak_start AND streak_end clean and correct. MAX(row_number) for streak_length is a clever reuse of the already-computed RN. Data-aware: no streaks >= 3 months in dataset, correctly reported and threshold not applied.
+
+**Task 3 — Ticket Complexity Score: 10/10**
+Clean multi-CTE architecture. WHERE message_type = 'text' correctly excludes statuschange events — a statuschange is a system event, not a message. unique_authors + unique_users for participants is a reasonable interpretation. Score formula correct. DENSE_RANK used — good choice for tied scores. Score already integer by construction, no rounding needed.
+
+**Session Total: 30/30**
+
+---
+
+## Student Feedback on Questions
+
+All tasks enjoyed, ~40 minutes, very satisfying session. Strong finish to the week.
+
+---
+
+## Weekly Summary — Week 11 (2026-02-23 to 2026-02-27)
+
+### Progress Bar
+██████████ 95% toward HackerRank Advanced SQL qualification
+
+### Daily Scores
+- Day 1: 29/30 (warm-up)
+- Day 2: 28/30
+- Day 3: 27/30
+- Day 4: 28/30
+- Day 5: 30/30
+- **Week Average: 28.4/30 (94.7%)**
+
+### Key Wins This Week
+- **Perfect score on Day 5** — all three tasks at full difficulty, clean and confident
+- **Monthly gaps-and-islands** — applied the RN-subtraction pattern at month granularity with revenue join, no hesitation
+- **EPOCH mastered** — EXTRACT(EPOCH FROM interval)/60 now used correctly and universally
+- **LAG with offset** — LAG(col, 12) for YoY comparison learned and applied correctly
+- **String formatting inside hierarchy** — Level 3 name as formatted composite string (priority + count)
+- **Data-aware professionalism** — consistently adapting thresholds to actual data, reporting findings when data doesn't support spec
+
+### Focus Areas / Minor Recurring Misses
+- **YoY pct_change formula** — percentage-of vs percentage-change distinction (Day 4 Task 3)
+- **ROUND on final output columns** — occasional misses on rounding intermediate values in final SELECT
+- **Window functions vs GROUP BY** — both approaches produce correct results; window approach preferred per spec but GROUP BY + JOIN is equally valid
+
+### Next Week Plan (Week 12 — Final Week)
+- **Timed HackerRank Hard simulations** — 3 questions, 45-minute target, no hints
+- **Query optimization theory** — EXPLAIN ANALYZE reading, index strategies, identifying expensive operations
+- **Recursive CTEs beyond hierarchy** — graph traversal, bill-of-materials patterns
+- **Final exam readiness assessment** — simulate full HackerRank Advanced qualification test

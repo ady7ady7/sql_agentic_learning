@@ -1,226 +1,141 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-02-27
-**Week 11, Day 5 Focus:** Friday Challenge — Full HackerRank Hard Simulation
+**Generated:** 2026-03-02
+**Week 12, Day 1 Focus:** Light Recovery Session — Core Fundamentals
 
 ---
 
-## Task 1: 3-Level Hierarchy — Chat Tickets by Status and Priority
+## Task 1: Top Spenders per Country
 
 **Scenario:**
-Build a 3-level hierarchy over support ticket data:
-- Level 1: `'All Tickets'`
-- Level 2: Distinct ticket statuses (dynamic, from `chat_tickets`)
-- Level 3: For each status, the 3 priorities with the most tickets (show priority name and count as text, e.g. `'high (42)'`)
+Find the top 3 users by total order amount in each country.
 
 **Expected Output Columns:**
-- `level` (integer)
-- `name` (text) — status at Level 2, `'priority (count)'` string at Level 3
-- `parent_name` (text)
-- `path` (text)
-
-**Requirements:**
-- Pre-aggregate ticket counts per status+priority before the recursive CTE
-- Level 3 name should be formatted as `priority || ' (' || count::text || ')'`
-- Termination condition required
-
-**Difficulty Rating:** 4/5
-
-WITH RECURSIVE ticket_counts AS (
-SELECT 
-	priority,
-	status,
-	COUNT(*) AS ticket_cnt
-FROM chat_tickets
-GROUP BY priority, status
-),
-counts_rank AS
-(
-SELECT 
-	*,
-	ROW_NUMBER() OVER (PARTITION BY status ORDER BY ticket_cnt DESC) AS rank_
-FROM ticket_counts
-),
-distinct_statuses AS (
-SELECT DISTINCT status FROM  chat_tickets
-),
-top_three_counts AS (
-SELECT * FROM counts_rank
-WHERE rank_ <= 3
-),
-HIERARCHY AS (
-SELECT
-	1 AS LEVEL,
-	'All Tickets' AS name,
-	NULL::TEXT AS parent_name,
-	'All Tickets' AS PATH
-UNION ALL
-SELECT
-	h.LEVEL + 1,
-	COALESCE(ds.status, ttc.priority || ' (' || ttc.ticket_cnt || ')'),
-	h.name,
-	h.PATH || ' > ' || COALESCE(ds.status, ttc.priority || ' (' || ttc.ticket_cnt || ')')
-FROM HIERARCHY h
-LEFT JOIN distinct_statuses ds ON h.LEVEL = 1
-LEFT JOIN top_three_counts ttc ON h.LEVEL = 2 AND ttc.status = h.name
-WHERE h.LEVEL < 3
-)
-SELECT * FROM hierarchy
-
-It wasn't easy, but it's a nice practice exercise for formatting
-
-
----
-
-## Task 2: Gaps-and-Islands — User Order Streaks by Month
-
-**Scenario:**
-The retention team wants to find users with long consecutive monthly ordering streaks. A streak is a sequence of calendar months where the user placed at least one order each month, with no gaps.
-
-Find users with a streak of at least 3 consecutive months. For each qualifying user show their longest streak only.
-
-**Expected Output Columns:**
+- `country` (text)
 - `user_id` (integer)
-- `streak_start` (date) — first month of the streak (truncated to month)
-- `streak_end` (date) — last month of the streak
-- `streak_length` (bigint) — number of consecutive months
-- `streak_revenue` (numeric) — total order revenue during the streak, rounded to 2 decimals
+- `total_spent` (numeric) — rounded to 2 decimals
+- `country_rank` (bigint)
 
 **Requirements:**
-- Use `orders` table
-- Truncate orders to month, deduplicate (one row per user per month)
-- Apply gaps-and-islands: `ROW_NUMBER()` subtracted from the month produces the streak group key
-- For streak_revenue: join back to raw orders to sum amounts within the streak period
-- If a user has multiple streaks of equal length, show the most recent one
-- Order by `streak_length DESC`, `streak_revenue DESC`
+- Use `users` and `orders` tables
+- Exclude NULL countries
+- Order by `country ASC`, `country_rank ASC`
 
-**Difficulty Rating:** 5/5
+**Difficulty Rating:** 2/5
 
-That's one of the hardest tasks we've had recently, but I've handled it well and check whether it works properly - it does and correctly sums up the revenues across different months of the streak. However, THERE WERE NO users with streak above 2 months, so obviously I didn't filter for that. FYI: Streak revenue is rounded to 2 decimals by default.
-
-WITH users_order_months AS (
+WITH users_countries_spendings AS (
 SELECT 
-	DISTINCT user_id,
-	DATE_TRUNC('Month', created_at) AS order_month
-FROM orders
+	u.country,
+	o.user_id,
+	SUM(o.amount) AS total_spent
+FROM users u
+JOIN orders o ON u.id = o.user_id
+WHERE u.country IS NOT NULL
+GROUP BY u.country, o.user_id
 ),
-users_months_rn AS (
+countries_spendings_ranks AS (
 SELECT 
 	*,
-	ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY order_month)
-FROM users_order_months
-),
-users_streak_keys AS (
-SELECT 
-	*,
-	order_month - row_number * INTERVAL '1' MONTH AS streak_key
-FROM users_months_rn
-),
-users_monthly_streaks_no_revenue AS (
-SELECT
- 	user_id,
- 	streak_key,
- 	MIN(order_month) AS streak_start,
- 	MAX(order_month) AS streak_end,
- 	max(row_number) AS streak_length
- FROM users_streak_keys
- GROUP BY user_id, streak_key
-ORDER BY user_id
-),
-users_orders AS (
-SELECT 
-	user_id,
-	amount,
-	DATE_TRUNC('Month', created_at) AS order_month
-FROM orders
-),
-users_monthly_revenues AS (
-SELECT
-	user_id,
-	order_month,
-	SUM(amount) AS total_revenue
-FROM users_orders
-GROUP BY user_id, order_month
+	RANK() OVER (PARTITION BY COUNTRY ORDER BY total_spent DESC) AS country_spending_rank
+FROM users_countries_spendings
 )
 SELECT 
-	umsnr.user_id,
-	umsnr.streak_start,
-	umsnr.streak_end,
-	umsnr.streak_length,
-	SUM(umr.total_revenue) AS streak_revenue
-FROM users_monthly_streaks_no_revenue umsnr
-JOIN users_monthly_revenues umr ON umsnr.user_id = umr.user_id
-WHERE umr.order_month >= umsnr.streak_start AND umr.order_month <= umsnr.streak_end
-GROUP BY umsnr.user_id, umsnr.streak_start, umsnr.streak_end, umsnr.streak_length
-ORDER BY streak_length DESC, streak_revenue DESC
+	*
+FROM countries_spendings_ranks
+WHERE country_spending_rank <= 3
+ORDER BY country, country_spending_rank
 
 
 ---
 
-## Task 3: Support Ticket Complexity Score
+## Task 2: Daily Order Count with 7-Day Rolling Average
 
 **Scenario:**
-The support team wants to score each ticket by complexity — based on how many messages it received, how many unique participants were involved, and whether it was escalated (ever had `priority = 'urgent'`).
-
-Complexity score formula:
-`(message_count * 1.0) + (unique_participants * 2.0) + (is_urgent * 5.0)`
+For each day that has at least one order, show the number of orders placed and a 7-day rolling average of order count.
 
 **Expected Output Columns:**
+- `date` (date)
+- `daily_order_count` (bigint)
+- `rolling_7d_avg` (numeric) — rounded to 1 decimal
+
+**Requirements:**
+- Use `orders` table only
+- Truncate `created_at` to date
+- Rolling window: `ROWS BETWEEN 6 PRECEDING AND CURRENT ROW`
+- Order by `date ASC`
+
+**Difficulty Rating:** 2/5
+
+WITH orders_dates AS (
+SELECT 
+	*,
+	DATE_TRUNC('Day', created_at) AS date
+FROM orders
+),
+dates_order_cnt AS (
+SELECT 
+	date,
+	COUNT(id) AS daily_order_count
+FROM orders_dates
+GROUP BY date
+ORDER BY date
+)
+SELECT 
+	*,
+	ROUND(AVG(daily_order_count) OVER (ORDER BY date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW), 1) AS rolling_7d_avg
+FROM dates_order_cnt
+
+---
+
+## Task 3: Most Active Support Ticket per User
+
+**Scenario:**
+For each user who has opened at least one ticket, find their most active ticket — the one with the most messages.
+
+**Expected Output Columns:**
+- `user_id` (bigint)
 - `ticket_id` (bigint)
+- `ticket_status` (text)
 - `message_count` (bigint)
-- `unique_participants` (bigint) — distinct non-NULL user_ids from `chat_messages`
-- `is_urgent` (integer) — 1 if ticket priority is `'urgent'`, 0 otherwise
-- `complexity_score` (numeric) — rounded to 1 decimal
-- `complexity_rank` (bigint) — ranked by complexity_score DESC
 
 **Requirements:**
 - Use `chat_tickets` and `chat_messages`
-- Only include tickets with at least 2 messages
-- Order by `complexity_rank ASC`
+- If a user has multiple tickets with the same max message count, show the most recently created one
+- Order by `message_count DESC`
 
-**Difficulty Rating:** 4/5
+**Difficulty Rating:** 2/5
 
-
-WITH tickets_msgs_participants AS (
+WITH tickets_msg_count AS (
 SELECT 
 	ticket_id,
-	COUNT(*) AS msg_cnt,
-	COUNT(DISTINCT(author_id)) AS unique_authors,
-	COUNT(DISTINCT(user_id)) AS unique_users
+	COUNT(id) AS msg_count
 FROM chat_messages
 WHERE message_type = 'text'
 GROUP BY ticket_id
 ),
-tickets_shallow_rank AS (
-SELECT 
-	ct.id AS ticket_id,
-	tmp.msg_cnt,
-	tmp.unique_authors + tmp.unique_users AS unique_participants,
-	CASE 
-		WHEN ct.priority = 'urgent' THEN 1 ELSE 0
-	END AS is_urgent
-FROM chat_tickets ct
-JOIN tickets_msgs_participants tmp ON ct.id = tmp.ticket_id
-),
-tickets_complexity_scores AS (
-SELECT 
+users_ticket_ranks AS (
+SELECT
 	*,
-	(msg_cnt * 1.0) + (unique_participants * 2.0) + (is_urgent * 5.0) AS complexity_score
-FROM tickets_shallow_rank
-WHERE msg_cnt >= 2
+	RANK() OVER (PARTITION BY user_id ORDER BY msg_count DESC) AS user_ticket_rank
+FROM tickets_msg_count tmc
+JOIN chat_tickets ct ON TMC.ticket_id = ct.id
 )
 SELECT 
-	*,
-	DENSE_RANK() OVER (ORDER BY complexity_score DESC) AS complexity_rank
-FROM tickets_complexity_scores
-ORDER BY complexity_rank
+	user_id,
+	ticket_id,
+	status,
+	msg_count
+FROM users_ticket_ranks
+WHERE user_ticket_rank = 1
+ORDER BY msg_count DESC
 
-FYI: Null users were not counted here, the score is already rounded, as all the results are int numbers (there's no other possibility), and everything is as you wanted.
+Done and functioning as expected. There were no duplicate msg counts, so it worked perfectly.
+
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Chat ticket status/priority hierarchy (4/5)
-2. Task 2 — Monthly order streaks (5/5)
-3. Task 3 — Ticket complexity score (4/5)
+1. Task 1 — Top spenders per country (2/5)
+2. Task 2 — Daily orders with rolling average (2/5)
+3. Task 3 — Most active ticket per user (2/5)

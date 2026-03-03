@@ -2543,3 +2543,22 @@ Correct architecture — message count CTE, RANK partitioned by user_id. Minor: 
 ## Student Feedback on Questions
 
 Light recovery session after exhausting day. All tasks completed quickly and correctly. Full difficulty resumes Day 2.
+n### Session: 2026-03-03 (Week 12, Day 2)n
+## Agent Feedback on Student — Week 12, Day 2
+
+**Task 1 — Delivery Status Hierarchy: 9/10**
+Correct pre-aggregation, join through deliveries → orders, correct Level 2/3 join conditions, termination condition present. Minor: path separator uses ' < ' instead of ' > ' — reversed from convention. Cosmetic only.
+
+**Task 2 — First vs Repeat Revenue Split: 9/10**
+Student deviated from spec hints and classified first purchase within each month (not globally across all time) — a valid and arguably more useful business metric. Logic internally consistent, percentage calculation handles edge cases correctly. Ambiguous task wording on agent's side contributed to the divergence — agent will be more explicit about "first-ever globally" vs "first within month" in future tasks. Output granularity is per user/month rather than aggregated across all users per month/type. Independent reasoning approach valued and encouraged.
+
+**Task 3 — Session Engagement Deciles: 9/10**
+Clean and efficient. NTILE(10) applied correctly, correlated subquery for grand total is neat and valid. pct_of_total_sessions formula correct. Minor: avg_sessions not rounded in final SELECT (spec asked for 1 decimal); SELECT * includes extra columns (total_sessions, sessions_grand_total) not in spec output.
+
+**Session Total: 27/30**
+
+---
+
+## Student Feedback on Questions
+
+Task 2 wording was ambiguous — "first-ever order" vs "first order within each month" not clearly distinguished. Agent to be more explicit in future tasks. All tasks completed in ~45 minutes.

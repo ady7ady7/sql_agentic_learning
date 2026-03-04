@@ -2562,3 +2562,22 @@ Clean and efficient. NTILE(10) applied correctly, correlated subquery for grand 
 ## Student Feedback on Questions
 
 Task 2 wording was ambiguous — "first-ever order" vs "first order within each month" not clearly distinguished. Agent to be more explicit in future tasks. All tasks completed in ~45 minutes.
+n### Session: 2026-03-04 (Week 12, Day 3)n
+## Agent Feedback on Student — Week 12, Day 3
+
+**Task 1 — Transaction Type/City Hierarchy: 9/10**
+Correct pre-aggregation, join to users for city, RANK partitioned by type, correct Level 2/3 join conditions, termination condition present. Two minor points: missing COALESCE(city, 'Unknown') for NULL cities; path separator ' < ' instead of ' > ' (recurring cosmetic issue).
+
+**Task 2 — Global First Purchase vs Repeat: 10/10**
+Textbook execution. FIRST_VALUE(created_at) OVER (PARTITION BY user_id ORDER BY created_at) correctly identifies global first order without month partitioning. Classification, aggregation, and percentage calculation all correct. Clean 4-CTE structure. Output matches spec exactly.
+
+**Task 3 — Order to Delivery Fulfillment Time: 9/10**
+EPOCH/3600 used correctly. WHERE d.status = 'delivered' is a valid and practical real-world interpretation — measuring completed delivery speed rather than all delivery records. Ambiguous spec wording on agent's side. Missing ROUND on hours_to_fulfillment (spec asked for 2 decimals).
+
+**Session Total: 28/30**
+
+---
+
+## Student Feedback on Questions
+
+Task 3 wording ambiguous — "only include orders that have a delivery record" could mean any delivery record or only completed ones. Agent to be more specific about delivery status filtering in future. All tasks completed, good session.

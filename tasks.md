@@ -1,214 +1,204 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-03-03
-**Week 12, Day 2 Focus:** HackerRank Hard — Full Difficulty
+**Generated:** 2026-03-04
+**Week 12, Day 3 Focus:** HackerRank Hard — Exam Simulation Style
 
 ---
 
-## Task 1: 3-Level Hierarchy — Orders by Delivery Status and Top Users
+## Task 1: 3-Level Hierarchy — Transaction Types, Top Users, and Their Cities
 
 **Scenario:**
-Build a 3-level hierarchy over order/delivery data:
-- Level 1: `'All Orders'`
-- Level 2: Distinct delivery statuses (dynamic, from `deliveries`)
-- Level 3: For each status, the 3 users with the highest total order amount under that delivery status (show user_id as text)
+Build a 3-level hierarchy over transaction data:
+- Level 1: `'All Transactions'`
+- Level 2: Distinct transaction types (dynamic, from `transactions`)
+- Level 3: For each type, the 3 users with the highest total transaction amount — show their city (or `'Unknown'` if NULL)
 
 **Expected Output Columns:**
 - `level` (integer)
-- `name` (text) — status at Level 2, user_id at Level 3
+- `name` (text) — type at Level 2, city name (or `'Unknown'`) at Level 3
 - `parent_name` (text)
 - `path` (text)
 
 **Requirements:**
-- Join `deliveries → orders` to get user_id and amount per delivery status
-- Pre-aggregate totals per user+status, then rank before the recursive CTE
+- Join `transactions → users` to get city per user
+- Pre-aggregate total amount per user+type, rank, keep top 3
+- Use `COALESCE(city, 'Unknown')` for NULL cities
 - Termination condition required
 
-**Difficulty Rating:** 4/5
-
-WITH RECURSIVE distinct_statuses AS (
-SELECT DISTINCT status FROM deliveries
-),
-users_delivery_statuses AS (
+WITH RECURSIVE transaction_types_amounts AS (
 SELECT 
-	o.user_id,
-	d.status,
-	SUM(o.amount) AS total_amount
-FROM deliveries d
-JOIN orders o ON d.order_id = o.id
-GROUP BY o.user_id, d.status
-ORDER BY o.user_id
+	user_id,
+	TYPE,
+	SUM(amount) AS transaction_amount
+FROM transactions
+GROUP BY user_id, TYPE
 ),
-users_statuses_rank AS (
+user_type_ranks AS (
 SELECT 
-	*,
-	RANK() OVER (PARTITION BY status ORDER BY total_amount DESC) AS status_rank
-FROM users_delivery_statuses
+	tta.user_id,
+	u.city,
+	tta."type",
+	tta.transaction_amount,
+	RANK() OVER (PARTITION BY TYPE ORDER BY transaction_amount DESC) AS type_rank
+FROM transaction_types_amounts tta
+JOIN users u ON u.id = tta.user_id
 ),
-top_three_orders_per_status AS (
+top_three_user_per_transaction_type AS (
+SELECT * FROM user_type_ranks
+WHERE type_rank <= 3
+),
+distinct_types AS (
 SELECT 
-	* 
-FROM users_statuses_rank
-WHERE status_rank <= 3
+DISTINCT TYPE
+FROM transactions
 ),
 HIERARCHY AS (
 SELECT
-	1 AS level,
-	'All Orders' AS name,
+	1 AS LEVEL,
+	'All Transactions' AS name,
 	NULL::TEXT AS parent_name,
-	'All Orders' AS PATH
+	'All Transactions' AS PATH
 UNION ALL
 SELECT
 	h.LEVEL + 1,
-	COALESCE(ds.status, tto.user_id::TEXT),
+	COALESCE(ds.TYPE, ttu.city),
 	h.name,
-	h.PATH || ' < ' || COALESCE(ds.status, tto.user_id::TEXT)
+	h.PATH || ' < ' || COALESCE(ds.TYPE, ttu.city)
 FROM HIERARCHY h
-LEFT JOIN distinct_statuses ds ON h.LEVEL = 1
-LEFT JOIN top_three_orders_per_status tto ON h.LEVEL = 2 AND tto.status = h.name
+LEFT JOIN distinct_types ds ON h.LEVEL = 1
+LEFT JOIN top_three_user_per_transaction_type ttu ON h.LEVEL = 2 AND ttu.TYPE = h.name
 WHERE h.LEVEL < 3
 )
 SELECT * FROM hierarchy
 
 
+
+**Difficulty Rating:** 4/5
+
 ---
 
-## Task 2: First and Repeat Purchaser Revenue Split
+## Task 2: Global First Purchase vs Repeat — Monthly Revenue Split
 
 **Scenario:**
-The growth team wants to understand how much revenue comes from first-time buyers vs repeat buyers each month.
+The growth team wants to understand monthly revenue from brand-new buyers (placing their very first order ever) vs returning buyers (any order after their first).
 
-For each month, classify each order as either a user's first-ever order (`first_purchase`) or a subsequent one (`repeat_purchase`), then aggregate revenue by month and purchase type.
+For each month, show:
 
 **Expected Output Columns:**
 - `month` (date) — truncated to month
 - `purchase_type` (text) — `'first_purchase'` or `'repeat_purchase'`
 - `order_count` (bigint)
 - `total_revenue` (numeric) — rounded to 2 decimals
-- `pct_of_monthly_revenue` (numeric) — this type's revenue as % of total revenue that month, rounded to 1 decimal
+- `pct_of_monthly_revenue` (numeric) — this type's % of total revenue that month, rounded to 1 decimal
 
 **Requirements:**
 - Use `orders` table only
-- Identify each user's first order using `MIN(created_at)` or `ROW_NUMBER()`
-- `pct_of_monthly_revenue` requires a window SUM over the month partition
+- A user's **global first order** = the single earliest order across their entire history (not per month)
+- All other orders by that user = `repeat_purchase`
+- Aggregate to one row per month+type combination
+- `pct_of_monthly_revenue`: window SUM partitioned by month, then divide
 - Order by `month ASC`, `purchase_type ASC`
 
 **Difficulty Rating:** 5/5
 
-WITH orders_months AS (
+
+WITH orders_first_transactions AS (
 SELECT 
 	*,
-	DATE_TRUNC('Month', created_at) AS month_
-FROM orders
+	DATE_TRUNC('Month', created_at) AS month_,
+	FIRST_VALUE(created_at) OVER (PARTITION BY user_id ORDER BY created_at) AS first_transaction_time
+FROM  orders
 ),
-users_order_types AS (
+orders_purchase_types AS (
 SELECT 
 	*,
-	FIRST_VALUE(created_at) OVER (PARTITION BY month_, user_id ORDER BY created_at) AS first_order_time,
-	CASE WHEN FIRST_VALUE(created_at) OVER (PARTITION BY month_, user_id ORDER BY created_at) = created_at THEN 'first_purchase' ELSE 'repeat_purchase' END AS purchase_type
-FROM orders_months
+	CASE WHEN created_at = first_transaction_time THEN 'first_purchase' ELSE 'repeat_purchase' END AS purchase_type
+FROM orders_first_transactions
 ),
-users_order_types_total_revenue AS (
+monthly_purchase_type_revenues AS (
 SELECT 
-	*,
-	SUM(amount) OVER (PARTITION BY month_, user_id, purchase_type ORDER BY created_at) AS total_revenue
-FROM users_order_types
-),
-monthly_users_repeat_purchases_revenues AS (
-SELECT 
-	user_id,
 	month_,
-	COUNT(*) AS order_count,
-	MAX(total_revenue) AS repeat_purchase_revenue
-FROM users_order_types_total_revenue
-GROUP BY user_id, month_
+	purchase_type,
+	COUNT(id) AS order_count,
+	SUM(amount) AS total_revenue
+FROM orders_purchase_types
+GROUP BY month_, purchase_type
+ORDER BY month_
+),
+total_monthly_revenues AS (
+SELECT 
+	month_,
+	SUM(amount) AS total_monthly_revenue
+FROM orders_first_transactions
+GROUP BY month_
 )
 SELECT 
-	uot.month_,
-	uot.user_id,
-	uot.total_revenue AS first_purchase_revenue,
-	mur.repeat_purchase_revenue AS total_revenue,
-	mur.order_count,
-	CASE WHEN uot.total_revenue = mur.repeat_purchase_revenue THEN 100 ELSE ROUND((uot.total_revenue / (mur.repeat_purchase_revenue - uot.total_revenue))::NUMERIC * 100, 1) END AS first_purchases_pct_of_monthly_revenue
-FROM monthly_users_repeat_purchases_revenues mur
-JOIN users_order_types_total_revenue uot ON mur.month_ = uot.month_ AND mur.user_id = uot.user_id AND uot.purchase_type = 'first_purchase'
-ORDER BY uot.user_id
+	mpt.month_,
+	mpt.purchase_type,
+	mpt.order_count,
+	mpt.total_revenue,
+	round(mpt.total_revenue::numeric / tmr.total_monthly_revenue::numeric * 100, 1) || '%' AS pct_of_monthly_revenue
+FROM monthly_purchase_type_revenues mpt
+JOIN total_monthly_revenues tmr ON mpt.month_ = tmr.month_
+ORDER BY mpt.month_, mpt.purchase_type
 
-
-So it works perfectly fine and the logic is sound, but there are some differences, and data is shown in a bit different way, but it's still clear.
-
-First of all, I don't have this division on first_purchase/repeat_purchase, but rather I calculated it on my own and divided the first_purchase_revenue from total_revenue. I run proper checks to subtract first_purchase_revenue for percent calculations in case it's different (because some months and users only had one purchase for a given month etc.).
-
-This logic works, and I've named the rows properly to make it all sound and clear.
-The differences have risen because I DIDN'T FOLLOW your instructions step by step, but rather ran my own thinking and reasoning process based on the base task instruction. I don't think it's bad as I wanted to stimulate thinking on my own. As a DA I will most likely not have an AI supervisor that will tell me how to do everything step by step, so that's my reasoning.
+Here, it works perfectly.
 
 ---
 
-## Task 3: Session Engagement Deciles
+## Task 3: Order Response Time — Time from Order to First Delivery Update
 
 **Scenario:**
-The analytics team wants to segment users into 10 equal engagement buckets (deciles) based on their total session count across all time.
-
-For each decile, show the number of users, the min/max/avg total sessions in that decile, and what percentage of all sessions that decile accounts for.
+The operations team wants to measure fulfillment speed — specifically, how many hours pass between an order being placed and its delivery record being created.
 
 **Expected Output Columns:**
-- `decile` (integer) — 1 (lowest) to 10 (highest)
-- `user_count` (bigint)
-- `min_sessions` (bigint)
-- `max_sessions` (bigint)
-- `avg_sessions` (numeric) — rounded to 1 decimal
-- `pct_of_total_sessions` (numeric) — rounded to 1 decimal
+- `order_id` (integer)
+- `order_created_at` (timestamp)
+- `delivery_created_at` (timestamp)
+- `hours_to_fulfillment` (numeric) — rounded to 2 decimals using EPOCH
+- `fulfillment_segment` (text):
+  - `'same_day'`: fulfilled within 24 hours
+  - `'next_day'`: 24 to 48 hours
+  - `'delayed'`: more than 48 hours
 
 **Requirements:**
-- Use `user_sessions_daily`
-- Aggregate total sessions per user first, then apply `NTILE(10)`
-- `pct_of_total_sessions` = decile's total sessions / grand total sessions * 100
-- Order by `decile ASC`
+- Use `orders` and `deliveries` tables
+- Use `EXTRACT(EPOCH FROM ...) / 3600` for hours
+- Only include orders that have a delivery record
+- Order by `hours_to_fulfillment ASC`
 
-**Difficulty Rating:** 4/5
+**Difficulty Rating:** 3/5
 
-WITH user_session_cnt AS (
+WITH orders_deliveries AS (
 SELECT 
-	user_id,
-	SUM(count_sessions) AS total_sessions
-FROM user_sessions_daily
-GROUP BY user_id
+	d.order_id,
+	o.created_at AS order_created_at,
+	d.created_at AS delivery_created_at
+FROM orders o
+JOIN deliveries d ON o.id = d.order_id
+WHERE d.status = 'delivered'
 ),
-user_session_deciles AS (
+deliveries_fulfillment_hours AS (
 SELECT 
 	*,
-	NTILE(10) OVER (ORDER BY total_sessions) AS decile
-FROM user_session_cnt
-),
-deciles_metrics AS (
-SELECT 
-	decile,
-	COUNT(*) AS user_count,
-	sum(total_sessions) AS total_sessions,
-	MIN(total_sessions) AS min_sessions,
-	MAX(total_sessions) AS max_sessions,
-	AVG(total_sessions) AS avg_sessions,
-	(SELECT SUM(count_sessions) FROM user_sessions_daily) AS sessions_grand_total
-FROM user_session_deciles
-GROUP BY decile
+	EXTRACT('Epoch' FROM delivery_created_at - order_created_at)/3600 AS hours_to_fulfillment
+FROM orders_deliveries
 )
 SELECT 
 	*,
-	decile,
-	user_count,
-	min_sessions,
-	max_sessions,
-	avg_sessions,
-	ROUND(total_sessions / sessions_grand_total * 100, 1) AS pct_of_total_sessions
-FROM deciles_metrics
-ORDER BY decile
+	CASE 
+		WHEN hours_to_fulfillment < 24 THEN 'same_day'
+		WHEN hours_to_fulfillment <= 48 THEN 'next_day'
+		WHEN hours_to_fulfillment > 48 THEN 'delayed'
+	END AS fulfillment_segment
+FROM deliveries_fulfillment_hours
+ORDER BY hours_to_fulfillment
 
-This task wasn't a problem for me, but I also enjoyed it as it required multi steps approach and some potential traps that I managed to avoid.
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Delivery status hierarchy with top users (4/5)
-2. Task 2 — First vs repeat purchaser revenue split (5/5)
-3. Task 3 — Session engagement deciles (4/5)
+1. Task 1 — Transaction type/city hierarchy (4/5)
+2. Task 2 — Global first purchase vs repeat monthly split (5/5)
+3. Task 3 — Order to delivery fulfillment time (3/5)

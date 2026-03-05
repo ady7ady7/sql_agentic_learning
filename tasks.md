@@ -1,204 +1,201 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-03-04
-**Week 12, Day 3 Focus:** HackerRank Hard — Exam Simulation Style
+**Generated:** 2026-03-05
+**Week 12, Day 4 Focus:** HackerRank Hard — Final Exam Prep
 
 ---
 
-## Task 1: 3-Level Hierarchy — Transaction Types, Top Users, and Their Cities
+## Task 1: 3-Level Hierarchy — User Segments by Country and Registration Year
 
 **Scenario:**
-Build a 3-level hierarchy over transaction data:
-- Level 1: `'All Transactions'`
-- Level 2: Distinct transaction types (dynamic, from `transactions`)
-- Level 3: For each type, the 3 users with the highest total transaction amount — show their city (or `'Unknown'` if NULL)
+Build a 3-level hierarchy over user registration data:
+- Level 1: `'All Users'`
+- Level 2: Distinct countries (exclude NULLs, dynamic from `users`)
+- Level 3: For each country, the 3 registration years with the most users (show as `'YYYY (N users)'`)
 
 **Expected Output Columns:**
 - `level` (integer)
-- `name` (text) — type at Level 2, city name (or `'Unknown'`) at Level 3
+- `name` (text) — country at Level 2, formatted string at Level 3
 - `parent_name` (text)
 - `path` (text)
 
 **Requirements:**
-- Join `transactions → users` to get city per user
-- Pre-aggregate total amount per user+type, rank, keep top 3
-- Use `COALESCE(city, 'Unknown')` for NULL cities
+- Pre-aggregate user counts per country+year before the recursive CTE
+- Format Level 3 name as: `EXTRACT(YEAR FROM created_at)::text || ' (' || count::text || ' users)'`
+- Exclude NULL countries
 - Termination condition required
 
-WITH RECURSIVE transaction_types_amounts AS (
+**Difficulty Rating:** 4/5
+
+#Swapped to top three months instead of years, as there were only 2 years of data, so it wouldn't make sense!
+
+WITH RECURSIVE users_months AS (
 SELECT 
-	user_id,
-	TYPE,
-	SUM(amount) AS transaction_amount
-FROM transactions
-GROUP BY user_id, TYPE
+	*,
+	DATE_TRUNC('Month', created_at) AS month_
+FROM users
 ),
-user_type_ranks AS (
+countries_months_registrations AS (
 SELECT 
-	tta.user_id,
-	u.city,
-	tta."type",
-	tta.transaction_amount,
-	RANK() OVER (PARTITION BY TYPE ORDER BY transaction_amount DESC) AS type_rank
-FROM transaction_types_amounts tta
-JOIN users u ON u.id = tta.user_id
+	month_,
+	country,
+	COUNT(id) AS registered_users_count
+FROM users_months
+WHERE country IS NOT NULL
+GROUP BY month_, country
 ),
-top_three_user_per_transaction_type AS (
-SELECT * FROM user_type_ranks
-WHERE type_rank <= 3
-),
-distinct_types AS (
+countries_monthly_reg_ranks AS (
 SELECT 
-DISTINCT TYPE
-FROM transactions
+	*,
+	ROW_NUMBER() OVER (PARTITION BY country ORDER BY registered_users_count DESC, month_) AS country_registration_rank
+FROM countries_months_registrations
+),
+countries_top_three_reg_rank_months AS (
+SELECT 
+* 
+FROM countries_monthly_reg_ranks
+WHERE country_registration_rank <= 3
+),
+distinct_countries AS (
+SELECT DISTINCT country FROM users
+WHERE country IS NOT NULL
 ),
 HIERARCHY AS (
 SELECT
 	1 AS LEVEL,
-	'All Transactions' AS name,
+	'All Users' AS name,
 	NULL::TEXT AS parent_name,
-	'All Transactions' AS PATH
+	'All Users' AS PATH
 UNION ALL
 SELECT
 	h.LEVEL + 1,
-	COALESCE(ds.TYPE, ttu.city),
+	COALESCE(dc.country::text, ctt.month_::TEXT || ' (' || ctt.registered_users_count::TEXT || ' user(s))'),
 	h.name,
-	h.PATH || ' < ' || COALESCE(ds.TYPE, ttu.city)
+	h.PATH || ' > ' || COALESCE(dc.country::text, ctt.month_::TEXT || ' (' || ctt.registered_users_count::TEXT || ' user(s))')
 FROM HIERARCHY h
-LEFT JOIN distinct_types ds ON h.LEVEL = 1
-LEFT JOIN top_three_user_per_transaction_type ttu ON h.LEVEL = 2 AND ttu.TYPE = h.name
+LEFT JOIN distinct_countries dc ON h.LEVEL = 1
+LEFT JOIN countries_top_three_reg_rank_months ctt ON h.LEVEL = 2 AND ctt.country = h.name
 WHERE h.LEVEL < 3
 )
-SELECT * FROM hierarchy
+SELECT * FROM HIERARCHY
+
+
+Definitely a very long query, but I managed to handle it, as well as the formatting, which was quite tricky here. Feels good!
 
 
 
-**Difficulty Rating:** 4/5
-
----
-
-## Task 2: Global First Purchase vs Repeat — Monthly Revenue Split
-
-**Scenario:**
-The growth team wants to understand monthly revenue from brand-new buyers (placing their very first order ever) vs returning buyers (any order after their first).
-
-For each month, show:
-
-**Expected Output Columns:**
-- `month` (date) — truncated to month
-- `purchase_type` (text) — `'first_purchase'` or `'repeat_purchase'`
-- `order_count` (bigint)
-- `total_revenue` (numeric) — rounded to 2 decimals
-- `pct_of_monthly_revenue` (numeric) — this type's % of total revenue that month, rounded to 1 decimal
-
-**Requirements:**
-- Use `orders` table only
-- A user's **global first order** = the single earliest order across their entire history (not per month)
-- All other orders by that user = `repeat_purchase`
-- Aggregate to one row per month+type combination
-- `pct_of_monthly_revenue`: window SUM partitioned by month, then divide
-- Order by `month ASC`, `purchase_type ASC`
-
-**Difficulty Rating:** 5/5
-
-
-WITH orders_first_transactions AS (
-SELECT 
-	*,
-	DATE_TRUNC('Month', created_at) AS month_,
-	FIRST_VALUE(created_at) OVER (PARTITION BY user_id ORDER BY created_at) AS first_transaction_time
-FROM  orders
-),
-orders_purchase_types AS (
-SELECT 
-	*,
-	CASE WHEN created_at = first_transaction_time THEN 'first_purchase' ELSE 'repeat_purchase' END AS purchase_type
-FROM orders_first_transactions
-),
-monthly_purchase_type_revenues AS (
-SELECT 
-	month_,
-	purchase_type,
-	COUNT(id) AS order_count,
-	SUM(amount) AS total_revenue
-FROM orders_purchase_types
-GROUP BY month_, purchase_type
-ORDER BY month_
-),
-total_monthly_revenues AS (
-SELECT 
-	month_,
-	SUM(amount) AS total_monthly_revenue
-FROM orders_first_transactions
-GROUP BY month_
-)
-SELECT 
-	mpt.month_,
-	mpt.purchase_type,
-	mpt.order_count,
-	mpt.total_revenue,
-	round(mpt.total_revenue::numeric / tmr.total_monthly_revenue::numeric * 100, 1) || '%' AS pct_of_monthly_revenue
-FROM monthly_purchase_type_revenues mpt
-JOIN total_monthly_revenues tmr ON mpt.month_ = tmr.month_
-ORDER BY mpt.month_, mpt.purchase_type
-
-Here, it works perfectly.
 
 ---
 
-## Task 3: Order Response Time — Time from Order to First Delivery Update
+## Task 2: Running Total of Orders with Threshold Flags
 
 **Scenario:**
-The operations team wants to measure fulfillment speed — specifically, how many hours pass between an order being placed and its delivery record being created.
+The finance team wants to track each user's cumulative order spending over time, and flag the exact order where they crossed key spending milestones.
+
+For each order, show the user's cumulative total spend up to and including that order, and flag whether it's the order that first pushed them over 500, 1000, or 2000 in total spend.
 
 **Expected Output Columns:**
 - `order_id` (integer)
-- `order_created_at` (timestamp)
-- `delivery_created_at` (timestamp)
-- `hours_to_fulfillment` (numeric) — rounded to 2 decimals using EPOCH
-- `fulfillment_segment` (text):
-  - `'same_day'`: fulfilled within 24 hours
-  - `'next_day'`: 24 to 48 hours
-  - `'delayed'`: more than 48 hours
+- `user_id` (integer)
+- `order_amount` (numeric) — rounded to 2 decimals
+- `cumulative_spend` (numeric) — running total per user ordered by created_at, rounded to 2 decimals
+- `milestone` (text) — `'500'`, `'1000'`, `'2000'` for the first order crossing each threshold, NULL otherwise
 
 **Requirements:**
-- Use `orders` and `deliveries` tables
-- Use `EXTRACT(EPOCH FROM ...) / 3600` for hours
-- Only include orders that have a delivery record
-- Order by `hours_to_fulfillment ASC`
+- Use `orders` table, exclude NULL amounts
+- Use a window SUM for cumulative spend
+- For milestone: an order crosses a threshold if cumulative_spend >= threshold AND the previous cumulative_spend < threshold
+- Only one milestone per order (use the highest threshold crossed if multiple)
+- Order by `user_id ASC`, `created_at ASC`
 
-**Difficulty Rating:** 3/5
+**Difficulty Rating:** 5/5
 
-WITH orders_deliveries AS (
+WITH users_cumulative_spend AS (
 SELECT 
-	d.order_id,
-	o.created_at AS order_created_at,
-	d.created_at AS delivery_created_at
-FROM orders o
-JOIN deliveries d ON o.id = d.order_id
-WHERE d.status = 'delivered'
+	id AS order_id,
+	created_at,
+	user_id,
+	amount,
+	SUM(amount) OVER (PARTITION BY user_id ORDER BY created_at) AS user_cumulative_spend
+FROM orders
 ),
-deliveries_fulfillment_hours AS (
+users_prev_spend AS (
 SELECT 
 	*,
-	EXTRACT('Epoch' FROM delivery_created_at - order_created_at)/3600 AS hours_to_fulfillment
-FROM orders_deliveries
+	LAG(user_cumulative_spend) OVER (PARTITION BY user_id ORDER BY user_cumulative_spend) AS previous_cumulative_spend
+FROM users_cumulative_spend
+)
+SELECT 
+	order_id,
+	user_id,
+	amount AS order_amount,
+	user_cumulative_spend AS cumulative_spend,
+	CASE 
+		WHEN user_cumulative_spend > 2000 AND previous_cumulative_spend < 2000 THEN '2000'
+		WHEN user_cumulative_spend > 1000 AND previous_cumulative_spend < 1000 THEN '1000'
+		WHEN user_cumulative_spend > 500 AND previous_cumulative_spend < 500 THEN '500' ELSE NULL
+	END AS milestone
+FROM users_prev_spend
+
+
+---
+
+## Task 3: Product Category Affinity — Categories Bought Together
+
+**Scenario:**
+The recommendations team wants to know which product categories are most frequently purchased together in the same order.
+
+Find all pairs of distinct categories that appear together in at least 3 orders, ranked by co-occurrence frequency.
+
+**Expected Output Columns:**
+- `category_a` (text)
+- `category_b` (text)
+- `co_occurrence_count` (bigint)
+- `co_occurrence_rank` (bigint)
+
+**Requirements:**
+- Use `orders_products`, `products`, `product_categories`
+- A pair is `category_a < category_b` (alphabetically) to avoid duplicates
+- Count distinct orders containing both categories
+- Only pairs appearing in >= 3 orders
+- Order by `co_occurrence_count DESC`, `category_a ASC`
+
+**Difficulty Rating:** 5/5
+
+WITH orders_categories_deduplicated AS (
+SELECT 
+	op1.order_id AS order_id1,
+	pc1."name" AS category_a,
+	pc2."name" AS category_b
+FROM orders_products op1
+JOIN products p1 ON op1.product_id = p1.id
+JOIN product_categories pc1 ON p1.category_id = pc1.id
+JOIN orders_products op2 ON op1.order_id = op2.order_id
+JOIN products p2 ON op2.product_id = p2.id
+JOIN product_categories pc2 ON p2.category_id = pc2.id
+WHERE pc1.id < pc2.id
+),
+categories_cooccurences AS (
+SELECT
+	category_a,
+	category_b,
+	COUNT(DISTINCT(order_id1)) AS co_occurence_count
+FROM orders_categories_deduplicated
+GROUP BY category_a, category_b
 )
 SELECT 
 	*,
-	CASE 
-		WHEN hours_to_fulfillment < 24 THEN 'same_day'
-		WHEN hours_to_fulfillment <= 48 THEN 'next_day'
-		WHEN hours_to_fulfillment > 48 THEN 'delayed'
-	END AS fulfillment_segment
-FROM deliveries_fulfillment_hours
-ORDER BY hours_to_fulfillment
+	RANK() OVER (ORDER BY co_occurence_count DESC) AS co_occurence_rank
+FROM categories_cooccurences
+WHERE co_occurence_count >= 3
 
+Handled the task with grace.
+I had to add DISTINCT to filter out situations where two different products, even with the same name but different id from the same category were bought together.
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Transaction type/city hierarchy (4/5)
-2. Task 2 — Global first purchase vs repeat monthly split (5/5)
-3. Task 3 — Order to delivery fulfillment time (3/5)
+1. Task 1 — Country/year hierarchy with formatted Level 3 (4/5)
+2. Task 2 — Running total with milestone flags (5/5)
+3. Task 3 — Category co-occurrence pairs (5/5)

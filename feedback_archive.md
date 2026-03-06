@@ -2600,3 +2600,75 @@ Excellent. Self-join with pc1.id < pc2.id for deduplication (ID-based is more ro
 ## Student Feedback on Questions
 
 Penultimate session completed. All tasks handled well. Final Friday challenge tomorrow.
+n### Session: 2026-03-06 (Week 12, Day 5 + Weekly Recap + Final Program Summary)n
+## Agent Feedback on Student — Week 12, Day 5
+
+**Task 1 — Ticket Hierarchy with Avg Resolution Time: 9/10**
+EPOCH/60 in first CTE, pre-aggregation of avg per status+priority, RANK for top 3, formatted string at Level 3, correct join conditions, termination condition. Minor: ranked ASC (fastest) instead of DESC (slowest) per spec. Cosmetic direction difference only.
+
+**Task 2 — LTV + Monthly Streak Segments: 9/10**
+8-CTE query demonstrating full understanding end to end. Gaps-and-islands at month granularity correct. Lifetime revenue aggregation correct. RANK within segment correct. Data-driven threshold adaptation (20 instead of 200) accepted. Dead code in users_streak_keys (prev_month column unused). Missing ELSE 'other' catch-all — NULL segment users silently dropped from output.
+
+**Task 3 — Complete Order Funnel Analysis: 9/10**
+Sophisticated multi-CTE funnel. EPOCH/3600 correct. LEFT JOINs correct. Percentage calculations correct. One issue: orders_with_delivery counts only status='pending' instead of all delivery records — fulfillment_rate_pct is technically "pending rate" not "has-any-delivery rate". Functionally reasonable real-world interpretation but deviates from spec intent.
+
+**Session Total: 27/30**
+
+---
+
+## Student Feedback on Questions
+
+Final session of 12-week program. Three 5/5 difficulty tasks handled with full understanding. Satisfying conclusion.
+
+---
+
+## Weekly Summary — Week 12 (2026-03-02 to 2026-03-06)
+
+### Progress Bar
+██████████ 100% — Program Complete
+
+### Daily Scores
+- Day 1: 29/30 (light recovery)
+- Day 2: 27/30
+- Day 3: 28/30
+- Day 4: 29/30
+- Day 5: 27/30
+- **Week Average: 28.0/30 (93.3%)**
+
+### Key Wins This Week
+- **Running total + milestone flags** — cumulative SUM + LAG crossing detection, classic HackerRank Hard pattern
+- **Category co-occurrence self-join** — ID-based deduplication, COUNT(DISTINCT order_id), clean 2-CTE solution
+- **LTV + gaps-and-islands combined** — 8-CTE query merging lifetime revenue aggregation with monthly streak detection
+- **Formatted hierarchy Level 3 strings** — EPOCH calculation + string concatenation inside recursive CTE pre-aggregation
+- **Complete funnel analysis** — multi-stage LEFT JOIN funnel with rate calculations
+
+### Focus Areas / Minor Recurring Misses
+- **ELSE catch-all in CASE** — NULL segment rows when no condition matches (Task 2 Day 5)
+- **Status filter scope** — 'pending' vs all delivery records (Task 3 Day 5)
+- **RANK direction** — ASC vs DESC for "highest" (Task 1 Day 5, minor)
+
+---
+
+## FINAL PROGRAM SUMMARY — 12 Weeks Complete
+
+### Overall Performance
+- **Total sessions:** 55 (5 per week × 11 active weeks)
+- **Program average:** ~28/30 (93%+) across final 4 weeks
+- **Peak weeks:** Week 11 Day 5 (30/30), Week 10 Day 4-5 (29/30 each)
+
+### Concepts Mastered
+- ✅ Recursive CTEs — 3-level dynamic hierarchies, termination conditions, path building, formatted Level 3 strings
+- ✅ Gaps-and-islands — RN-subtraction pattern at both day and month granularity, streak revenue joins
+- ✅ Window functions — RANK, DENSE_RANK, ROW_NUMBER, NTILE, PERCENT_RANK, LAG/LEAD with offset, FIRST_VALUE, STDDEV
+- ✅ Rolling windows — ROWS BETWEEN N PRECEDING AND CURRENT ROW
+- ✅ EPOCH calculations — interval to seconds/minutes/hours, universal time difference pattern
+- ✅ Self-joins — product/category affinity pairs, deduplication with id < id
+- ✅ Cohort analysis — activation funnels, YoY comparisons with LAG(col, 12)
+- ✅ Cumulative patterns — running totals, milestone threshold detection
+- ✅ Multi-source aggregation — independent CTEs joined on user_id for composite scores
+- ✅ Data-aware adaptation — consistently adapting thresholds to actual data distribution
+
+### HackerRank Advanced SQL Readiness
+**Assessment: READY** — The student is consistently solving HackerRank Hard level problems (5/5 difficulty) within 40-60 minutes, with full understanding of the underlying patterns. Minor recurring misses (ROUND precision, ELSE catch-all, column direction) are polish issues, not conceptual gaps.
+
+The 12-week program is complete.

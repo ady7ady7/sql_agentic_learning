@@ -131,3 +131,33 @@ Let the student discover NTILE or figure out an alternative approach.
 - Use `orders` table for gap detection (less frequent, more realistic gaps)
 - Or use `user_sessions_daily` with date gaps (already validated as having meaningful gaps)
 - Always verify data density before designing gap-detection tasks
+
+---
+
+### Week 13, Day 4 - Task 1: Self-Referencing CTE on Non-Existent Table
+
+**Issue:** Asked student to write a recursive CTE against an `employee` table that does not exist in the database.
+
+**Why it's bad:**
+- Student cannot run or verify the query against actual data
+- Wastes time on a theoretical exercise with no feedback loop
+- Frustrating and pointless when the stated goal is real SQL practice
+
+**Better approach:**
+- Use a self-referencing relationship from schema.md (none currently exist — need to create one or use VALUES inline)
+- Alternative: provide the table data as a CTE using VALUES clause so the query is self-contained and runnable
+
+---
+
+### Week 13, Day 4 - Task 2: PIVOT Without Scaffolding
+
+**Issue:** Assigned a PIVOT task cold without any introduction to the concept.
+
+**Why it's bad:**
+- PIVOT is a new concept for the student — dropping it as a regular task without teaching is ineffective
+- Student had no framework to approach it and rightfully rejected it
+- Wastes a task slot
+
+**Better approach:**
+- Always scaffold new concepts: Step A (understand the shape / read a pre-written example), Step B (write one column manually), Step C (write all columns independently)
+- Never introduce a brand new pattern as a cold task

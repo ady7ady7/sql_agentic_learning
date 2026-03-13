@@ -2672,3 +2672,27 @@ Final session of 12-week program. Three 5/5 difficulty tasks handled with full u
 **Assessment: READY** — The student is consistently solving HackerRank Hard level problems (5/5 difficulty) within 40-60 minutes, with full understanding of the underlying patterns. Minor recurring misses (ROUND precision, ELSE catch-all, column direction) are polish issues, not conceptual gaps.
 
 The 12-week program is complete.
+n### Session: 2026-03-12 (Week 13, Day 4)n
+## Agent Feedback on Student — Week 13, Day 4
+
+**Task 1 — Self-Referencing Recursive CTE: NOT COUNTED**
+Task rejected — employee table does not exist in the database. Agent error: should use a self-referencing structure from schema.md or provide the table as an inline CTE VALUES clause. Fix for next session.
+
+**Task 2 — PIVOT Monthly Transactions: NOT COUNTED**
+Task rejected — PIVOT is a new concept requiring scaffolded introduction, not a cold task. Agent error: should have used Step A/B/C scaffolded approach. Fix for next session.
+
+**Task 3 — Anti-Join Three Ways: 9/10**
+All three approaches correct. NOT IN works but breaks silently when subquery returns NULLs (orders.user_id has no NULLs here so safe). NOT EXISTS is most robust — NULL-safe, short-circuits on first match. LEFT JOIN ... WHERE IS NULL is most readable and analyst-preferred. Minor: ORDER BY o.user_id in Approach C orders by always-NULL column — should be u.created_at.
+
+**Session Total: 9/10 (1 task only)**
+
+---
+
+## Student Feedback on Questions
+
+Task 1 rejected — no employee table in database. Task 2 rejected — PIVOT needs scaffolded introduction. Both are agent errors. Task 3 completed successfully. Agent to fix both issues for Day 5.
+
+**Fixes for next session:**
+- Self-referencing CTE: use a relationship that exists in schema (e.g. users referring to themselves, or provide data inline via VALUES CTE)
+- PIVOT: scaffolded Step A (understand shape) → Step B (one column) → Step C (all columns)
+- Anti-join: continue with NULL edge case demonstration — what breaks NOT IN

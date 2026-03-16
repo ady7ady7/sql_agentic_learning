@@ -1,151 +1,219 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-03-12
-**Week 13, Day 4 Focus:** Self-Referencing Recursive CTE + PIVOT Introduction + Anti-Join Patterns
+**Generated:** 2026-03-16
+**Week 14, Day 1 Focus:** Self-Referencing CTE (Type B) + PIVOT Scaffolded (Step A) + Anti-Join NULL Edge Case
 
 ---
 
-## Task 1: Self-Referencing Recursive CTE — Employee Org Chart
+## Task 1: Self-Referencing Recursive CTE — User Referral Chain
 
 **Scenario:**
-You have an `employee` table with the following structure:
+The `users` table has a `referred_by` column... except it doesn't in our schema. So we'll use a self-contained CTE with inline data to make this runnable.
 
-```
-id | first_name | last_name | manager_id
-1  | Madeline   | Ray       | NULL
-2  | Violet     | Green     | 1
-3  | Alton      | Vasquez   | 1
-4  | Geoffrey   | Delgado   | 1
-5  | Allen      | Garcia    | 2
-6  | Marian     | Daniels   | 2
-7  | Tricia     | Wong      | 3
-8  | Bruce      | Grant     | 3
-9  | Darin      | Burke     | 4
-10 | Bob        | Freeman   | 5
+The following CTE provides the data — treat it as your source table called `referrals`:
+
+```sql
+WITH referrals (id, name, referred_by) AS (
+    VALUES
+    (1, 'Alice',   NULL),
+    (2, 'Bob',     1),
+    (3, 'Carol',   1),
+    (4, 'Dave',    2),
+    (5, 'Eve',     2),
+    (6, 'Frank',   4),
+    (7, 'Grace',   3)
+)
 ```
 
-Build a recursive CTE that traverses this hierarchy to unlimited depth. For each employee, show their full reporting path from the root.
+Build a recursive CTE on top of this that traverses the referral chain to unlimited depth.
 
 **Expected Output Columns:**
 - `id` (integer)
-- `first_name` (text)
-- `last_name` (text)
-- `manager_id` (integer)
-- `path` (text) — e.g. `'Ray'`, `'Ray->Green'`, `'Ray->Green->Garcia->Freeman'`
+- `name` (text)
+- `referred_by` (integer)
+- `path` (text) — e.g. `'Alice'`, `'Alice->Bob'`, `'Alice->Bob->Dave->Frank'`
+- `depth` (integer) — 1 for root, 2 for direct referrals, etc.
 
 **Requirements:**
-- Anchor: start with the root employee (manager_id IS NULL)
-- Recursive part: JOIN employee back to itself on employee.manager_id = cte.id
-- Path: built by appending last_name at each level
-- No LEVEL + 1 pattern needed — termination happens naturally when no more children exist
+- Anchor: start with the root (referred_by IS NULL)
+- Recursive: JOIN referrals back to the CTE on referrals.referred_by = cte.id
+- Build path by appending name at each step
+- Track depth starting at 1
+- No LEVEL + 1 termination needed — stops naturally
 - Order by path ASC
-
-**Note:** This uses a real table called `employee` — it is NOT in schema.md as it's a standalone exercise table provided above. Write the query as if this table exists.
 
 **Difficulty Rating:** 3/5
 
-Dude. The problem is that WE DON'T HAVE SUCH A structure in our database. What are you expecting of me? Rejecting this task, don't count it for today, and next time please prepare.
+WITH RECURSIVE referrals (id, name, referred_by) AS (
+    VALUES
+    (1, 'Alice',   NULL),
+    (2, 'Bob',     1),
+    (3, 'Carol',   1),
+    (4, 'Dave',    2),
+    (5, 'Eve',     2),
+    (6, 'Frank',   4),
+    (7, 'Grace',   3)
+),
+HIERARCHY AS (
+SELECT
+	1 AS id,
+	'Alice' AS name,
+	NULL::TEXT AS referred_by,
+	'Alice' AS PATH,
+	1 AS DEPTH
+UNION ALL
+SELECT
+	r.id,
+	r.name,
+	h.name,
+	h.PATH || ' < ' || r.name,
+	h.DEPTH + 1
+FROM HIERARCHY h
+JOIN referrals r ON h.id = r.referred_by
+)
+SELECT * FROM hierarchy
+
+
+Nice, but I'd like to implement similar logic of data in our database next time and actually use it instead. We can create a table and add relevant fields in users or wherever. I just need your guidelines and cooperation.
+
+
+
 
 ---
 
-## Task 2: PIVOT — Monthly Transaction Counts by Type
+## Task 2: PIVOT — Scaffolded Introduction (Step A + Step B)
 
-**Scenario:**
-The finance team wants a pivoted monthly report showing how many transactions occurred per type, with each type as its own column.
+PIVOT is a new concept. This task walks you through it in two steps.
 
-Transform this row-based result:
+### Step A — Understand the unpivoted shape
+
+Write a query that produces the raw unpivoted data we want to pivot:
+
 ```
-month       | type        | count
-2024-08-01  | deposit     | 45
-2024-08-01  | withdrawal  | 32
-2024-08-01  | payment     | 28
-...
+month | type | transaction_count
 ```
 
-Into this pivoted shape:
+- Use `transactions` table
+- Group by `DATE_TRUNC('month', created_at)` and `type`
+- Order by `month ASC`, `type ASC`
+
+Run this and look at the output. Notice how each type is a separate row per month. **This is what we want to rotate into columns.**
+
+---
+
+### Step B — Write one pivot column manually
+
+Now extend Step A into a pivot. Write a query that produces:
+
 ```
-month       | deposit | withdrawal | payment | transfer | purchase
-2024-08-01  | 45      | 32         | 28      | ...      | ...
+month | deposit_count
+```
+
+Just one column for now — `deposit_count` = number of transactions where `type = 'deposit'` per month.
+
+Use this pattern:
+```sql
+COUNT(*) FILTER (WHERE type = 'deposit') AS deposit_count
+```
+
+or equivalently:
+```sql
+SUM(CASE WHEN type = 'deposit' THEN 1 ELSE 0 END) AS deposit_count
 ```
 
 **Expected Output Columns:**
-- `month` (date) — truncated to month
-- `deposit` (bigint)
-- `withdrawal` (bigint)
-- `payment` (bigint)
-- `transfer` (bigint)
-- `purchase` (bigint)
+- `month` (date)
+- `deposit_count` (bigint)
 
-**Requirements:**
-- Use `transactions` table
-- Use conditional aggregation: `COUNT(*) FILTER (WHERE type = 'deposit')` or `SUM(CASE WHEN type = 'deposit' THEN 1 ELSE 0 END)`
-- One CTE to aggregate, final SELECT to present the pivot
-- Order by `month ASC`
+Order by `month ASC`.
 
-**Difficulty Rating:** 4/5
+**Note:** Step C (all 5 columns at once) comes tomorrow once this pattern is clear.
 
-You see, I'm NOT AWARE how to actually create such a pivot yet - YOU have to create a scaffolded approach and teach me how to do it, as it's a new concept for me. Make sure you do it properly next time! Do not take away points from me, treat this as valuable feedback.
+**Difficulty Rating:** 2/5
+
+WITH transactions_months AS (
+SELECT 
+	*,
+	DATE_TRUNC('Month', t.created_at) AS month_
+FROM crappy_data_db.transactions t
+)
+SELECT
+	tm.month_,
+	COUNT(*) FILTER (WHERE tm.type = 'deposit') AS deposit_count
+FROM transactions_months tm
+GROUP BY tm.month_
+ORDER BY month_
+
+Yeah, now it makes a lot of sense and I get the basic idea.
+
+I was easily able to do all 5 columns now, once I get the basic pattern. This is great honestly and feels like a very useful concept to use that saves me the need to use GROUP BY type. Wondering, how memory efficient is this, as it looks awesome. Definitely want to practice and learn this pattern in more advanced scenarios etc.
+
+WITH transactions_months AS (
+SELECT 
+	*,
+	DATE_TRUNC('Month', t.created_at) AS month_
+FROM crappy_data_db.transactions t
+)
+SELECT
+	tm.month_,
+	COUNT(*) FILTER (WHERE tm.type = 'deposit') AS deposit_count,
+	COUNT(*) FILTER (WHERE tm.type = 'transfer') AS transfer_count,
+	COUNT(*) FILTER (WHERE tm.type = 'withdrawal') AS withdrawal_count,
+	COUNT(*) FILTER (WHERE tm.type = 'purchase') AS purchase_count,
+	COUNT(*) FILTER (WHERE tm.type = 'payment') AS payment_count
+FROM transactions_months tm
+GROUP BY tm.month_
+ORDER BY month_
+
 
 ---
 
-## Task 3: Anti-Join — Users Who Never Placed an Order
+## Task 3: Anti-Join — The NULL Trap in NOT IN
 
 **Scenario:**
-The marketing team wants to target users who have registered but never placed a single order. Find all such users.
+Yesterday you wrote three anti-join approaches. Today we explore when one of them silently breaks.
 
-Solve this three ways in the same file — one query per approach:
+The `orders` table has a `user_id` column that is `NOT NULL` — so `NOT IN` works correctly there. But what if `user_id` could be NULL?
 
-**Approach A:** Using `NOT IN`
-**Approach B:** Using `NOT EXISTS`
-**Approach C:** Using `LEFT JOIN ... WHERE IS NULL`
+**Part A:** Write this query and run it:
+```sql
+SELECT id FROM users
+WHERE id NOT IN (SELECT user_id FROM orders WHERE user_id IS NULL OR user_id IS NOT NULL)
+```
+What do you expect it to return? What does it actually return? Write your observation as a comment.
 
-**Expected Output Columns** (same for all three):
-- `user_id` (integer)
-- `created_at` (timestamp) — user registration date
+In this case we'd get data without any issues, so we'd get all users who did not make any orders, as I'm 100% sure that by design there are NO NULL id's in orders.
+Also, I'd expect that we'd only have IS NOT NULL condition, I don't see the point of having IS NULL or IS NOT NULL, it's basically useless.
 
-**Requirements:**
-- Use `users` and `orders` tables
-- Order by `created_at ASC`
-- After writing all three, add a short comment on which approach you'd prefer and why
+
+**Part B:** Now fix Part A using `NOT EXISTS` instead, so it correctly returns users not in orders regardless of NULLs.
+
+SELECT id FROM crappy_data_db.users u
+WHERE NOT EXISTS 
+(SELECT 
+	* 
+FROM crappy_data_db.orders o
+WHERE o.user_id = u.id)
+
+**Part C:** Fix it again using `LEFT JOIN ... WHERE IS NULL`.
+
+**Expected insight:** `NOT IN` returns **zero rows** when the subquery contains even one NULL — because `x NOT IN (..., NULL, ...)` evaluates to UNKNOWN, not TRUE, for every row. `NOT EXISTS` and `LEFT JOIN` are NULL-safe.
 
 **Difficulty Rating:** 3/5
-1.
-SELECT 
-	u.id AS user_id,
-	u.created_at
-FROM crappy_data_db.users U
-WHERE u.id NOT IN (SELECT o.user_id FROM crappy_data_db.orders o)
-
-2.
-SELECT 
-	u.id AS user_id,
-	u.created_at
-FROM crappy_data_db.users U
-WHERE NOT EXISTS (
-SELECT *
-FROM crappy_data_db.orders o
-WHERE o.user_id = u.id
-)
-
-This is definitely weird, it feels unnatural as it requires way more code and it's not that logical. Not sure, why would I pick this option though.
-
-3. 
 
 SELECT 
-	u.id AS user_id,
-	u.created_at
+	u.id
 FROM crappy_data_db.users u
 LEFT JOIN crappy_data_db.orders o ON u.id = o.user_id
 WHERE o.user_id IS NULL
-ORDER BY o.user_id
 
-Not bad.
+This pattern feels quite unnatural to use at this point though.
 
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Self-referencing org chart (3/5)
-2. Task 2 — PIVOT monthly transactions by type (4/5)
-3. Task 3 — Anti-join three ways (3/5)
+1. Task 1 — Self-referencing referral chain (3/5)
+2. Task 2 — PIVOT Step A + Step B (2/5)
+3. Task 3 — Anti-join NULL trap (3/5)

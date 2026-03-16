@@ -2696,3 +2696,22 @@ Task 1 rejected — no employee table in database. Task 2 rejected — PIVOT nee
 - Self-referencing CTE: use a relationship that exists in schema (e.g. users referring to themselves, or provide data inline via VALUES CTE)
 - PIVOT: scaffolded Step A (understand shape) → Step B (one column) → Step C (all columns)
 - Anti-join: continue with NULL edge case demonstration — what breaks NOT IN
+n### Session: 2026-03-16 (Week 14, Day 1)n
+## Agent Feedback on Student — Week 14, Day 1
+
+**Task 1 — Self-Referencing Recursive CTE: 9/10**
+Clean execution. VALUES inline table works correctly as data source. Recursive JOIN on h.id = r.referred_by correct, natural termination, depth tracking correct. Minor: path separator ' < ' instead of ' > ' (recurring cosmetic); anchor hardcodes Alice instead of SELECT WHERE referred_by IS NULL — not generalizable to multiple roots. Student requested real database implementation — to be set up in Day 2.
+
+**Task 2 — PIVOT Scaffolded: 10/10**
+Went beyond Step B and independently completed all 5 columns without prompting. COUNT(*) FILTER pattern clean and correct. Concept clicked immediately. Good question on memory efficiency — conditional aggregation is a single table scan, very efficient.
+
+**Task 3 — Anti-Join NULL Trap: 9/10**
+Correct observation that NOT IN works fine when no NULLs exist in subquery. Correctly identified the IS NULL OR IS NOT NULL condition as pointless. Parts B and C correct. Preference for NOT EXISTS over LEFT JOIN IS NULL is the standard professional stance. Minor: Part C missing ORDER BY created_at ASC.
+
+**Session Total: 28/30**
+
+---
+
+## Student Feedback on Questions
+
+Good session. PIVOT pattern immediately understood and extended independently. Self-referencing CTE pattern solid — wants to practice on real database data. LEFT JOIN IS NULL anti-join feels unnatural — continue reinforcing. Task 1 and 2 from previous session (Week 13 Day 4) were agent errors — logged in bad_q_examples.md.

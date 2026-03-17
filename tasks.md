@@ -1,219 +1,179 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-03-16
-**Week 14, Day 1 Focus:** Self-Referencing CTE (Type B) + PIVOT Scaffolded (Step A) + Anti-Join NULL Edge Case
+**Generated:** 2026-03-17
+**Week 14, Day 2 Focus:** PIVOT Step C + Self-Referencing CTE on Real Data + Anti-Join in Complex Context
 
 ---
 
-## Task 1: Self-Referencing Recursive CTE — User Referral Chain
+## Task 1: PIVOT Step C — Full Revenue Pivot by Transaction Type
 
 **Scenario:**
-The `users` table has a `referred_by` column... except it doesn't in our schema. So we'll use a self-contained CTE with inline data to make this runnable.
+You've mastered the single-column PIVOT. Now write the full pivot — but this time using **revenue** (SUM of amount) instead of counts, and include a `total_revenue` column as well.
 
-The following CTE provides the data — treat it as your source table called `referrals`:
+**Expected Output Columns:**
+- `month` (date) — truncated to month
+- `deposit_revenue` (numeric) — rounded to 2 decimals
+- `withdrawal_revenue` (numeric) — rounded to 2 decimals
+- `payment_revenue` (numeric) — rounded to 2 decimals
+- `transfer_revenue` (numeric) — rounded to 2 decimals
+- `purchase_revenue` (numeric) — rounded to 2 decimals
+- `total_revenue` (numeric) — sum of all types, rounded to 2 decimals
+
+**Requirements:**
+- Use `transactions` table
+- Use `SUM(amount) FILTER (WHERE type = '...')` pattern
+- Exclude NULL amounts
+- Order by `month ASC`
+
+**Difficulty Rating:** 3/5
+
+I was wondering if you wanted total revenue for a given month or whole revenue for all time, but I assumed monthly revenues are expected
+
+WITH transactions_months AS (
+SELECT 
+	*,
+	DATE_TRUNC('Month', t.created_at) AS month_
+FROM crappy_data_db.transactions t
+)
+SELECT 
+	month_,
+	SUM(amount) FILTER (WHERE type = 'deposit') AS deposit_revenue,
+	SUM(amount) FILTER (WHERE type = 'withdrawal') AS withdrawal_revenue,
+	SUM(amount) FILTER (WHERE type = 'payment') AS payment_revenue,
+	SUM(amount) FILTER (WHERE type = 'transfer') AS transfer_revenue,
+	SUM(amount) FILTER (WHERE TYPE = 'purchase') AS purchase_revenue,
+	SUM(amount) AS total_revenue
+FROM transactions_months
+GROUP BY month_
+ORDER BY month_
+
+---
+
+## Task 2: Self-Referencing CTE — Product Category Tree
+
+**Scenario:**
+The `product_categories` table has a `parent_id` column — except it doesn't currently in our schema. Use this inline VALUES table as your data source (it's self-contained and runnable):
 
 ```sql
-WITH referrals (id, name, referred_by) AS (
+WITH categories (id, name, parent_id) AS (
     VALUES
-    (1, 'Alice',   NULL),
-    (2, 'Bob',     1),
-    (3, 'Carol',   1),
-    (4, 'Dave',    2),
-    (5, 'Eve',     2),
-    (6, 'Frank',   4),
-    (7, 'Grace',   3)
+    (1, 'All Products',    NULL),
+    (2, 'Electronics',     1),
+    (3, 'Clothing',        1),
+    (4, 'Phones',          2),
+    (5, 'Laptops',         2),
+    (6, 'Men',             3),
+    (7, 'Women',           3),
+    (8, 'iPhone',          4),
+    (9, 'Samsung',         4),
+    (10, 'T-Shirts',       6)
 )
 ```
 
-Build a recursive CTE on top of this that traverses the referral chain to unlimited depth.
+Traverse this tree recursively to unlimited depth. Show each category's full path from root.
 
 **Expected Output Columns:**
 - `id` (integer)
 - `name` (text)
-- `referred_by` (integer)
-- `path` (text) — e.g. `'Alice'`, `'Alice->Bob'`, `'Alice->Bob->Dave->Frank'`
-- `depth` (integer) — 1 for root, 2 for direct referrals, etc.
+- `parent_id` (integer)
+- `path` (text) — e.g. `'All Products -> Electronics -> Phones -> iPhone'`
+- `depth` (integer) — 1 for root
 
 **Requirements:**
-- Anchor: start with the root (referred_by IS NULL)
-- Recursive: JOIN referrals back to the CTE on referrals.referred_by = cte.id
-- Build path by appending name at each step
-- Track depth starting at 1
-- No LEVEL + 1 termination needed — stops naturally
-- Order by path ASC
+- Anchor: root node (`parent_id IS NULL`)
+- Recursive: JOIN categories back to CTE on `categories.parent_id = cte.id`
+- Path separator: ` -> ` (with spaces)
+- Natural termination — no LEVEL limit needed
+- Order by `path ASC`
 
 **Difficulty Rating:** 3/5
 
-WITH RECURSIVE referrals (id, name, referred_by) AS (
+
+WITH RECURSIVE categories (id, name, parent_id) AS (
     VALUES
-    (1, 'Alice',   NULL),
-    (2, 'Bob',     1),
-    (3, 'Carol',   1),
-    (4, 'Dave',    2),
-    (5, 'Eve',     2),
-    (6, 'Frank',   4),
-    (7, 'Grace',   3)
+    (1, 'All Products',    NULL),
+    (2, 'Electronics',     1),
+    (3, 'Clothing',        1),
+    (4, 'Phones',          2),
+    (5, 'Laptops',         2),
+    (6, 'Men',             3),
+    (7, 'Women',           3),
+    (8, 'iPhone',          4),
+    (9, 'Samsung',         4),
+    (10, 'T-Shirts',       6)
 ),
-HIERARCHY AS (
-SELECT
+hierarchy AS (
+SELECT 
 	1 AS id,
-	'Alice' AS name,
-	NULL::TEXT AS referred_by,
-	'Alice' AS PATH,
+	'All Products' AS name,
+	NULL::TEXT AS parent_id,
+	'All Products' AS PATH,
 	1 AS DEPTH
 UNION ALL
 SELECT
-	r.id,
-	r.name,
+	c.id,
+	c.name,
 	h.name,
-	h.PATH || ' < ' || r.name,
+	h.PATH || ' < ' || c.name,
 	h.DEPTH + 1
-FROM HIERARCHY h
-JOIN referrals r ON h.id = r.referred_by
+FROM hierarchy h
+JOIN categories c ON h.id = c.parent_id
 )
 SELECT * FROM hierarchy
 
 
-Nice, but I'd like to implement similar logic of data in our database next time and actually use it instead. We can create a table and add relevant fields in users or wherever. I just need your guidelines and cooperation.
-
-
-
-
 ---
 
-## Task 2: PIVOT — Scaffolded Introduction (Step A + Step B)
-
-PIVOT is a new concept. This task walks you through it in two steps.
-
-### Step A — Understand the unpivoted shape
-
-Write a query that produces the raw unpivoted data we want to pivot:
-
-```
-month | type | transaction_count
-```
-
-- Use `transactions` table
-- Group by `DATE_TRUNC('month', created_at)` and `type`
-- Order by `month ASC`, `type ASC`
-
-Run this and look at the output. Notice how each type is a separate row per month. **This is what we want to rotate into columns.**
-
----
-
-### Step B — Write one pivot column manually
-
-Now extend Step A into a pivot. Write a query that produces:
-
-```
-month | deposit_count
-```
-
-Just one column for now — `deposit_count` = number of transactions where `type = 'deposit'` per month.
-
-Use this pattern:
-```sql
-COUNT(*) FILTER (WHERE type = 'deposit') AS deposit_count
-```
-
-or equivalently:
-```sql
-SUM(CASE WHEN type = 'deposit' THEN 1 ELSE 0 END) AS deposit_count
-```
-
-**Expected Output Columns:**
-- `month` (date)
-- `deposit_count` (bigint)
-
-Order by `month ASC`.
-
-**Note:** Step C (all 5 columns at once) comes tomorrow once this pattern is clear.
-
-**Difficulty Rating:** 2/5
-
-WITH transactions_months AS (
-SELECT 
-	*,
-	DATE_TRUNC('Month', t.created_at) AS month_
-FROM crappy_data_db.transactions t
-)
-SELECT
-	tm.month_,
-	COUNT(*) FILTER (WHERE tm.type = 'deposit') AS deposit_count
-FROM transactions_months tm
-GROUP BY tm.month_
-ORDER BY month_
-
-Yeah, now it makes a lot of sense and I get the basic idea.
-
-I was easily able to do all 5 columns now, once I get the basic pattern. This is great honestly and feels like a very useful concept to use that saves me the need to use GROUP BY type. Wondering, how memory efficient is this, as it looks awesome. Definitely want to practice and learn this pattern in more advanced scenarios etc.
-
-WITH transactions_months AS (
-SELECT 
-	*,
-	DATE_TRUNC('Month', t.created_at) AS month_
-FROM crappy_data_db.transactions t
-)
-SELECT
-	tm.month_,
-	COUNT(*) FILTER (WHERE tm.type = 'deposit') AS deposit_count,
-	COUNT(*) FILTER (WHERE tm.type = 'transfer') AS transfer_count,
-	COUNT(*) FILTER (WHERE tm.type = 'withdrawal') AS withdrawal_count,
-	COUNT(*) FILTER (WHERE tm.type = 'purchase') AS purchase_count,
-	COUNT(*) FILTER (WHERE tm.type = 'payment') AS payment_count
-FROM transactions_months tm
-GROUP BY tm.month_
-ORDER BY month_
-
-
----
-
-## Task 3: Anti-Join — The NULL Trap in NOT IN
+## Task 3: Anti-Join — Products Never Ordered
 
 **Scenario:**
-Yesterday you wrote three anti-join approaches. Today we explore when one of them silently breaks.
+The inventory team wants to identify products that have never appeared in any order. These are candidates for removal from the catalogue.
 
-The `orders` table has a `user_id` column that is `NOT NULL` — so `NOT IN` works correctly there. But what if `user_id` could be NULL?
+Solve this using **all three approaches** (NOT IN, NOT EXISTS, LEFT JOIN IS NULL), but this time add a twist: the `orders_products` table links orders to products — so the subquery/join is one step removed from `products`.
 
-**Part A:** Write this query and run it:
-```sql
-SELECT id FROM users
-WHERE id NOT IN (SELECT user_id FROM orders WHERE user_id IS NULL OR user_id IS NOT NULL)
-```
-What do you expect it to return? What does it actually return? Write your observation as a comment.
+Then answer: **which approach do you prefer here and why?**
 
-In this case we'd get data without any issues, so we'd get all users who did not make any orders, as I'm 100% sure that by design there are NO NULL id's in orders.
-Also, I'd expect that we'd only have IS NOT NULL condition, I don't see the point of having IS NULL or IS NOT NULL, it's basically useless.
+**Expected Output Columns:**
+- `product_id` (integer)
+- `product_name` (text)
+- `price` (numeric)
 
-
-**Part B:** Now fix Part A using `NOT EXISTS` instead, so it correctly returns users not in orders regardless of NULLs.
-
-SELECT id FROM crappy_data_db.users u
-WHERE NOT EXISTS 
-(SELECT 
-	* 
-FROM crappy_data_db.orders o
-WHERE o.user_id = u.id)
-
-**Part C:** Fix it again using `LEFT JOIN ... WHERE IS NULL`.
-
-**Expected insight:** `NOT IN` returns **zero rows** when the subquery contains even one NULL — because `x NOT IN (..., NULL, ...)` evaluates to UNKNOWN, not TRUE, for every row. `NOT EXISTS` and `LEFT JOIN` are NULL-safe.
+**Requirements:**
+- Use `products` and `orders_products` tables
+- Order by `product_id ASC`
 
 **Difficulty Rating:** 3/5
 
-SELECT 
-	u.id
-FROM crappy_data_db.users u
-LEFT JOIN crappy_data_db.orders o ON u.id = o.user_id
-WHERE o.user_id IS NULL
+1. SELECT id AS product_id FROM crappy_data_db.products p
+WHERE id NOT IN (SELECT product_id FROM crappy_data_db.orders_products op WHERE op.product_id IS NOT NULL)
 
-This pattern feels quite unnatural to use at this point though.
+Very clean, although such products do not exist - thsi is probably the simplest option, and I consider it the most effective
+
+2. SELECT id AS product_id 
+FROM crappy_data_db.products p
+WHERE NOT EXISTS
+(SELECT * 
+FROM crappy_data_db.orders_products op
+WHERE op.product_id = p.id
+)
+
+Same, it also feels quite good.
+
+
+3. SELECT p.id AS product_id 
+FROM crappy_data_db.products p
+LEFT JOIN crappy_data_db.orders_products op ON p.id = op.product_id 
+WHERE op.product_id IS NULL
+
+
+Quite sad that none of these actually give results this time, as there are no such products.
+I'd pick options 1-2. 2 is good because it is NULL-proof, but I think option 1 is also NULL-proof, as long as we use IS NOT NULL condition in WHERE of our subquery.
 
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Self-referencing referral chain (3/5)
-2. Task 2 — PIVOT Step A + Step B (2/5)
-3. Task 3 — Anti-join NULL trap (3/5)
+1. Task 1 — Full revenue PIVOT with total column (3/5)
+2. Task 2 — Self-referencing category tree CTE (3/5)
+3. Task 3 — Anti-join on products never ordered, three ways (3/5)

@@ -2715,3 +2715,22 @@ Correct observation that NOT IN works fine when no NULLs exist in subquery. Corr
 ## Student Feedback on Questions
 
 Good session. PIVOT pattern immediately understood and extended independently. Self-referencing CTE pattern solid — wants to practice on real database data. LEFT JOIN IS NULL anti-join feels unnatural — continue reinforcing. Task 1 and 2 from previous session (Week 13 Day 4) were agent errors — logged in bad_q_examples.md.
+n### Session: 2026-03-17 (Week 14, Day 2)n
+## Agent Feedback on Student — Week 14, Day 2
+
+**Task 1 — Full Revenue PIVOT: 10/10**
+Clean and correct. SUM(amount) FILTER pattern applied perfectly across all five types. total_revenue as plain SUM(amount) is the right approach. Monthly grouping correct. Good instinct on monthly vs all-time scope.
+
+**Task 2 — Self-Referencing Category Tree: 8/10**
+Recursive JOIN logic correct — JOIN categories c ON h.id = c.parent_id produces right traversal. Depth tracking correct. Two issues: hardcoded anchor (1 AS id, 'All Products') instead of SELECT from categories WHERE parent_id IS NULL — not generalisable if root changes. Path separator ' < ' still reversed — spec asked for ' -> ' with spaces. Third session in a row with this cosmetic issue.
+
+**Task 3 — Anti-Join Three Ways: 10/10**
+All three approaches correct. NULL-safety observation accurate — NOT IN with IS NOT NULL guard is safe in practice, NOT EXISTS is cleaner as guard is implicit. Preference reasoning solid. Data observation (no unordered products) is correct professional behavior.
+
+**Session Total: 28/30**
+
+---
+
+## Student Feedback on Questions
+
+All tasks completed. Tasks well-matched. PIVOT pattern now solid. Anti-join patterns understood across all three approaches.

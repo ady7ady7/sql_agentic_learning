@@ -1,179 +1,211 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-03-17
-**Week 14, Day 2 Focus:** PIVOT Step C + Self-Referencing CTE on Real Data + Anti-Join in Complex Context
+**Generated:** 2026-03-18
+**Week 14, Day 3 Focus:** Self-Referencing CTE (Anchor Fix) + Time-Proximity Gaps-and-Islands Edge Case + PIVOT Reinforcement
 
 ---
 
-## Task 1: PIVOT Step C — Full Revenue Pivot by Transaction Type
+## Task 1: Self-Referencing CTE — Fix the Anchor
 
 **Scenario:**
-You've mastered the single-column PIVOT. Now write the full pivot — but this time using **revenue** (SUM of amount) instead of counts, and include a `total_revenue` column as well.
-
-**Expected Output Columns:**
-- `month` (date) — truncated to month
-- `deposit_revenue` (numeric) — rounded to 2 decimals
-- `withdrawal_revenue` (numeric) — rounded to 2 decimals
-- `payment_revenue` (numeric) — rounded to 2 decimals
-- `transfer_revenue` (numeric) — rounded to 2 decimals
-- `purchase_revenue` (numeric) — rounded to 2 decimals
-- `total_revenue` (numeric) — sum of all types, rounded to 2 decimals
-
-**Requirements:**
-- Use `transactions` table
-- Use `SUM(amount) FILTER (WHERE type = '...')` pattern
-- Exclude NULL amounts
-- Order by `month ASC`
-
-**Difficulty Rating:** 3/5
-
-I was wondering if you wanted total revenue for a given month or whole revenue for all time, but I assumed monthly revenues are expected
-
-WITH transactions_months AS (
-SELECT 
-	*,
-	DATE_TRUNC('Month', t.created_at) AS month_
-FROM crappy_data_db.transactions t
-)
-SELECT 
-	month_,
-	SUM(amount) FILTER (WHERE type = 'deposit') AS deposit_revenue,
-	SUM(amount) FILTER (WHERE type = 'withdrawal') AS withdrawal_revenue,
-	SUM(amount) FILTER (WHERE type = 'payment') AS payment_revenue,
-	SUM(amount) FILTER (WHERE type = 'transfer') AS transfer_revenue,
-	SUM(amount) FILTER (WHERE TYPE = 'purchase') AS purchase_revenue,
-	SUM(amount) AS total_revenue
-FROM transactions_months
-GROUP BY month_
-ORDER BY month_
-
----
-
-## Task 2: Self-Referencing CTE — Product Category Tree
-
-**Scenario:**
-The `product_categories` table has a `parent_id` column — except it doesn't currently in our schema. Use this inline VALUES table as your data source (it's self-contained and runnable):
+Use the same category tree as yesterday:
 
 ```sql
-WITH categories (id, name, parent_id) AS (
+WITH RECURSIVE categories (id, name, parent_id) AS (
     VALUES
-    (1, 'All Products',    NULL),
-    (2, 'Electronics',     1),
-    (3, 'Clothing',        1),
-    (4, 'Phones',          2),
-    (5, 'Laptops',         2),
-    (6, 'Men',             3),
-    (7, 'Women',           3),
-    (8, 'iPhone',          4),
-    (9, 'Samsung',         4),
-    (10, 'T-Shirts',       6)
+    (1, 'All Products',  NULL::int),
+    (2, 'Electronics',   1),
+    (3, 'Clothing',      1),
+    (4, 'Phones',        2),
+    (5, 'Laptops',       2),
+    (6, 'Men',           3),
+    (7, 'Women',         3),
+    (8, 'iPhone',        4),
+    (9, 'Samsung',       4),
+    (10, 'T-Shirts',     6)
 )
 ```
 
-Traverse this tree recursively to unlimited depth. Show each category's full path from root.
+This time, write the anchor by **selecting from the `categories` CTE** with `WHERE parent_id IS NULL` — do not hardcode any id or name. The query must work correctly even if the root node changes.
 
 **Expected Output Columns:**
 - `id` (integer)
 - `name` (text)
-- `parent_id` (integer)
-- `path` (text) — e.g. `'All Products -> Electronics -> Phones -> iPhone'`
 - `depth` (integer) — 1 for root
+- `path` (text) — separator ` -> `
 
 **Requirements:**
-- Anchor: root node (`parent_id IS NULL`)
-- Recursive: JOIN categories back to CTE on `categories.parent_id = cte.id`
-- Path separator: ` -> ` (with spaces)
-- Natural termination — no LEVEL limit needed
+- Anchor: `SELECT ... FROM categories WHERE parent_id IS NULL`
+- Recursive: `JOIN categories ON categories.parent_id = cte.id`
+- Natural termination
 - Order by `path ASC`
 
-**Difficulty Rating:** 3/5
+**Difficulty Rating:** 2/5
 
 
 WITH RECURSIVE categories (id, name, parent_id) AS (
     VALUES
-    (1, 'All Products',    NULL),
-    (2, 'Electronics',     1),
-    (3, 'Clothing',        1),
-    (4, 'Phones',          2),
-    (5, 'Laptops',         2),
-    (6, 'Men',             3),
-    (7, 'Women',           3),
-    (8, 'iPhone',          4),
-    (9, 'Samsung',         4),
-    (10, 'T-Shirts',       6)
+    (1, 'All Products',  NULL::int),
+    (2, 'Electronics',   1),
+    (3, 'Clothing',      1),
+    (4, 'Phones',        2),
+    (5, 'Laptops',       2),
+    (6, 'Men',           3),
+    (7, 'Women',         3),
+    (8, 'iPhone',        4),
+    (9, 'Samsung',       4),
+    (10, 'T-Shirts',     6)
 ),
 hierarchy AS (
 SELECT 
-	1 AS id,
-	'All Products' AS name,
-	NULL::TEXT AS parent_id,
-	'All Products' AS PATH,
-	1 AS DEPTH
+	*,
+	name AS path
+FROM categories
+WHERE parent_id IS NULL
 UNION ALL
 SELECT
 	c.id,
 	c.name,
-	h.name,
-	h.PATH || ' < ' || c.name,
-	h.DEPTH + 1
-FROM hierarchy h
-JOIN categories c ON h.id = c.parent_id
+	c.parent_id,
+	h.PATH || '->' || c.name
+FROM HIERARCHY h
+JOIN categories c ON c.parent_id = h.id
 )
 SELECT * FROM hierarchy
 
+---
+
+## Task 2: Time-Proximity Gaps-and-Islands — Session Windows
+
+**Scenario:**
+You have a stream of user events (transactions) and want to group them into "sessions" — bursts of activity where consecutive events are within 60 minutes of each other. If the gap between two consecutive events for the same user exceeds 60 minutes, it's a new session.
+
+Use this inline data as your source:
+
+```sql
+WITH events (user_id, event_time) AS (
+    VALUES
+    (1, '2024-01-01 08:00'::timestamp),
+    (1, '2024-01-01 08:30'::timestamp),
+    (1, '2024-01-01 08:58'::timestamp),
+    (1, '2024-01-01 09:03'::timestamp),
+    (1, '2024-01-01 10:30'::timestamp),
+    (1, '2024-01-01 11:45'::timestamp),
+    (2, '2024-01-01 09:00'::timestamp),
+    (2, '2024-01-01 09:50'::timestamp),
+    (2, '2024-01-01 11:00'::timestamp)
+)
+```
+
+Group events into sessions. The 08:58 and 09:03 events are only 5 minutes apart — they belong to the **same session** even though they straddle the hour boundary.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `session_id` (integer) — sequential session number per user (1, 2, 3...)
+- `session_start` (timestamp) — first event in the session
+- `session_end` (timestamp) — last event in the session
+- `event_count` (bigint) — number of events in the session
+
+**Requirements:**
+- Use LAG to get the previous event time per user
+- A new session starts when the gap to the previous event exceeds 60 minutes (or it's the user's first event)
+- Use `SUM() OVER` to create a session group key (cumulative count of session-starts)
+- Then GROUP BY the session key to produce one row per session
+- Order by `user_id ASC`, `session_start ASC`
+
+**Difficulty Rating:** 5/5
+
+WITH events (user_id, event_time) AS (
+    VALUES
+    (1, '2024-01-01 08:00'::timestamp),
+    (1, '2024-01-01 08:30'::timestamp),
+    (1, '2024-01-01 08:58'::timestamp),
+    (1, '2024-01-01 09:03'::timestamp),
+    (1, '2024-01-01 10:30'::timestamp),
+    (1, '2024-01-01 11:45'::timestamp),
+    (2, '2024-01-01 09:00'::timestamp),
+    (2, '2024-01-01 09:50'::timestamp),
+    (2, '2024-01-01 11:00'::timestamp)
+),
+users_prev_events AS (
+SELECT 
+	*,
+	RANK() OVER (PARTITION BY user_id ORDER BY event_time) AS session_id,
+	LAG(event_time) OVER (PARTITION BY user_id) AS prev_event_time
+FROM events
+),
+users_events_new_sessions AS (
+SELECT 
+	*,
+	CASE
+		WHEN prev_event_time IS NULL OR event_time - prev_event_time > INTERVAL '60 minutes' THEN 1
+		ELSE 0
+	END AS is_new_session
+FROM users_prev_events
+),
+users_events_session_keys AS (
+SELECT 
+	*,
+	SUM(is_new_session) OVER (PARTITION BY user_id ORDER BY event_time) AS session_key
+FROM users_events_new_sessions
+)
+SELECT
+	user_id,
+	session_key,
+	MIN(event_time) AS session_start,
+	MAX(event_time) AS session_end,
+	COUNT(*) AS event_count
+FROM users_events_session_keys
+GROUP BY user_id, session_key
+ORDER BY user_id, session_start
+	
+
+Feels great and WE DEFINITELY NEED TO PRACTICE THIS PATTERN IN ALL DIFFERENT CONTEXTS
 
 ---
 
-## Task 3: Anti-Join — Products Never Ordered
+## Task 3: PIVOT — Order Count by Delivery Status per Month
 
 **Scenario:**
-The inventory team wants to identify products that have never appeared in any order. These are candidates for removal from the catalogue.
-
-Solve this using **all three approaches** (NOT IN, NOT EXISTS, LEFT JOIN IS NULL), but this time add a twist: the `orders_products` table links orders to products — so the subquery/join is one step removed from `products`.
-
-Then answer: **which approach do you prefer here and why?**
+Build a pivot showing how many orders were in each delivery status per month.
 
 **Expected Output Columns:**
-- `product_id` (integer)
-- `product_name` (text)
-- `price` (numeric)
+- `month` (date) — truncated to month
+- `pending` (bigint)
+- `delivered` (bigint)
+- `total_orders_with_delivery` (bigint) — total across all statuses
 
 **Requirements:**
-- Use `products` and `orders_products` tables
-- Order by `product_id ASC`
+- Use `orders` and `deliveries` tables
+- Join on `order_id`
+- Use `COUNT(*) FILTER (WHERE status = '...')` pattern
+- Order by `month ASC`
 
 **Difficulty Rating:** 3/5
 
-1. SELECT id AS product_id FROM crappy_data_db.products p
-WHERE id NOT IN (SELECT product_id FROM crappy_data_db.orders_products op WHERE op.product_id IS NOT NULL)
-
-Very clean, although such products do not exist - thsi is probably the simplest option, and I consider it the most effective
-
-2. SELECT id AS product_id 
-FROM crappy_data_db.products p
-WHERE NOT EXISTS
-(SELECT * 
-FROM crappy_data_db.orders_products op
-WHERE op.product_id = p.id
+WITH orders_deliveries_months AS (
+SELECT 
+	*,
+	DATE_TRUNC('Month', d.created_at) AS delivery_month
+FROM crappy_data_db.orders o
+JOIN crappy_data_db.deliveries d ON o.id = d.order_id
 )
+SELECT 
+	delivery_month,
+	COUNT(*) FILTER (WHERE status = 'pending') AS pending,
+	COUNT(*) FILTER (WHERE status = 'delivered') AS delivered,
+	COUNT(DISTINCT(order_id)) AS total_orders_with_delivery
+FROM orders_deliveries_months
+GROUP BY delivery_month
+ORDER BY delivery_month
 
-Same, it also feels quite good.
-
-
-3. SELECT p.id AS product_id 
-FROM crappy_data_db.products p
-LEFT JOIN crappy_data_db.orders_products op ON p.id = op.product_id 
-WHERE op.product_id IS NULL
-
-
-Quite sad that none of these actually give results this time, as there are no such products.
-I'd pick options 1-2. 2 is good because it is NULL-proof, but I think option 1 is also NULL-proof, as long as we use IS NOT NULL condition in WHERE of our subquery.
+I've added DISTINCT here for total_orders_with_delivery, as otherwise we'd simply get duplicated orders as their status changes since there are many more than just these two statuses.
 
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Full revenue PIVOT with total column (3/5)
-2. Task 2 — Self-referencing category tree CTE (3/5)
-3. Task 3 — Anti-join on products never ordered, three ways (3/5)
+1. Task 1 — Self-referencing CTE with non-hardcoded anchor (2/5)
+2. Task 2 — Time-proximity session grouping (5/5)
+3. Task 3 — Delivery status PIVOT by month (3/5)

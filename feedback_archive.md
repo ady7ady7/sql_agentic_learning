@@ -2734,3 +2734,22 @@ All three approaches correct. NULL-safety observation accurate — NOT IN with I
 ## Student Feedback on Questions
 
 All tasks completed. Tasks well-matched. PIVOT pattern now solid. Anti-join patterns understood across all three approaches.
+n### Session: 2026-03-18 (Week 14, Day 3)n
+## Agent Feedback on Student — Week 14, Day 3
+
+**Task 1 — Self-Referencing CTE (Fixed Anchor): 10/10**
+Anchor correctly selects from categories WHERE parent_id IS NULL — no hardcoding. Recursive JOIN correct. Path building correct. Natural termination. Habit fixed.
+
+**Task 2 — Time-Proximity Session Windows: 9/10**
+Pattern fully understood and cleanly executed. Three CTEs, correct is_new_session flag, correct SUM() OVER session key, correct GROUP BY. 08:58/09:03 events correctly land in the same session. Minor: unused RANK() in first CTE (dead code); final output shows session_key instead of clean sequential session_id per user (RANK() OVER in final SELECT would fix this). Student confirmed wanting more practice with this pattern in different contexts.
+
+**Task 3 — Delivery Status PIVOT: 10/10**
+Clean and correct. COUNT(DISTINCT order_id) for total_orders_with_delivery is exactly right — correctly identified that multiple status records per order would cause overcounting with plain COUNT(*).
+
+**Session Total: 29/30**
+
+---
+
+## Student Feedback on Questions
+
+Time-proximity session pattern clicked and student wants more practice in different contexts (trades, clicks, messages). Task 2 was the main learning win today.

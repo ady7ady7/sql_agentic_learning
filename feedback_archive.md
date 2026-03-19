@@ -2753,3 +2753,22 @@ Clean and correct. COUNT(DISTINCT order_id) for total_orders_with_delivery is ex
 ## Student Feedback on Questions
 
 Time-proximity session pattern clicked and student wants more practice in different contexts (trades, clicks, messages). Task 2 was the main learning win today.
+n### Session: 2026-03-19 (Week 14, Day 4)n
+## Agent Feedback on Student — Week 14, Day 4
+
+**Task 1 — Trade Burst Clustering: 9/10**
+Time-proximity pattern applied correctly — LAG → is_start flag → SUM() OVER burst_key → GROUP BY. 35-minute gap correctly starts new burst. total_amount correct. Minor: burst_id is raw cumulative SUM rather than RANK()-based sequential number per spec, but produces identical results on this data. Student notes pattern still feels unintuitive — continued rotation needed.
+
+**Task 2 — Age Group Revenue PIVOT: 10/10**
+Clean single-pass approach. SUM(amount) FILTER directly in SELECT — no extra CTEs needed. COALESCE to 0 for empty buckets. Student correctly identified FILTER as more efficient than CASE WHEN grouping. Pattern feels natural now.
+
+**Task 3 — Anti-Join (Orders Without Deliveries): 10/10**
+Professional call — verified no qualifying data exists at first step, reported finding, explained what full query would look like. NOT EXISTS correlated subquery correct. No point building complexity for non-existent data.
+
+**Session Total: 29/30**
+
+---
+
+## Student Feedback on Questions
+
+Time-proximity pattern still needs more repetition to become automatic. PIVOT with FILTER feels natural and efficient. Anti-join pattern solid. All tasks good.

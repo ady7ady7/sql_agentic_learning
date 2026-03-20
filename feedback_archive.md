@@ -2772,3 +2772,51 @@ Professional call — verified no qualifying data exists at first step, reported
 ## Student Feedback on Questions
 
 Time-proximity pattern still needs more repetition to become automatic. PIVOT with FILTER feels natural and efficient. Anti-join pattern solid. All tasks good.
+n### Session: 2026-03-20 (Week 14, Day 5 + Weekly Recap)n
+## Agent Feedback on Student — Week 14, Day 5
+
+**Task 1 — Chat Message Bursts: 9/10**
+Time-proximity pattern on real data — LAG → burst_start flag → SUM() OVER → GROUP BY executed correctly. message_type = 'text' filter consistent with established convention. COUNT(DISTINCT(user_id, author_id)) correctly counts unique senders given schema design (user_id and author_id are mutually exclusive — one always NULL). Minor: WHERE message_count > 2 instead of >= 2.
+
+**Task 2 — All Subordinates of a Manager: 9/10**
+Anchor correctly targets manager_id = 2 without hardcoding names. Recursive JOIN correct. Natural termination. Bob Freeman at depth 2 correct. Path uses IDs — valid, spec didn't specify format. Passing h.id as manager_id in recursive SELECT is technically incorrect but harmless since it's not used downstream.
+
+**Task 3 — Ticket Priority PIVOT: 10/10**
+Minimal, clean, correct. Single SELECT, no CTE needed. Pattern fully automatic.
+
+**Session Total: 28/30**
+
+---
+
+## Student Feedback on Questions
+
+Time-proximity pattern becoming more natural with repetition on real data. PIVOT feels easy and automatic now. Self-referencing CTE pattern solid. More complex PIVOT scenarios requested for future sessions.
+
+---
+
+## Weekly Summary — Week 14 (2026-03-17 to 2026-03-20)
+
+### Daily Scores
+- Day 1: 28/30
+- Day 2: 28/30
+- Day 3: 29/30
+- Day 4: 29/30
+- Day 5: 28/30
+- **Week Average: 28.4/30 (94.7%)**
+
+### Key Wins This Week
+- **PIVOT pattern fully automatic** — COUNT/SUM FILTER syntax internalized, single-pass efficiency understood
+- **Self-referencing CTE anchor fixed** — no more hardcoded roots, WHERE parent_id IS NULL pattern correct
+- **Time-proximity session grouping** — LAG → is_new_burst → SUM() OVER → GROUP BY applied in three different contexts (sessions, trades, chat bursts)
+- **Anti-join three ways** — NOT IN, NOT EXISTS, LEFT JOIN IS NULL all correct; NULL trap understood
+
+### Focus Areas
+- **Time-proximity pattern** — still needs more repetition to feel automatic without referring back to previous solutions
+- **>= vs > threshold** — recurring minor miss on HAVING/WHERE filters
+- **Sequential burst_id** — raw SUM() key vs RANK()-based sequential number distinction
+
+### Next Week Plan
+- Continue time-proximity drills in new contexts
+- More complex PIVOT scenarios (multi-level aggregation, dynamic-feeling pivots)
+- Query optimization intro — EXPLAIN ANALYZE concepts
+- Gaps-and-islands edge cases continued

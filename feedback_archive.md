@@ -2820,3 +2820,22 @@ Time-proximity pattern becoming more natural with repetition on real data. PIVOT
 - More complex PIVOT scenarios (multi-level aggregation, dynamic-feeling pivots)
 - Query optimization intro — EXPLAIN ANALYZE concepts
 - Gaps-and-islands edge cases continued
+n### Session: 2026-03-23 (Week 15, Day 1)n
+## Agent Feedback on Student — Week 15, Day 1
+
+**Task 1 — Order Burst Clustering: 9/10**
+Clean four-CTE solution. Correct pattern end to end — LAG → is_new_streak flag → SUM() OVER streak_key → GROUP BY. WHERE order_count > 1 correct (equivalent to >= 2). Missing ROUND(..., 2) on burst_revenue. Student notes pattern is clicking and wants more variants.
+
+**Task 2 — Age Group × Order Frequency PIVOT: 10/10**
+Correct two-CTE architecture under difficult conditions (poor sleep). Frequency bucket CTE → age group join → FILTER pivot. Missing WHERE u.age IS NOT NULL filter but data has no NULL ages so no impact. PIVOT matrix felt unintuitive — needs more repetition.
+
+**Task 3 — Anti-Join (No Delivered Orders): 10/10**
+Creative and readable approach — built delivered_users as positive set first, then NOT EXISTS against it. Cleaner to reason about than deeply nested correlated subquery. Final JOIN to aggregate correct. Missing ORDER BY per spec. Task 3 caused significant confusion mid-session around NOT EXISTS scope (order level vs user level) — student was tired and struggled. Concept resolved after explanation.
+
+**Session Total: 29/30**
+
+---
+
+## Student Feedback on Questions
+
+Tough session — poor sleep. Time-proximity pattern clicking well. PIVOT matrix still feels unintuitive, needs more repetition. Anti-join NOT EXISTS scope (order vs user level) caused real confusion today — worth revisiting in a fresh session.

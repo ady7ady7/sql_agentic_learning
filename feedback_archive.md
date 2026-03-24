@@ -2839,3 +2839,22 @@ Creative and readable approach — built delivered_users as positive set first, 
 ## Student Feedback on Questions
 
 Tough session — poor sleep. Time-proximity pattern clicking well. PIVOT matrix still feels unintuitive, needs more repetition. Anti-join NOT EXISTS scope (order vs user level) caused real confusion today — worth revisiting in a fresh session.
+n### Session: 2026-03-24 (Week 15, Day 2)n
+## Agent Feedback on Student — Week 15, Day 2
+
+**Task 1 — Ticket Response Streaks: 9/10**
+Time-proximity pattern applied cleanly — LAG → is_new_streak → SUM() OVER → GROUP BY. Column naming change (burst→streak) appropriate for context. Two misses: EXTRACT('Minute') used instead of EPOCH/60 for duration (would fail for streaks > 59 min); missing HAVING COUNT(*) >= 2 filter (single-message streaks included).
+
+**Task 2 — Upward Ancestor Traversal: 10/10**
+Upward direction correct — anchor at node 8, recursive JOIN follows h.parent_id = c.id upward. Natural termination at root. Including the starting node (iPhone) in output is a valid and cleaner interpretation — "path from node to root" is more useful than ancestors-only.
+
+**Task 3 — PIVOT + Anti-Join Combined: 9/10**
+Anti-join CTE correct — NOT EXISTS checking at user level. PIVOT with SUM FILTER correct. Minor: INNER JOIN to deliveries in users_orders CTE silently drops orders with no delivery record; LEFT JOIN would be safer. total_revenue reflects only orders with deliveries, not all orders.
+
+**Session Total: 28/30**
+
+---
+
+## Student Feedback on Questions
+
+Good session. EPOCH vs EXTRACT('Minute') distinction reinforced. Upward ancestor traversal is a useful new pattern. PIVOT + anti-join combination felt natural. All tasks well-matched.

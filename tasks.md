@@ -1,185 +1,194 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-03-23
-**Week 15, Day 1 Focus:** Time-Proximity Variant + PIVOT Complex + Anti-Join with Subquery Twist
+**Generated:** 2026-03-24
+**Week 15, Day 2 Focus:** Time-Proximity Variant + PIVOT + Self-Referencing CTE + Anti-Join Complex
 
 ---
 
-## Task 1: Time-Proximity Gaps-and-Islands — Order Bursts per User
+## Task 1: Time-Proximity — Support Ticket Response Bursts
 
 **Scenario:**
-The operations team wants to identify "ordering bursts" — periods where a user places multiple orders in quick succession. Define a burst as a sequence of orders where each consecutive order arrives within **2 hours** of the previous one (per user).
+The support team wants to identify "response bursts" — periods within a ticket where messages arrive rapidly. Define a burst as a sequence of messages within the same ticket where each consecutive message arrives within **15 minutes** of the previous one.
 
 For each burst show:
 
 **Expected Output Columns:**
-- `user_id` (integer)
-- `burst_id` (bigint) — sequential per user (1, 2, 3...)
+- `ticket_id` (bigint)
+- `burst_id` (bigint) — sequential per ticket (1, 2, 3...)
 - `burst_start` (timestamp)
 - `burst_end` (timestamp)
-- `order_count` (bigint)
-- `burst_revenue` (numeric) — total order amount in the burst, rounded to 2 decimals
+- `message_count` (bigint)
+- `duration_minutes` (numeric) — minutes from burst_start to burst_end, rounded to 1 decimal
 
 **Requirements:**
-- Use `orders` table, exclude NULL amounts
-- Gap threshold: 2 hours between consecutive orders per user
-- LAG → is_new_burst flag → SUM() OVER burst_key → GROUP BY pattern
-- Only include bursts with at least 2 orders
-- Order by `user_id ASC`, `burst_start ASC`
+- Use `chat_messages` table, `message_type = 'text'` only
+- Gap threshold: 15 minutes between consecutive messages per ticket
+- LAG → is_new_burst flag → SUM() OVER → GROUP BY pattern
+- Only include bursts with at least 2 messages
+- Order by `ticket_id ASC`, `burst_start ASC`
 
 **Difficulty Rating:** 4/5
 
-WITH users_orders AS (
+WITH tickets_msg_prev_responses AS (
 SELECT 
 	*,
-	LAG(o.created_at) OVER (PARTITION BY user_id ORDER BY created_at) AS prev_order_time
-FROM crappy_data_db.orders o
+	LAG(cm.created_at) OVER (PARTITION BY ticket_id ORDER BY created_at) AS prev_ticket_response
+FROM crappy_data_db.chat_messages cm
+WHERE message_type = 'text'
 ),
-users_streak_beginnings AS (
+msgs_is_streaks AS (
 SELECT 
 	*,
-	CASE WHEN prev_order_time IS NULL OR created_at - prev_order_time > INTERVAL '2 HOURS' THEN 1 ELSE 0 END AS is_new_streak
-FROM users_orders
+	CASE WHEN prev_ticket_response IS NULL OR created_at - prev_ticket_response > INTERVAL '15 Minutes' THEN 1 ELSE 0 END AS is_new_streak
+FROM tickets_msg_prev_responses
 ),
-users_streak_keys AS (
+msgs_streak_ids AS (
 SELECT 
 	*,
-	SUM(is_new_streak) OVER (PARTITION BY user_id ORDER BY created_at) AS streak_key
-FROM users_streak_beginnings
-),
-users_order_streaks AS (
-SELECT 
-	user_id,
-	streak_key AS burst_id,
-	MIN(created_at) AS burst_start,
-	MAX(created_at) AS burst_end,
-	COUNT(*) AS order_count,
-	SUM(amount) AS burst_revenue
-FROM users_streak_keys
-GROUP BY user_id, streak_key
+	SUM(is_new_streak) OVER (PARTITION BY ticket_id ORDER BY created_at) AS streak_id
+FROM msgs_is_streaks
 )
-SELECT 
-*
-FROM users_order_streaks
-WHERE order_count > 1
-ORDER BY user_id, burst_start
-
-
-Very useful task - this is definitely a pattern I want to practice.
-Here there were only 12 such bursts in total, but still - very useful pattern to practice in more and more context and more and more advanced tasks with different data.
-
-
----
-
-## Task 2: PIVOT — User Age Group × Order Frequency Matrix
-
-**Scenario:**
-The analytics team wants a cross-tab matrix showing how many users fall into each combination of age group and order frequency bucket.
-
-Age groups:
-- `under_30`: age < 30
-- `30_to_50`: age between 30 and 50
-- `over_50`: age > 50
-
-Order frequency buckets (total orders per user):
-- `one_time`: exactly 1 order
-- `occasional`: 2–4 orders
-- `regular`: 5+ orders
-
-**Expected Output Columns:**
-- `age_group` (text)
-- `one_time` (bigint)
-- `occasional` (bigint)
-- `regular` (bigint)
-- `total_users` (bigint)
-
-**Requirements:**
-- Use `users` and `orders` tables
-- Exclude users with NULL age
-- Users with 0 orders are NOT included (only users who appear in orders)
-- Use conditional aggregation for the pivot columns
-- Order by `age_group ASC`
-
-**Difficulty Rating:** 4/5
-
-WITH users_orders_cnt AS (
-SELECT 
-	user_id,
-	COUNT(*) AS orders_cnt,
-	CASE WHEN COUNT(*) = 1 THEN 'one_time' WHEN COUNT (*) BETWEEN 2 AND 4 THEN 'occasional' ELSE 'regular' END AS frequency_bucket
-FROM crappy_data_db.orders o
-GROUP BY o.user_id
-),
-users_orders_age AS (
-SELECT 
-	*,
-	CASE WHEN u.age < 30 THEN 'under_30' WHEN age BETWEEN 30 AND 50 THEN '30_to_50' ELSE 'over_50' END AS age_group
-FROM users_orders_cnt uo
-JOIN crappy_data_db.users u ON uo.user_id = u.id
-)
-SELECT 
-	age_group,
-	COUNT(*) FILTER (WHERE frequency_bucket = 'one_time') AS one_time,
-	COUNT(*) FILTER (WHERE frequency_bucket = 'occasional') AS occasional,
-	COUNT(*) FILTER (WHERE frequency_bucket = 'regular') AS regular,
-	COUNT(*) AS total_users
-FROM users_orders_age
-GROUP BY age_group
-ORDER BY age_group
-
-I really struggled with that today - this matrix did feel unintuitive.
-
----
-
-## Task 3: Anti-Join — Users Who Ordered but Never Had a Delivered Order
-
-**Scenario:**
-The customer success team wants to find users who have placed at least one order, but none of their orders have ever been successfully delivered (no delivery record with `status = 'delivered'`).
-
-Solve this using **NOT EXISTS** only — this is the safest pattern when the subquery involves NULLable joins.
-
-**Expected Output Columns:**
-- `user_id` (integer)
-- `total_orders` (bigint)
-- `first_order_date` (date)
-
-**Requirements:**
-- Use `users`, `orders`, `deliveries` tables
-- A "delivered order" = an order that has at least one delivery record with `status = 'delivered'`
-- Only include users who have at least 1 order
-- Order by `total_orders DESC`, `first_order_date ASC`
-
-**Difficulty Rating:** 4/5
-
-
-WITH delivered_users AS (
 SELECT
-DISTINCT o2.user_id
-FROM crappy_data_db.orders o1
-JOIN crappy_data_db.deliveries d
-ON d.status = 'delivered' AND d.order_id = o1.id
-JOIN crappy_data_db.orders o2 ON o1.user_id = o2.user_id
+	ticket_id,
+	streak_id,
+	MIN(created_at) AS streak_start,
+	MAX(created_at) AS streak_end,
+	COUNT(*) AS message_count,
+	EXTRACT('Minute' FROM MAX(created_at) - MIN(created_at)) AS duration_minutes
+FROM msgs_streak_ids
+GROUP BY ticket_id, streak_id
+ORDER BY ticket_id, streak_start
+
+
+I've changed the names from burst to streak, as it sounds more natural and matching here. DO NOT take away points for that.
+
+---
+
+## Task 2: Self-Referencing CTE — Find All Ancestors of a Node
+
+**Scenario:**
+Given the same category tree as before, write a query that finds **all ancestors** of a given node — traversing **upward** from child to parent, instead of the usual top-down direction.
+
+Use this inline data:
+
+```sql
+WITH RECURSIVE categories (id, name, parent_id) AS (
+    VALUES
+    (1, 'All Products',  NULL::int),
+    (2, 'Electronics',   1),
+    (3, 'Clothing',      1),
+    (4, 'Phones',        2),
+    (5, 'Laptops',       2),
+    (6, 'Men',           3),
+    (7, 'Women',         3),
+    (8, 'iPhone',        4),
+    (9, 'Samsung',       4),
+    (10, 'T-Shirts',     6)
+)
+```
+
+Find all ancestors of node `id = 8` (iPhone). The result should include: Phones → Electronics → All Products.
+
+**Expected Output Columns:**
+- `id` (integer)
+- `name` (text)
+- `parent_id` (integer)
+- `depth` (integer) — 1 = direct parent, 2 = grandparent, etc.
+
+**Requirements:**
+- Anchor: start with the direct parent of node 8 (`WHERE id = (SELECT parent_id FROM categories WHERE id = 8)`)
+- Recursive: JOIN categories on `categories.id = cte.parent_id`
+- Natural termination when parent_id IS NULL (root reached)
+- Order by `depth ASC`
+
+**Difficulty Rating:** 4/5
+
+WITH RECURSIVE categories (id, name, parent_id) AS (
+    VALUES
+    (1, 'All Products',  NULL::int),
+    (2, 'Electronics',   1),
+    (3, 'Clothing',      1),
+    (4, 'Phones',        2),
+    (5, 'Laptops',       2),
+    (6, 'Men',           3),
+    (7, 'Women',         3),
+    (8, 'iPhone',        4),
+    (9, 'Samsung',       4),
+    (10, 'T-Shirts',     6)
 ),
-non_delivered_users AS (
+HIERARCHY AS (
 SELECT 
-	o.user_id
-FROM crappy_data_db.orders o
-WHERE NOT EXISTS
-(SELECT * FROM delivered_users du WHERE du.user_id = o.user_id)
+	*,
+	1 AS depth
+FROM categories
+WHERE id = 8
+UNION ALL
+SELECT 
+c.id,
+c.name,
+c.parent_id,
+h.DEPTH + 1
+FROM HIERARCHY h
+JOIN categories c ON h.parent_id = c.id
+)
+SELECT * FROM HIERARCHY
+ORDER BY DEPTH
+
+---
+
+## Task 3: PIVOT + Anti-Join — Monthly Revenue from Users Who Never Had a Delivered Order
+
+**Scenario:**
+Combine what you've learned: first identify users who have never had a delivered order (anti-join), then pivot their monthly order revenue by the delivery status of their orders.
+
+**Expected Output Columns:**
+- `month` (date) — truncated to month
+- `pending_revenue` (numeric) — rounded to 2 decimals
+- `total_revenue` (numeric) — rounded to 2 decimals
+- `user_count` (bigint) — distinct users contributing that month
+
+**Requirements:**
+- Use `users`, `orders`, `deliveries`
+- First isolate users with no delivered orders using NOT EXISTS
+- Then join to their orders and deliveries to pivot revenue by status
+- Only include `status = 'pending'` for the pivot column (it will be the only status for these users)
+- Order by `month ASC`
+
+**Difficulty Rating:** 5/5
+
+WITH users_without_delivered_orders AS (
+SELECT o2.user_id 
+FROM crappy_data_db.orders o2
+WHERE NOT EXISTS (
+SELECT 
+	DISTINCT(user_id)
+FROM crappy_data_db.deliveries d 
+JOIN crappy_data_db.orders o ON d.order_id = o.id AND o.user_id = o2.user_id
+WHERE d.status = 'delivered'
+)
+),
+users_orders AS (
+SELECT 
+	uw.user_id AS USER,
+	*,
+	DATE_TRUNC('Month', o.created_at) AS month_
+FROM users_without_delivered_orders uw
+JOIN crappy_data_db.orders o ON uw.user_id = o.user_id
+JOIN crappy_data_db.deliveries d ON o.id = d.order_id
 )
 SELECT 
-	ndu.user_id,
-	COUNT(*) AS total_orders,
-	MIN(o.created_at) AS first_order_date
-FROM non_delivered_users ndu
-JOIN crappy_data_db.orders o ON ndu.user_id = o.user_id
-GROUP BY ndu.user_id
-
+	month_,
+	SUM(amount) FILTER (WHERE status = 'pending') AS pending_revenue,
+	SUM(amount) AS total_revenue,
+	COUNT(DISTINCT(uo.user)) AS user_count
+FROM users_orders uo
+GROUP BY month_
+ORDER BY month_
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Order burst clustering (4/5)
-2. Task 2 — Age group × order frequency PIVOT matrix (4/5)
-3. Task 3 — Anti-join: users with no delivered orders (4/5)
+1. Task 1 — Support ticket response bursts (4/5)
+2. Task 2 — Self-referencing CTE traversal upward (4/5)
+3. Task 3 — PIVOT + anti-join combined (5/5)

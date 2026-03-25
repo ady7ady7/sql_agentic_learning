@@ -2858,3 +2858,22 @@ Anti-join CTE correct — NOT EXISTS checking at user level. PIVOT with SUM FILT
 ## Student Feedback on Questions
 
 Good session. EPOCH vs EXTRACT('Minute') distinction reinforced. Upward ancestor traversal is a useful new pattern. PIVOT + anti-join combination felt natural. All tasks well-matched.
+n### Session: 2026-03-25 (Week 15, Day 3)n
+## Agent Feedback on Student — Week 15, Day 3
+
+**Task 1 — Transaction Sessions with Edge Cases: 10/10**
+Pattern fully automatic. LAG → is_new_session → SUM() OVER → GROUP BY executed flawlessly. EPOCH/60 used correctly for duration. Edge case (08:52→09:18 = 26 min, same session) handled correctly by the math. Clean and concise.
+
+**Task 2 — Delivery Status Revenue PIVOT by Category: 10/10**
+Sharp catch — joining deliveries before total_revenue would inflate totals if multiple delivery records exist per order. Two-query approach (status-filtered CTE + clean total_revenue without deliveries) is the correct professional solution. Observation that total_revenue = pending_revenue is correct and verified.
+
+**Task 3 — No Recent Sales Anti-Join: 9/10**
+Correct finding — no qualifying categories exist. Query logic inverted from spec (found categories WITH recent sales rather than WITHOUT). NOT EXISTS pattern not demonstrated. Logic comparison uses category's own last_order_time vs global max date — slightly different from spec but reasonable. Minor deduction for not showing NOT EXISTS shell even with empty result.
+
+**Session Total: 29/30**
+
+---
+
+## Student Feedback on Questions
+
+Task 2 had a spec issue — joining deliveries before computing total_revenue is dangerous and produces inflated results. Student correctly identified this and proposed a safer two-query approach. Agent to be more careful about join order when revenue aggregation is involved.

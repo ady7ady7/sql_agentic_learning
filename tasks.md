@@ -1,194 +1,215 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-03-24
-**Week 15, Day 2 Focus:** Time-Proximity Variant + PIVOT + Self-Referencing CTE + Anti-Join Complex
+**Generated:** 2026-03-25
+**Week 15, Day 3 Focus:** Time-Proximity Edge Cases + PIVOT Complex + Anti-Join Combo
 
 ---
 
-## Task 1: Time-Proximity — Support Ticket Response Bursts
+## Task 1: Time-Proximity — User Transaction Sessions with Edge Cases
 
 **Scenario:**
-The support team wants to identify "response bursts" — periods within a ticket where messages arrive rapidly. Define a burst as a sequence of messages within the same ticket where each consecutive message arrives within **15 minutes** of the previous one.
-
-For each burst show:
-
-**Expected Output Columns:**
-- `ticket_id` (bigint)
-- `burst_id` (bigint) — sequential per ticket (1, 2, 3...)
-- `burst_start` (timestamp)
-- `burst_end` (timestamp)
-- `message_count` (bigint)
-- `duration_minutes` (numeric) — minutes from burst_start to burst_end, rounded to 1 decimal
-
-**Requirements:**
-- Use `chat_messages` table, `message_type = 'text'` only
-- Gap threshold: 15 minutes between consecutive messages per ticket
-- LAG → is_new_burst flag → SUM() OVER → GROUP BY pattern
-- Only include bursts with at least 2 messages
-- Order by `ticket_id ASC`, `burst_start ASC`
-
-**Difficulty Rating:** 4/5
-
-WITH tickets_msg_prev_responses AS (
-SELECT 
-	*,
-	LAG(cm.created_at) OVER (PARTITION BY ticket_id ORDER BY created_at) AS prev_ticket_response
-FROM crappy_data_db.chat_messages cm
-WHERE message_type = 'text'
-),
-msgs_is_streaks AS (
-SELECT 
-	*,
-	CASE WHEN prev_ticket_response IS NULL OR created_at - prev_ticket_response > INTERVAL '15 Minutes' THEN 1 ELSE 0 END AS is_new_streak
-FROM tickets_msg_prev_responses
-),
-msgs_streak_ids AS (
-SELECT 
-	*,
-	SUM(is_new_streak) OVER (PARTITION BY ticket_id ORDER BY created_at) AS streak_id
-FROM msgs_is_streaks
-)
-SELECT
-	ticket_id,
-	streak_id,
-	MIN(created_at) AS streak_start,
-	MAX(created_at) AS streak_end,
-	COUNT(*) AS message_count,
-	EXTRACT('Minute' FROM MAX(created_at) - MIN(created_at)) AS duration_minutes
-FROM msgs_streak_ids
-GROUP BY ticket_id, streak_id
-ORDER BY ticket_id, streak_start
-
-
-I've changed the names from burst to streak, as it sounds more natural and matching here. DO NOT take away points for that.
-
----
-
-## Task 2: Self-Referencing CTE — Find All Ancestors of a Node
-
-**Scenario:**
-Given the same category tree as before, write a query that finds **all ancestors** of a given node — traversing **upward** from child to parent, instead of the usual top-down direction.
+Group each user's transactions into sessions where consecutive transactions are within **30 minutes** of each other. This dataset is designed to test edge cases — pay attention to transactions that straddle the hour boundary.
 
 Use this inline data:
 
 ```sql
-WITH RECURSIVE categories (id, name, parent_id) AS (
+WITH events (user_id, event_time, amount) AS (
     VALUES
-    (1, 'All Products',  NULL::int),
-    (2, 'Electronics',   1),
-    (3, 'Clothing',      1),
-    (4, 'Phones',        2),
-    (5, 'Laptops',       2),
-    (6, 'Men',           3),
-    (7, 'Women',         3),
-    (8, 'iPhone',        4),
-    (9, 'Samsung',       4),
-    (10, 'T-Shirts',     6)
+    (1, '2024-01-01 08:00'::timestamp, 100),
+    (1, '2024-01-01 08:25'::timestamp, 200),
+    (1, '2024-01-01 08:52'::timestamp, 150),
+    (1, '2024-01-01 09:18'::timestamp, 300),
+    (1, '2024-01-01 10:00'::timestamp, 50),
+    (1, '2024-01-01 10:20'::timestamp, 75),
+    (2, '2024-01-01 09:00'::timestamp, 500),
+    (2, '2024-01-01 09:28'::timestamp, 200),
+    (2, '2024-01-01 10:05'::timestamp, 100)
 )
 ```
 
-Find all ancestors of node `id = 8` (iPhone). The result should include: Phones → Electronics → All Products.
+Note: user 1's events at 08:52 and 09:18 are 26 minutes apart — same session. Events at 09:18 and 10:00 are 42 minutes apart — new session.
 
 **Expected Output Columns:**
-- `id` (integer)
-- `name` (text)
-- `parent_id` (integer)
-- `depth` (integer) — 1 = direct parent, 2 = grandparent, etc.
+- `user_id` (integer)
+- `session_id` (bigint) — sequential per user (1, 2, 3...)
+- `session_start` (timestamp)
+- `session_end` (timestamp)
+- `event_count` (bigint)
+- `total_amount` (numeric)
+- `duration_minutes` (numeric) — use EPOCH, rounded to 1 decimal
 
 **Requirements:**
-- Anchor: start with the direct parent of node 8 (`WHERE id = (SELECT parent_id FROM categories WHERE id = 8)`)
-- Recursive: JOIN categories on `categories.id = cte.parent_id`
-- Natural termination when parent_id IS NULL (root reached)
-- Order by `depth ASC`
+- LAG → is_new_session flag → SUM() OVER → GROUP BY pattern
+- Use `EXTRACT(EPOCH FROM ...) / 60` for duration
+- Order by `user_id ASC`, `session_start ASC`
 
 **Difficulty Rating:** 4/5
 
-WITH RECURSIVE categories (id, name, parent_id) AS (
+WITH events (user_id, event_time, amount) AS (
     VALUES
-    (1, 'All Products',  NULL::int),
-    (2, 'Electronics',   1),
-    (3, 'Clothing',      1),
-    (4, 'Phones',        2),
-    (5, 'Laptops',       2),
-    (6, 'Men',           3),
-    (7, 'Women',         3),
-    (8, 'iPhone',        4),
-    (9, 'Samsung',       4),
-    (10, 'T-Shirts',     6)
+    (1, '2024-01-01 08:00'::timestamp, 100),
+    (1, '2024-01-01 08:25'::timestamp, 200),
+    (1, '2024-01-01 08:52'::timestamp, 150),
+    (1, '2024-01-01 09:18'::timestamp, 300),
+    (1, '2024-01-01 10:00'::timestamp, 50),
+    (1, '2024-01-01 10:20'::timestamp, 75),
+    (2, '2024-01-01 09:00'::timestamp, 500),
+    (2, '2024-01-01 09:28'::timestamp, 200),
+    (2, '2024-01-01 10:05'::timestamp, 100)
 ),
-HIERARCHY AS (
+events_lag AS (
 SELECT 
 	*,
-	1 AS depth
-FROM categories
-WHERE id = 8
-UNION ALL
+	LAG(event_time) OVER (PARTITION BY user_id ORDER BY event_time) AS prev_event_time
+FROM events
+),
+events_new_sessions AS (
 SELECT 
-c.id,
-c.name,
-c.parent_id,
-h.DEPTH + 1
-FROM HIERARCHY h
-JOIN categories c ON h.parent_id = c.id
+	*,
+	CASE WHEN prev_event_time IS NULL OR event_time - prev_event_time > INTERVAL '30 Minutes' THEN 1 ELSE 0 END AS is_new_session
+FROM events_lag
+),
+event_session_ids AS (
+SELECT
+	*,
+	SUM(is_new_session) OVER (PARTITION BY user_id ORDER BY event_time) AS session_id
+FROM events_new_sessions
 )
-SELECT * FROM HIERARCHY
-ORDER BY DEPTH
+SELECT 
+	user_id,
+	session_id,
+	MIN(event_time) AS session_start,
+	MAX(event_time) AS session_end,
+	COUNT(*) AS event_count,
+	SUM(amount) AS total_amount,
+	EXTRACT(EPOCH FROM MAX(event_time) - MIN(event_time)) / 60 AS duration_minutes 
+FROM event_session_ids
+GROUP BY user_id, session_id
+ORDER BY USER_id, session_start
+
+
+Again, I love this pattern and find it very useful.
+
+
+
 
 ---
 
-## Task 3: PIVOT + Anti-Join — Monthly Revenue from Users Who Never Had a Delivered Order
+## Task 2: PIVOT — Delivery Status Revenue by Product Category
 
 **Scenario:**
-Combine what you've learned: first identify users who have never had a delivered order (anti-join), then pivot their monthly order revenue by the delivery status of their orders.
+The operations team wants a revenue breakdown showing, for each product category, how much revenue is associated with each delivery status.
 
 **Expected Output Columns:**
-- `month` (date) — truncated to month
+- `category_name` (text)
 - `pending_revenue` (numeric) — rounded to 2 decimals
+- `delivered_revenue` (numeric) — rounded to 2 decimals
 - `total_revenue` (numeric) — rounded to 2 decimals
-- `user_count` (bigint) — distinct users contributing that month
 
 **Requirements:**
-- Use `users`, `orders`, `deliveries`
-- First isolate users with no delivered orders using NOT EXISTS
-- Then join to their orders and deliveries to pivot revenue by status
-- Only include `status = 'pending'` for the pivot column (it will be the only status for these users)
-- Order by `month ASC`
+- Use `orders`, `orders_products`, `products`, `product_categories`, `deliveries`
+- Revenue = `quantity × price`
+- Join orders to deliveries to get status
+- PIVOT on delivery status using `SUM(...) FILTER (WHERE status = '...')`
+- Order by `total_revenue DESC`
+
+**Difficulty Rating:** 4/5
+
+SELECT 
+	pc."name" AS category_name,
+	SUM(p.price * op.quantity) FILTER (WHERE d.status = 'pending') AS pending_revenue,
+	SUM(p.price * op.quantity) FILTER (WHERE d.status = 'delivered') AS delivered_revenue,
+	SUM(p.price * op.quantity) AS total_revenue
+FROM crappy_data_db.orders_products op
+JOIN crappy_data_db.products p ON op.product_id = p.id
+JOIN crappy_data_db.product_categories pc ON p.category_id = pc.id
+JOIN crappy_data_db.deliveries d ON d.order_id = op.order_id
+GROUP BY pc."name"
+ORDER BY total_revenue DESC
+
+I followed your instructions at first, but I quickly realized that this is weird AND VERY DANGEROUS to calculate the total revenue with the deliveries JOINED, as effectively it multiplies the total revenue by every delivery status that IS THERE. IT'S ERRATIC WHAT YOU WANTED ME TO DO THERE. I've added another CTE in a reverse logic WITHOUT ADDING DELIVERIES to avoid that bias to calculate total_revenue.
+
+
+WITH pending_delivered_revenues AS (
+SELECT 
+	pc."name" AS category_name,
+	SUM(p.price * op.quantity) FILTER (WHERE d.status = 'pending') AS pending_revenue,
+	SUM(p.price * op.quantity) FILTER (WHERE d.status = 'delivered') AS delivered_revenue
+FROM crappy_data_db.orders_products op
+JOIN crappy_data_db.products p ON op.product_id = p.id
+JOIN crappy_data_db.product_categories pc ON p.category_id = pc.id
+JOIN crappy_data_db.deliveries d ON d.order_id = op.order_id
+GROUP BY pc."name"
+)
+SELECT 
+	pdr.category_name,
+	pdr.delivered_revenue,
+	pdr.pending_revenue,
+	SUM(p.price * op.quantity) AS total_revenue
+FROM pending_delivered_revenues pdr
+JOIN crappy_data_db.product_categories pc ON pc."name" = pdr.category_name
+JOIN crappy_data_db.products p ON p.category_id = pc.id
+JOIN crappy_data_db.orders_products op ON p.id = op.product_id
+GROUP BY pdr.category_name, pdr.delivered_revenue, pdr.pending_revenue
+
+It turns out that total_revenue is equal to pending_revenue, which makes total sense.
+delivered_revenue is smaller and it also makes sense as not all of the orders were delivered successfully.
+
+Also, mind that I AM AWARE THAT YOU WANTED the results rounded to 2 decimals, AND THEY ARE ROUNDED TO 2 DECIMALS, so I didn't add the unnecessary ROUND there.
+
+---
+
+## Task 3: Anti-Join — Categories With No Sales in the Last 3 Months
+
+**Scenario:**
+The product team wants to identify product categories that have had zero sales in the last 3 months (relative to the most recent order date in the dataset — do not use `NOW()`).
+
+**Expected Output Columns:**
+- `category_id` (integer)
+- `category_name` (text)
+- `last_sale_date` (date) — most recent sale date for this category across all time, NULL if never sold
+
+**Requirements:**
+- Use `product_categories`, `products`, `orders_products`, `orders`
+- "Last 3 months" = within 3 months before the most recent order date in the dataset
+- Use `NOT EXISTS` to identify categories with no sales in that window
+- Include `last_sale_date` — if a category has older sales but none recently, show when it last sold
+- Order by `last_sale_date ASC NULLS FIRST`
 
 **Difficulty Rating:** 5/5
 
-WITH users_without_delivered_orders AS (
-SELECT o2.user_id 
-FROM crappy_data_db.orders o2
-WHERE NOT EXISTS (
+THERE ARE NO SUCH CATEGORIES.
+I've used a different approach here but it works just fine.
+
+
+WITH categories_last_orders AS (
 SELECT 
-	DISTINCT(user_id)
-FROM crappy_data_db.deliveries d 
-JOIN crappy_data_db.orders o ON d.order_id = o.id AND o.user_id = o2.user_id
-WHERE d.status = 'delivered'
-)
+	pc.name AS category_name,
+	MAX(o.created_at) AS last_order_time
+FROM crappy_data_db.orders_products op
+JOIN crappy_data_db.orders o ON op.order_id = o.id
+JOIN crappy_data_db.products p ON p.id = op.product_id
+JOIN crappy_data_db.product_categories pc ON pc.id = p.category_id
+GROUP BY pc.name
 ),
-users_orders AS (
+qualified_orders AS (
 SELECT 
-	uw.user_id AS USER,
-	*,
-	DATE_TRUNC('Month', o.created_at) AS month_
-FROM users_without_delivered_orders uw
-JOIN crappy_data_db.orders o ON uw.user_id = o.user_id
-JOIN crappy_data_db.deliveries d ON o.id = d.order_id
+	* 
+FROM crappy_data_db.orders_products op
+JOIN crappy_data_db.orders o ON op.order_id = o.id
+JOIN crappy_data_db.products p ON p.id = op.product_id
+JOIN crappy_data_db.product_categories pc ON pc.id = p.category_id
+JOIN categories_last_orders clo ON clo.category_name = pc."name"
+WHERE last_order_time - o.created_at < INTERVAL '3 Months'
 )
 SELECT 
-	month_,
-	SUM(amount) FILTER (WHERE status = 'pending') AS pending_revenue,
-	SUM(amount) AS total_revenue,
-	COUNT(DISTINCT(uo.user)) AS user_count
-FROM users_orders uo
-GROUP BY month_
-ORDER BY month_
+	DISTINCT category_id, category_name, last_order_time
+FROM qualified_orders
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Support ticket response bursts (4/5)
-2. Task 2 — Self-referencing CTE traversal upward (4/5)
-3. Task 3 — PIVOT + anti-join combined (5/5)
+1. Task 1 — Transaction session grouping with edge cases (4/5)
+2. Task 2 — Delivery status revenue PIVOT by category (4/5)
+3. Task 3 — Anti-join: categories with no recent sales (5/5)

@@ -1,215 +1,173 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-03-25
-**Week 15, Day 3 Focus:** Time-Proximity Edge Cases + PIVOT Complex + Anti-Join Combo
+**Generated:** 2026-03-26
+**Week 15, Day 4 Focus:** Time-Proximity Variant + PIVOT Multi-Dimension + Anti-Join Complex
 
 ---
 
-## Task 1: Time-Proximity — User Transaction Sessions with Edge Cases
+## Task 1: Time-Proximity — Order Bursts per User with Variable Threshold
 
 **Scenario:**
-Group each user's transactions into sessions where consecutive transactions are within **30 minutes** of each other. This dataset is designed to test edge cases — pay attention to transactions that straddle the hour boundary.
+Group each user's orders into bursts where consecutive orders are placed within **3 days** of each other. This tests the pattern at day granularity rather than minutes.
 
-Use this inline data:
-
-```sql
-WITH events (user_id, event_time, amount) AS (
-    VALUES
-    (1, '2024-01-01 08:00'::timestamp, 100),
-    (1, '2024-01-01 08:25'::timestamp, 200),
-    (1, '2024-01-01 08:52'::timestamp, 150),
-    (1, '2024-01-01 09:18'::timestamp, 300),
-    (1, '2024-01-01 10:00'::timestamp, 50),
-    (1, '2024-01-01 10:20'::timestamp, 75),
-    (2, '2024-01-01 09:00'::timestamp, 500),
-    (2, '2024-01-01 09:28'::timestamp, 200),
-    (2, '2024-01-01 10:05'::timestamp, 100)
-)
-```
-
-Note: user 1's events at 08:52 and 09:18 are 26 minutes apart — same session. Events at 09:18 and 10:00 are 42 minutes apart — new session.
+Use the `orders` table from the real database.
 
 **Expected Output Columns:**
 - `user_id` (integer)
-- `session_id` (bigint) — sequential per user (1, 2, 3...)
-- `session_start` (timestamp)
-- `session_end` (timestamp)
-- `event_count` (bigint)
-- `total_amount` (numeric)
-- `duration_minutes` (numeric) — use EPOCH, rounded to 1 decimal
+- `burst_id` (bigint) — sequential per user (1, 2, 3...)
+- `burst_start` (date)
+- `burst_end` (date)
+- `order_count` (bigint)
+- `total_revenue` (numeric) — rounded to 2 decimals
+- `duration_days` (integer) — days between burst_start and burst_end
 
 **Requirements:**
-- LAG → is_new_session flag → SUM() OVER → GROUP BY pattern
-- Use `EXTRACT(EPOCH FROM ...) / 60` for duration
-- Order by `user_id ASC`, `session_start ASC`
+- Use `DATE(created_at)` to work at day granularity
+- LAG → is_new_burst flag (gap > 3 days) → SUM() OVER → GROUP BY
+- Only show bursts with at least 2 orders
+- Order by `user_id ASC`, `burst_start ASC`
 
 **Difficulty Rating:** 4/5
 
-WITH events (user_id, event_time, amount) AS (
-    VALUES
-    (1, '2024-01-01 08:00'::timestamp, 100),
-    (1, '2024-01-01 08:25'::timestamp, 200),
-    (1, '2024-01-01 08:52'::timestamp, 150),
-    (1, '2024-01-01 09:18'::timestamp, 300),
-    (1, '2024-01-01 10:00'::timestamp, 50),
-    (1, '2024-01-01 10:20'::timestamp, 75),
-    (2, '2024-01-01 09:00'::timestamp, 500),
-    (2, '2024-01-01 09:28'::timestamp, 200),
-    (2, '2024-01-01 10:05'::timestamp, 100)
-),
-events_lag AS (
+WITH orders_users AS (
 SELECT 
 	*,
-	LAG(event_time) OVER (PARTITION BY user_id ORDER BY event_time) AS prev_event_time
-FROM events
+	LAG(o.created_at) OVER (PARTITION BY user_id ORDER BY o.created_at) AS prev_order_time
+FROM crappy_data_db.orders o
 ),
-events_new_sessions AS (
+orders_users_is_streak AS (
 SELECT 
 	*,
-	CASE WHEN prev_event_time IS NULL OR event_time - prev_event_time > INTERVAL '30 Minutes' THEN 1 ELSE 0 END AS is_new_session
-FROM events_lag
+	CASE WHEN prev_order_time IS NULL OR created_at - prev_order_time > INTERVAL '3 Days' THEN 1 ELSE 0 END AS is_new_streak
+FROM orders_users
 ),
-event_session_ids AS (
-SELECT
+orders_users_streaks_id AS (
+SELECT 
 	*,
-	SUM(is_new_session) OVER (PARTITION BY user_id ORDER BY event_time) AS session_id
-FROM events_new_sessions
-)
+	SUM(is_new_streak) OVER (PARTITION BY user_id ORDER BY created_at) AS streak_id
+FROM orders_users_is_streak
+),
+users_order_streaks AS (
 SELECT 
 	user_id,
-	session_id,
-	MIN(event_time) AS session_start,
-	MAX(event_time) AS session_end,
-	COUNT(*) AS event_count,
-	SUM(amount) AS total_amount,
-	EXTRACT(EPOCH FROM MAX(event_time) - MIN(event_time)) / 60 AS duration_minutes 
-FROM event_session_ids
-GROUP BY user_id, session_id
-ORDER BY USER_id, session_start
+	streak_id,
+	MIN(created_at) AS streak_start,
+	MAX(created_at) AS streak_end,
+	COUNT(*) AS order_count,
+	SUM(amount) AS total_revenue,
+	ROUND(EXTRACT(EPOCH FROM MAX(created_at) - MIN(created_at)) / 86400, 2) AS duration_days
+FROM orders_users_streaks_id
+GROUP BY user_id, streak_id
+)
+SELECT * FROM users_order_streaks
+WHERE order_count >= 2
+ORDER BY user_id, streak_start
 
 
-Again, I love this pattern and find it very useful.
-
-
-
+Lovely pattern, feels like I've mastered it already more or less.
+Also I changed the column names a bit, as streak sounds a bit more natural imo than burst in this context.
 
 ---
 
-## Task 2: PIVOT — Delivery Status Revenue by Product Category
+## Task 2: PIVOT — User Age Group × Transaction Type Revenue Matrix
 
 **Scenario:**
-The operations team wants a revenue breakdown showing, for each product category, how much revenue is associated with each delivery status.
+The finance team wants a full matrix showing total transaction revenue broken down by both age group (rows) and transaction type (columns).
 
 **Expected Output Columns:**
-- `category_name` (text)
-- `pending_revenue` (numeric) — rounded to 2 decimals
-- `delivered_revenue` (numeric) — rounded to 2 decimals
-- `total_revenue` (numeric) — rounded to 2 decimals
+- `age_group` (text) — `'under_30'`, `'30_to_50'`, `'over_50'`
+- `deposit` (numeric) — rounded to 2 decimals
+- `withdrawal` (numeric) — rounded to 2 decimals
+- `payment` (numeric) — rounded to 2 decimals
+- `transfer` (numeric) — rounded to 2 decimals
+- `purchase` (numeric) — rounded to 2 decimals
+- `total` (numeric) — rounded to 2 decimals
 
 **Requirements:**
-- Use `orders`, `orders_products`, `products`, `product_categories`, `deliveries`
-- Revenue = `quantity × price`
-- Join orders to deliveries to get status
-- PIVOT on delivery status using `SUM(...) FILTER (WHERE status = '...')`
-- Order by `total_revenue DESC`
+- Use `transactions` and `users` tables
+- Join on `user_id`, exclude NULL ages and NULL amounts
+- Age groups: `age < 30` → `'under_30'`, `30-50` → `'30_to_50'`, `> 50` → `'over_50'`
+- Use `SUM(amount) FILTER (WHERE type = '...')` per column
+- Order by `age_group ASC`
 
 **Difficulty Rating:** 4/5
 
+WITH users_age_groups AS (
 SELECT 
-	pc."name" AS category_name,
-	SUM(p.price * op.quantity) FILTER (WHERE d.status = 'pending') AS pending_revenue,
-	SUM(p.price * op.quantity) FILTER (WHERE d.status = 'delivered') AS delivered_revenue,
-	SUM(p.price * op.quantity) AS total_revenue
-FROM crappy_data_db.orders_products op
-JOIN crappy_data_db.products p ON op.product_id = p.id
-JOIN crappy_data_db.product_categories pc ON p.category_id = pc.id
-JOIN crappy_data_db.deliveries d ON d.order_id = op.order_id
-GROUP BY pc."name"
-ORDER BY total_revenue DESC
-
-I followed your instructions at first, but I quickly realized that this is weird AND VERY DANGEROUS to calculate the total revenue with the deliveries JOINED, as effectively it multiplies the total revenue by every delivery status that IS THERE. IT'S ERRATIC WHAT YOU WANTED ME TO DO THERE. I've added another CTE in a reverse logic WITHOUT ADDING DELIVERIES to avoid that bias to calculate total_revenue.
-
-
-WITH pending_delivered_revenues AS (
-SELECT 
-	pc."name" AS category_name,
-	SUM(p.price * op.quantity) FILTER (WHERE d.status = 'pending') AS pending_revenue,
-	SUM(p.price * op.quantity) FILTER (WHERE d.status = 'delivered') AS delivered_revenue
-FROM crappy_data_db.orders_products op
-JOIN crappy_data_db.products p ON op.product_id = p.id
-JOIN crappy_data_db.product_categories pc ON p.category_id = pc.id
-JOIN crappy_data_db.deliveries d ON d.order_id = op.order_id
-GROUP BY pc."name"
+	id AS users_user_id,
+	CASE WHEN age < 30 THEN 'under_30'
+	WHEN age >= 30 AND age <= 50 THEN '30_to_50' ELSE 'over_50' END AS age_group
+FROM crappy_data_db.users u
+WHERE age IS NOT NULL
 )
 SELECT 
-	pdr.category_name,
-	pdr.delivered_revenue,
-	pdr.pending_revenue,
-	SUM(p.price * op.quantity) AS total_revenue
-FROM pending_delivered_revenues pdr
-JOIN crappy_data_db.product_categories pc ON pc."name" = pdr.category_name
-JOIN crappy_data_db.products p ON p.category_id = pc.id
-JOIN crappy_data_db.orders_products op ON p.id = op.product_id
-GROUP BY pdr.category_name, pdr.delivered_revenue, pdr.pending_revenue
+	age_group,
+	sum(t.amount) FILTER (WHERE TYPE = 'deposit') AS deposit_sum,
+	sum(t.amount) FILTER (WHERE TYPE = 'withdrawal') AS withdrawal_sum,
+	sum(t.amount) FILTER (WHERE TYPE = 'payment') AS payment_sum,
+	sum(t.amount) FILTER (WHERE TYPE = 'transfer') AS transfer_sum,
+	sum(t.amount) FILTER (WHERE TYPE = 'purchase') AS purchase_sum,
+	sum(t.amount) AS total
+FROM crappy_data_db.transactions t
+JOIN users_age_groups uag ON t.user_id = uag.users_user_id
+WHERE t.amount IS NOT NULL
+GROUP BY age_group
 
-It turns out that total_revenue is equal to pending_revenue, which makes total sense.
-delivered_revenue is smaller and it also makes sense as not all of the orders were delivered successfully.
 
-Also, mind that I AM AWARE THAT YOU WANTED the results rounded to 2 decimals, AND THEY ARE ROUNDED TO 2 DECIMALS, so I didn't add the unnecessary ROUND there.
+Works perfectly imo, no needed to round anything, as the values are already rounded
+
+
 
 ---
 
-## Task 3: Anti-Join — Categories With No Sales in the Last 3 Months
+## Task 3: Anti-Join — Users Who Ordered But Never Sent a Support Ticket
 
 **Scenario:**
-The product team wants to identify product categories that have had zero sales in the last 3 months (relative to the most recent order date in the dataset — do not use `NOW()`).
+The CX team wants to identify "silent" customers — users who have placed at least one order but have never opened a support ticket. These users may have had issues they never reported.
 
 **Expected Output Columns:**
-- `category_id` (integer)
-- `category_name` (text)
-- `last_sale_date` (date) — most recent sale date for this category across all time, NULL if never sold
+- `user_id` (integer)
+- `total_orders` (bigint)
+- `total_order_revenue` (numeric) — rounded to 2 decimals
+- `first_order_date` (date)
+- `last_order_date` (date)
 
 **Requirements:**
-- Use `product_categories`, `products`, `orders_products`, `orders`
-- "Last 3 months" = within 3 months before the most recent order date in the dataset
-- Use `NOT EXISTS` to identify categories with no sales in that window
-- Include `last_sale_date` — if a category has older sales but none recently, show when it last sold
-- Order by `last_sale_date ASC NULLS FIRST`
+- Use `orders` and `chat_tickets` tables
+- Use `NOT EXISTS` to exclude users who have any ticket
+- Only include users with at least 1 order
+- Order by `total_orders DESC`, `total_order_revenue DESC`
 
-**Difficulty Rating:** 5/5
+**Difficulty Rating:** 4/5
 
-THERE ARE NO SUCH CATEGORIES.
-I've used a different approach here but it works just fine.
-
-
-WITH categories_last_orders AS (
+WITH ticketless_users_with_orders AS (
+SELECT
+	DISTINCT o.user_id
+FROM crappy_data_db.orders o
+WHERE NOT EXISTS
+(
 SELECT 
-	pc.name AS category_name,
-	MAX(o.created_at) AS last_order_time
-FROM crappy_data_db.orders_products op
-JOIN crappy_data_db.orders o ON op.order_id = o.id
-JOIN crappy_data_db.products p ON p.id = op.product_id
-JOIN crappy_data_db.product_categories pc ON pc.id = p.category_id
-GROUP BY pc.name
-),
-qualified_orders AS (
-SELECT 
-	* 
-FROM crappy_data_db.orders_products op
-JOIN crappy_data_db.orders o ON op.order_id = o.id
-JOIN crappy_data_db.products p ON p.id = op.product_id
-JOIN crappy_data_db.product_categories pc ON pc.id = p.category_id
-JOIN categories_last_orders clo ON clo.category_name = pc."name"
-WHERE last_order_time - o.created_at < INTERVAL '3 Months'
+	user_id 
+FROM crappy_data_db.chat_tickets ct
+WHERE ct.user_id = o.user_id
+)
 )
 SELECT 
-	DISTINCT category_id, category_name, last_order_time
-FROM qualified_orders
+	tu.user_id,
+	COUNT(o.id) AS total_orders,
+	SUM(o.amount) AS total_order_revenue,
+	MIN(o.created_at) AS first_order_date,
+	MAX(o.created_at) AS last_order_date
+FROM ticketless_users_with_orders tu
+JOIN crappy_data_db.orders o ON tu.user_id = o.user_id
+GROUP BY tu.user_id
+ORDER BY total_orders DESC, total_order_revenue DESC
+
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Transaction session grouping with edge cases (4/5)
-2. Task 2 — Delivery status revenue PIVOT by category (4/5)
-3. Task 3 — Anti-join: categories with no recent sales (5/5)
+1. Task 1 — Order bursts at day granularity (4/5)
+2. Task 2 — Age group × transaction type revenue matrix (4/5)
+3. Task 3 — Anti-join: ordered but never ticketed users (4/5)

@@ -2877,3 +2877,22 @@ Correct finding — no qualifying categories exist. Query logic inverted from sp
 ## Student Feedback on Questions
 
 Task 2 had a spec issue — joining deliveries before computing total_revenue is dangerous and produces inflated results. Student correctly identified this and proposed a safer two-query approach. Agent to be more careful about join order when revenue aggregation is involved.
+n### Session: 2026-03-26 (Week 15, Day 4)n
+## Agent Feedback on Student — Week 15, Day 4
+
+**Task 1 — Order Bursts at Day Granularity: 10/10**
+Pattern fully automatic — clean 4-CTE structure, correct LAG → is_new_streak → SUM() OVER → GROUP BY. Day granularity handled correctly. duration_days as decimal (EPOCH/86400) is a valid and informative choice — more useful than integer days in a business context.
+
+**Task 2 — Age Group × Transaction Type Matrix: 10/10**
+Clean and efficient. Single CTE for age groups, direct FILTER aggregation in final SELECT. No unnecessary rounding — values already at 2 decimals from source. Full 2D pivot executed correctly and confidently.
+
+**Task 3 — Silent Customers Anti-Join: 10/10**
+Textbook NOT EXISTS — correlated subquery checks ct.user_id = o.user_id correctly at user level. Two-step CTE approach (find qualifying users, then aggregate) is clean and readable. All output columns correct.
+
+**Session Total: 30/30**
+
+---
+
+## Student Feedback on Questions
+
+Perfect session. All three patterns felt natural and well-paced. Time-proximity pattern now fully mastered. PIVOT automatic. Anti-join confident.

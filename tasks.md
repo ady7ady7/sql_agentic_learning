@@ -1,173 +1,145 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-03-26
-**Week 15, Day 4 Focus:** Time-Proximity Variant + PIVOT Multi-Dimension + Anti-Join Complex
+**Generated:** 2026-03-27
+**Week 15, Day 5 Focus:** Review Day — Gaps & Islands + Window Functions + Recursive CTE (Type A)
 
 ---
 
-## Task 1: Time-Proximity — Order Bursts per User with Variable Threshold
+## Task 1: Gaps & Islands — Monthly Active User Streaks
 
 **Scenario:**
-Group each user's orders into bursts where consecutive orders are placed within **3 days** of each other. This tests the pattern at day granularity rather than minutes.
-
-Use the `orders` table from the real database.
+Find each user's consecutive months of activity (at least 1 order placed). Report streaks of 2+ consecutive months.
 
 **Expected Output Columns:**
 - `user_id` (integer)
-- `burst_id` (bigint) — sequential per user (1, 2, 3...)
-- `burst_start` (date)
-- `burst_end` (date)
-- `order_count` (bigint)
-- `total_revenue` (numeric) — rounded to 2 decimals
-- `duration_days` (integer) — days between burst_start and burst_end
+- `streak_start` (text) — first month in streak, formatted as `'YYYY-MM'`
+- `streak_end` (text) — last month in streak, formatted as `'YYYY-MM'`
+- `streak_length` (bigint) — number of consecutive months
 
 **Requirements:**
-- Use `DATE(created_at)` to work at day granularity
-- LAG → is_new_burst flag (gap > 3 days) → SUM() OVER → GROUP BY
-- Only show bursts with at least 2 orders
-- Order by `user_id ASC`, `burst_start ASC`
+- Use `orders` table
+- Derive active months using `DATE_TRUNC('month', created_at)`
+- Use the classic gaps-and-islands pattern: `ROW_NUMBER()` subtraction to group consecutive months
+- Only include streaks of 2+ months
+- Order by `streak_length DESC`, `user_id ASC`
 
-**Difficulty Rating:** 4/5
+**Difficulty Rating:** 3/5
 
-WITH orders_users AS (
+
+WITH orders_months AS (
 SELECT 
 	*,
-	LAG(o.created_at) OVER (PARTITION BY user_id ORDER BY o.created_at) AS prev_order_time
-FROM crappy_data_db.orders o
+	DATE_TRUNC('Month', created_at) AS month_
+FROM crappy_data_db.orders
 ),
-orders_users_is_streak AS (
-SELECT 
-	*,
-	CASE WHEN prev_order_time IS NULL OR created_at - prev_order_time > INTERVAL '3 Days' THEN 1 ELSE 0 END AS is_new_streak
-FROM orders_users
-),
-orders_users_streaks_id AS (
-SELECT 
-	*,
-	SUM(is_new_streak) OVER (PARTITION BY user_id ORDER BY created_at) AS streak_id
-FROM orders_users_is_streak
-),
-users_order_streaks AS (
+users_months_orders AS (
 SELECT 
 	user_id,
-	streak_id,
-	MIN(created_at) AS streak_start,
-	MAX(created_at) AS streak_end,
-	COUNT(*) AS order_count,
-	SUM(amount) AS total_revenue,
-	ROUND(EXTRACT(EPOCH FROM MAX(created_at) - MIN(created_at)) / 86400, 2) AS duration_days
-FROM orders_users_streaks_id
+	month_,
+	COUNT(*) AS orders_cnt
+FROM orders_months
+GROUP BY user_id, month_
+ORDER BY user_id
+),
+orders_months_rn AS (
+SELECT 
+	*,
+	ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY month_) AS rn
+FROM users_months_orders
+),
+users_streak_ids AS (
+SELECT 
+	*,
+	month_ - rn * INTERVAL '1 Month' AS streak_id
+FROM orders_months_rn
+),
+users_streaks AS (
+SELECT 
+	user_id,
+	MIN(month_) AS streak_start,
+	MAX(month_) AS streak_end,
+	COUNT(*) AS streak_length
+	FROM users_streak_ids
 GROUP BY user_id, streak_id
+ORDER BY streak_length DESC, user_id
 )
-SELECT * FROM users_order_streaks
-WHERE order_count >= 2
-ORDER BY user_id, streak_start
-
-
-Lovely pattern, feels like I've mastered it already more or less.
-Also I changed the column names a bit, as streak sounds a bit more natural imo than burst in this context.
-
----
-
-## Task 2: PIVOT — User Age Group × Transaction Type Revenue Matrix
-
-**Scenario:**
-The finance team wants a full matrix showing total transaction revenue broken down by both age group (rows) and transaction type (columns).
-
-**Expected Output Columns:**
-- `age_group` (text) — `'under_30'`, `'30_to_50'`, `'over_50'`
-- `deposit` (numeric) — rounded to 2 decimals
-- `withdrawal` (numeric) — rounded to 2 decimals
-- `payment` (numeric) — rounded to 2 decimals
-- `transfer` (numeric) — rounded to 2 decimals
-- `purchase` (numeric) — rounded to 2 decimals
-- `total` (numeric) — rounded to 2 decimals
-
-**Requirements:**
-- Use `transactions` and `users` tables
-- Join on `user_id`, exclude NULL ages and NULL amounts
-- Age groups: `age < 30` → `'under_30'`, `30-50` → `'30_to_50'`, `> 50` → `'over_50'`
-- Use `SUM(amount) FILTER (WHERE type = '...')` per column
-- Order by `age_group ASC`
-
-**Difficulty Rating:** 4/5
-
-WITH users_age_groups AS (
-SELECT 
-	id AS users_user_id,
-	CASE WHEN age < 30 THEN 'under_30'
-	WHEN age >= 30 AND age <= 50 THEN '30_to_50' ELSE 'over_50' END AS age_group
-FROM crappy_data_db.users u
-WHERE age IS NOT NULL
-)
-SELECT 
-	age_group,
-	sum(t.amount) FILTER (WHERE TYPE = 'deposit') AS deposit_sum,
-	sum(t.amount) FILTER (WHERE TYPE = 'withdrawal') AS withdrawal_sum,
-	sum(t.amount) FILTER (WHERE TYPE = 'payment') AS payment_sum,
-	sum(t.amount) FILTER (WHERE TYPE = 'transfer') AS transfer_sum,
-	sum(t.amount) FILTER (WHERE TYPE = 'purchase') AS purchase_sum,
-	sum(t.amount) AS total
-FROM crappy_data_db.transactions t
-JOIN users_age_groups uag ON t.user_id = uag.users_user_id
-WHERE t.amount IS NOT NULL
-GROUP BY age_group
-
-
-Works perfectly imo, no needed to round anything, as the values are already rounded
-
+SELECT * FROM users_streaks WHERE streak_length >= 2
 
 
 ---
 
-## Task 3: Anti-Join — Users Who Ordered But Never Sent a Support Ticket
+## Task 2: Window Functions — Top Spender Per Product Category
 
 **Scenario:**
-The CX team wants to identify "silent" customers — users who have placed at least one order but have never opened a support ticket. These users may have had issues they never reported.
+For each product category, find the top 3 users by total spend. Include their rank and total spend.
 
 **Expected Output Columns:**
+- `category_name` (text)
 - `user_id` (integer)
-- `total_orders` (bigint)
-- `total_order_revenue` (numeric) — rounded to 2 decimals
-- `first_order_date` (date)
-- `last_order_date` (date)
+- `rank` (bigint)
+- `total_spend` (numeric) — rounded to 2 decimals
 
 **Requirements:**
-- Use `orders` and `chat_tickets` tables
-- Use `NOT EXISTS` to exclude users who have any ticket
-- Only include users with at least 1 order
-- Order by `total_orders DESC`, `total_order_revenue DESC`
+- Use `orders`, `orders_products`, `products`, `product_categories`
+- Revenue = `quantity × price`
+- Use `RANK()` window function partitioned by category
+- Only return ranks 1–3
+- Order by `category_name ASC`, `rank ASC`
 
-**Difficulty Rating:** 4/5
+**Difficulty Rating:** 3/5
 
-WITH ticketless_users_with_orders AS (
-SELECT
-	DISTINCT o.user_id
-FROM crappy_data_db.orders o
-WHERE NOT EXISTS
-(
+
+WITH users_categories_spendings AS (
 SELECT 
-	user_id 
-FROM crappy_data_db.chat_tickets ct
-WHERE ct.user_id = o.user_id
-)
-)
+	pc.name AS category_name,
+	o.user_id,
+	SUM(p.price * op.quantity) AS category_spent
+FROM crappy_data_db.orders_products op
+JOIN crappy_data_db.products p ON OP.product_id = p.id
+JOIN crappy_data_db.product_categories pc ON pc.id = p.category_id
+JOIN crappy_data_db.orders o ON o.id = op.order_id
+GROUP BY pc.name, o.user_id
+),
+users_spending_rank AS (
 SELECT 
-	tu.user_id,
-	COUNT(o.id) AS total_orders,
-	SUM(o.amount) AS total_order_revenue,
-	MIN(o.created_at) AS first_order_date,
-	MAX(o.created_at) AS last_order_date
-FROM ticketless_users_with_orders tu
-JOIN crappy_data_db.orders o ON tu.user_id = o.user_id
-GROUP BY tu.user_id
-ORDER BY total_orders DESC, total_order_revenue DESC
+	*,
+	RANK() OVER (PARTITION BY category_name ORDER BY category_spent DESC) AS rank
+FROM users_categories_spendings
+)
+SELECT * FROM users_spending_rank 
+WHERE RANK <= 3
+ORDER BY category_name, rank
 
+I thought category_spent IS WAY MORE logical, as total_spent indicates that these are total user's spendings. Anyway, it's good
+
+---
+
+
+## Task 3: Recursive CTE (Type A) — 3-Level Category Hierarchy Summary
+
+**Scenario:**
+The product team wants a summary of the category hierarchy: for each top-level category, show its direct subcategories and the total number of products at leaf level.
+
+**Expected Output Columns:**
+- `top_level` (text) — name of root category (parent_id IS NULL)
+- `sub_level` (text) — name of direct child category
+- `product_count` (bigint) — total products belonging to the sub_level category
+
+**Requirements:**
+- Use `product_categories` and `products` tables
+- Fixed 3-level structure: root → subcategory → products
+- Build with CTEs: root categories, subcategories, then join to products
+- Order by `top_level ASC`, `product_count DESC`
+
+**Difficulty Rating:** 3/5
+
+Stupid question, THERE IS NO SUCH STRUCTURE IN MY DATABASE.
+AVOIDING IT, DON'T PUNISH ME FOR IT!
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Order bursts at day granularity (4/5)
-2. Task 2 — Age group × transaction type revenue matrix (4/5)
-3. Task 3 — Anti-join: ordered but never ticketed users (4/5)
+1. Task 1 — Monthly active user streaks (3/5)
+2. Task 2 — Top 3 spenders per category (3/5)
+3. Task 3 — 3-level category hierarchy summary (3/5)

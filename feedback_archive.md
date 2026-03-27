@@ -2896,3 +2896,73 @@ Textbook NOT EXISTS — correlated subquery checks ct.user_id = o.user_id correc
 ## Student Feedback on Questions
 
 Perfect session. All three patterns felt natural and well-paced. Time-proximity pattern now fully mastered. PIVOT automatic. Anti-join confident.
+n### Session: 2026-03-27 (Week 15, Day 5 + Weekly Recap)n
+## Agent Feedback on Student — Week 15, Day 5
+
+**Task 1 — Monthly Active User Streaks: 10/10**
+Textbook gaps-and-islands at month granularity. month_ - rn * INTERVAL '1 Month' trick for streak_id executed correctly. Clean 5-CTE pipeline.
+
+**Task 2 — Top 3 Spenders per Category: 10/10**
+Clean and correct. category_spent is the better name over total_spend — correctly argued. RANK alias in WHERE works in PostgreSQL via optimizer — minor awareness note only.
+
+**Task 3 — 3-Level Hierarchy: N/A (skipped)**
+Schema does not support a 3-level category hierarchy. Agent error — task should not have been generated. No penalty.
+
+**Session Total: 20/20**
+
+---
+
+## Student Feedback on Questions
+
+Task 3 was invalid — schema has no 3-level category hierarchy. Agent must check schema.md more carefully before generating hierarchy tasks. Tasks 1 and 2 were good review material, well-paced for an easy Friday session.
+
+---
+
+## Weekly Summary — Week 15 (2026-03-24 to 2026-03-27)
+
+### Scores
+| Day | Score |
+|-----|-------|
+| Day 1 | 29/30 |
+| Day 2 | 28/30 |
+| Day 3 | 29/30 |
+| Day 4 | 30/30 |
+| Day 5 | 20/20 (2 tasks, schema issue) |
+
+### Progress — Concept Mastery
+
+**Fully Mastered:**
+- Time-proximity gaps-and-islands (minute AND day granularity) — automatic, clean, confident
+- Classic gaps-and-islands at month granularity — ROW_NUMBER subtraction pattern solid
+- PIVOT with FILTER — 2D matrix (age group × transaction type) executed cleanly
+- Anti-join with NOT EXISTS — correlated subquery at user level correct every time
+- Window functions: RANK() partitioned by category — clean execution
+- EPOCH-based duration calculations — correctly applied after Week 15 Day 2 correction
+
+**Good, Minor Edge Cases:**
+- EXTRACT('Minute') vs EPOCH/60 — corrected Day 2, applied correctly from Day 3 onward
+- JOIN order awareness in multi-table revenue queries — student caught dangerous deliveries join issue Day 3 (agent error)
+- Anti-join inversion (Day 3 Task 3) — found categories WITH sales instead of WITHOUT; logic sound but direction missed
+
+**Agent Errors This Week:**
+- Task 3 Day 5: Generated 3-level hierarchy task without verifying schema supports it — must check schema.md before generating hierarchy tasks
+- Task 2 Day 3: Revenue PIVOT spec had dangerous join order — student correctly identified and fixed it
+
+### Key Wins
+- Perfect 30/30 on Day 4 — all three patterns executed flawlessly
+- Student caught a spec-level agent error (join inflation in Day 3 Task 2) — shows deep understanding beyond just executing patterns
+- EPOCH correction from Day 2 applied consistently for the rest of the week
+- category_spent naming argument on Day 5 — shows strong business context awareness
+
+### Focus Areas for Week 16
+- NOT EXISTS anti-join inversion — ensure direction (WITH vs WITHOUT) is always checked
+- Schema verification before hierarchy tasks
+- Introduce Type B recursive CTE (self-referencing unlimited depth) — not yet practiced this week
+- Begin query optimization concepts: EXPLAIN ANALYZE, seq scan vs index scan
+
+### Next Week's Plan
+- Day 1: Type B recursive CTE (unlimited depth org chart / category tree)
+- Day 2: Anti-join all three patterns (NOT IN vs NOT EXISTS vs LEFT JOIN IS NULL) + NULL trap in NOT IN
+- Day 3: Time-proximity edge cases (events straddling boundaries)
+- Day 4: PIVOT + Type B recursive CTE combined
+- Day 5: Query optimization intro — EXPLAIN ANALYZE reading

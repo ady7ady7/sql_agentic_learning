@@ -2966,3 +2966,22 @@ Task 3 was invalid — schema has no 3-level category hierarchy. Agent must chec
 - Day 3: Time-proximity edge cases (events straddling boundaries)
 - Day 4: PIVOT + Type B recursive CTE combined
 - Day 5: Query optimization intro — EXPLAIN ANALYZE reading
+n### Session: 2026-03-30 (Week 16, Day 1)n
+## Agent Feedback on Student — Week 16, Day 1
+
+**Task 1 — Type B Recursive CTE: 9/10**
+Recursive JOIN correct, natural termination, depth tracking correct. One miss: 'Alice' hardcoded as path in anchor instead of `name AS path`. All other values correctly read from row. Path separator missing spaces (' -> ' vs '->'). Recurring cosmetic issue.
+
+**Task 2 — NOT IN NULL Trap: 10/10**
+Excellent — not only observed the failure but immediately identified the fix (WHERE user_id IS NOT NULL in subquery). Explanation correct: NULL in subquery causes NOT IN to return UNKNOWN for every comparison, filtering out all rows. Preference ranking (NOT EXISTS > NOT IN with guard > LEFT JOIN IS NULL) matches professional practice.
+
+**Task 3 — Chat Message Bursts: 10/10**
+Pattern correct — LAG → is_start → SUM() OVER → GROUP BY → outer aggregation. All message types included (only 'text' exists in database — equivalent). No tickets with 3+ bursts — correctly verified and reported as a data finding.
+
+**Session Total: 29/30**
+
+---
+
+## Student Feedback on Questions
+
+Good session. NOT IN NULL trap was an eye-opener. Time-proximity pattern on real data confirmed no tickets with 3+ bursts. Type B recursive CTE clean apart from hardcoded path anchor.

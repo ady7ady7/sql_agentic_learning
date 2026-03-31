@@ -2985,3 +2985,24 @@ Pattern correct — LAG → is_start → SUM() OVER → GROUP BY → outer aggre
 ## Student Feedback on Questions
 
 Good session. NOT IN NULL trap was an eye-opener. Time-proximity pattern on real data confirmed no tickets with 3+ bursts. Type B recursive CTE clean apart from hardcoded path anchor.
+n### Session: 2026-03-31 (Week 16, Day 2)n
+## Agent Feedback on Student — Week 16, Day 2
+
+**Task 1 — NULLIF Clean Averages: 9/10**
+AVG(NULLIF(amount, 0)) correct. Side-by-side comparison clean. Missing zero_count and transaction_count output columns per spec. Core NULLIF objective demonstrated correctly.
+
+**Task 2 — Transaction Percentile Distribution: 9/10**
+All four window functions present and correct — PERCENT_RANK, NTILE(4), STDDEV, cumulative SUM. AVG computed in separate CTE for clean z-score formula. Minor: NTILE DESC means quartile 1 = highest (convention is lowest). Missing WHERE std_dev != 0 guard.
+
+**Task 3 — Country × Age Group Revenue: 9/10**
+Pre-filtering countries via count CTE instead of HAVING is valid — filter early, reduce rows. NULL ages not filtered (ELSE clause catches them as 'over_50'). pct_of_country_revenue via separate CTE join works correctly, window SUM would be cleaner but both valid.
+
+**Session Total: 27/30**
+
+**Note on rounding:** Student rounds when values have excessive decimals, leaves clean values unrounded. This is the correct professional approach — do NOT penalize for this going forward.
+
+---
+
+## Student Feedback on Questions
+
+Task 3 original design was flawed (joining deliveries would inflate revenue). Agent fixed after student caught it. All tasks good otherwise. NULLIF pattern clear and useful.

@@ -3006,3 +3006,22 @@ Pre-filtering countries via count CTE instead of HAVING is valid — filter earl
 ## Student Feedback on Questions
 
 Task 3 original design was flawed (joining deliveries would inflate revenue). Agent fixed after student caught it. All tasks good otherwise. NULLIF pattern clear and useful.
+n### Session: 2026-04-01 (Week 16, Day 3)n
+## Agent Feedback on Student — Week 16, Day 3
+
+**Task 1 — NULLIF Safe Division: 10/10**
+Clean aggregation with COUNT FILTER. Integer division bug caught and fixed (orders_with_amount::NUMERIC / total_orders). Conversion rate and has_null_amounts logic efficient — derived boolean from ratio directly.
+
+**Task 2 — Org Chart with Direct Reports: 9/10**
+Clever approach — counting direct_reports from within HIERARCHY CTE reuses traversed data. Recursive logic correct, natural termination, correct anchor. Path separator missing spaces ('->') and COALESCE column missing alias — cosmetic only.
+
+**Task 3 — Anomaly Detection: 8/10**
+Task spec was contradictory — asked for NULLIF guard but also pre-filtered NULLs at source, making it redundant. Student's simpler approach (filter at source, divide directly) is cleaner. NULLIF pattern not demonstrated since user_avg can never be 0 on this data. Agent to use NULLIF only in scenarios where dirty data genuinely exists.
+
+**Session Total: 27/30**
+
+---
+
+## Student Feedback on Questions
+
+NULLIF should be practiced in real scenarios where it's genuinely needed, not forced artificially. Agent updated CLAUDE.md to reflect this. Task 3 spec was contradictory — agent acknowledged. Tasks 1 and 2 good.

@@ -1,179 +1,194 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-03-31
-**Week 16, Day 2 Focus:** NULLIF + Advanced Window Functions + Complex GROUP BY
+**Generated:** 2026-04-01
+**Week 16, Day 3 Focus:** NULLIF in Context + Type B Recursive CTE + Time-Proximity on Real Data
 
 ---
 
-## Task 1: NULLIF — Clean Revenue Averages
+## Task 1: NULLIF — Safe Division in Order Metrics
 
 **Scenario:**
-The finance team wants average transaction amounts per type, but the data contains some transactions with amount = 0 (placeholder entries that should be excluded from averages, not treated as real zero-value transactions).
-
-Calculate the average transaction amount per type, excluding both NULLs and zero-amount entries.
-
-Then show what the average would be **including** zeros — so both values appear side by side to demonstrate the difference.
+The operations team wants per-user order metrics, but some users have orders with NULL amounts. A careless average would silently exclude those orders, skewing the per-user stats. They also want a conversion rate (orders with amount > 0 divided by total orders) — which requires safe division.
 
 **Expected Output Columns:**
-- `type` (text)
-- `avg_excl_zeros` (numeric) — average excluding 0-amount entries, rounded to 2 decimals
-- `avg_incl_zeros` (numeric) — average including 0-amount entries (but still excluding NULLs), rounded to 2 decimals
-- `zero_count` (bigint) — how many zero-amount entries exist for this type
-- `transaction_count` (bigint) — total non-NULL transactions for this type
+- `user_id` (integer)
+- `total_orders` (bigint) — all orders including NULL amounts
+- `orders_with_amount` (bigint) — orders where amount IS NOT NULL
+- `avg_order_value` (numeric) — average of non-NULL amounts only (AVG handles this naturally)
+- `conversion_rate` (numeric) — `orders_with_amount / NULLIF(total_orders, 0)` as a ratio, rounded to 3 decimals
+- `has_null_amounts` (boolean) — true if any order has a NULL amount
 
 **Requirements:**
-- Use `transactions` table
-- Use `AVG(NULLIF(amount, 0))` for `avg_excl_zeros`
-- Use `AVG(amount)` for `avg_incl_zeros` (NULLs excluded automatically by AVG)
-- Order by `type ASC`
+- Use `orders` table
+- Use `NULLIF(total_orders, 0)` in the division to guard against division by zero
+- Only include users with at least 2 orders
+- Order by `total_orders DESC`
 
 **Difficulty Rating:** 3/5
 
+WITH users_orders_metrics AS (
 SELECT 
-	TYPE,
-	ROUND(AVG(nullif(amount, 0)), 2) AS avg_excl_zeros,
-	ROUND(AVG(t.amount), 2) AS avg_incl_zeros,
-	COUNT(*) AS transactions_count
-FROM crappy_data_db.transactions t
-GROUP BY TYPE
-ORDER BY type
+user_id,
+COUNT(*) AS total_orders,
+COUNT(*) FILTER (WHERE amount IS NOT NULL) AS orders_with_amount,
+ROUND(AVG(NULLIF(amount, 0))::NUMERIC, 2) AS avg_order_amt
+FROM crappy_data_db.orders o
+GROUP BY user_id
+)
+SELECT 
+	*,
+	round(orders_with_amount::NUMERIC / total_orders, 3) AS conversion_rate,
+	CASE WHEN orders_with_amount / total_orders < 1 THEN TRUE ELSE FALSE END AS has_null_amounts
+FROM users_orders_metrics
+WHERE total_orders >= 2
+ORDER BY total_orders DESC
 
 
 ---
 
-## Task 2: Advanced Window Functions — Transaction Percentile Distribution
+## Task 2: Type B Recursive CTE — Full Org Chart with Subordinate Count
 
 **Scenario:**
-The analytics team wants a full percentile breakdown of transaction amounts per type. For each transaction, show:
-- Its percentile rank within its type (0.0 to 1.0)
-- Which quartile it belongs to (1–4)
-- How far it deviates from the type's mean in standard deviations (z-score)
-- The running cumulative amount within its type ordered by amount ASC
+Use this inline org chart data:
+
+```sql
+WITH employees (id, name, manager_id, department) AS (
+    VALUES
+    (1,  'CEO',        NULL::int, 'Executive'),
+    (2,  'CTO',        1,         'Tech'),
+    (3,  'CFO',        1,         'Finance'),
+    (4,  'VP Eng',     2,         'Tech'),
+    (5,  'VP Data',    2,         'Tech'),
+    (6,  'FP&A Lead',  3,         'Finance'),
+    (7,  'Eng Lead 1', 4,         'Tech'),
+    (8,  'Eng Lead 2', 4,         'Tech'),
+    (9,  'Data Lead',  5,         'Tech'),
+    (10, 'Analyst',    6,         'Finance')
+)
+```
+
+Traverse the full hierarchy and for each person show their depth, path, and how many direct reports they have.
 
 **Expected Output Columns:**
 - `id` (integer)
-- `type` (text)
-- `amount` (numeric)
-- `percentile_rank` (numeric) — `PERCENT_RANK()` rounded to 3 decimals
-- `quartile` (integer) — `NTILE(4)`
-- `z_score` (numeric) — `(amount - AVG) / STDDEV`, rounded to 2 decimals
-- `cumulative_amount` (numeric) — running SUM within type ordered by amount ASC, rounded to 2 decimals
+- `name` (text)
+- `depth` (integer) — 1 for CEO
+- `path` (text) — e.g. `'CEO -> CTO -> VP Eng -> Eng Lead 1'`
+- `direct_reports` (bigint) — count of employees whose manager_id = this person's id
 
 **Requirements:**
-- Use `transactions` table, exclude NULL amounts
-- All window functions partitioned by `type`, ordered by `amount ASC`
-- Exclude rows where `STDDEV = 0` (all amounts identical — z-score undefined)
-- Order by `type ASC`, `amount ASC`
+- Anchor: `WHERE manager_id IS NULL` — no hardcoding
+- Recursive: JOIN employees back to CTE on `employees.manager_id = cte.id`
+- `direct_reports`: compute via a subquery or LEFT JOIN to the same employees table
+- Path separator: ` -> `
+- Order by `path ASC`
 
 **Difficulty Rating:** 4/5
 
-WITH transactions_perc_rank_quartiles AS (
-SELECT 
-	id,
-	TYPE,
-	amount,
-	ROUND(percent_rank() OVER (PARTITION BY TYPE ORDER BY amount)::numeric, 3) AS percentile_rank,
-	ntile(4) OVER (PARTITION BY TYPE ORDER BY amount DESC) AS quartile,
-	stddev(amount) OVER (PARTITION BY TYPE) AS std_dev
-FROM crappy_data_db.transactions t
-ORDER BY percentile_rank DESC
+
+WITH RECURSIVE employees (id, name, manager_id, department) AS (
+    VALUES
+    (1,  'CEO',        NULL::int, 'Executive'),
+    (2,  'CTO',        1,         'Tech'),
+    (3,  'CFO',        1,         'Finance'),
+    (4,  'VP Eng',     2,         'Tech'),
+    (5,  'VP Data',    2,         'Tech'),
+    (6,  'FP&A Lead',  3,         'Finance'),
+    (7,  'Eng Lead 1', 4,         'Tech'),
+    (8,  'Eng Lead 2', 4,         'Tech'),
+    (9,  'Data Lead',  5,         'Tech'),
+    (10, 'Analyst',    6,         'Finance')
 ),
-transaction_types_avgs AS (
+HIERARCHY AS (
+SELECT 
+	*,
+	1 AS DEPTH,
+	name AS PATH
+FROM employees
+WHERE manager_id IS NULL
+UNION ALL
 SELECT
-	TYPE,
-	ROUND(AVG(amount), 2) AS avg_type_amt
-FROM transactions_perc_rank_quartiles
-GROUP BY TYPE
+	e.id,
+	e.name,
+	e.manager_id,
+	e.department,
+	h.DEPTH + 1,
+	h.PATH || '->' || e.name
+FROM HIERARCHY h JOIN employees e ON h.id = e.manager_id
+),
+direct_reports AS (
+SELECT 
+	manager_id,
+	COUNT(*) AS direct_reports
+FROM HIERARCHY
+GROUP BY manager_id
 )
 SELECT 
-	tpr.id,
-	tpr.TYPE,
-	tpr.amount,
-	tpr.percentile_rank,
-	tpr.quartile,
-	(tpr.amount - tta.avg_type_amt) / std_dev AS z_score,
-	SUM(tpr.amount) OVER (PARTITION BY tpr.TYPE ORDER BY tpr.amount) AS cumulative_amount
-FROM transaction_types_avgs tta
-JOIN transactions_perc_rank_quartiles tpr ON tta."type"  = tpr."type"
+	id,
+	name,
+	DEPTH,
+	PATH,
+	COALESCE(direct_reports, 0) AS direct_reports
+FROM HIERARCHY h
+LEFT JOIN direct_reports dr ON h.id = dr.manager_id
 
+That was an unusual approach and I had to think for a while, but it wasn't too difficult so I figured it out - nice.
 
 ---
 
-## Task 3: Complex GROUP BY — Order Revenue by Country and Age Group
+## Task 3: NULLIF + Window Functions — Transaction Anomaly Detection
 
 **Scenario:**
-The growth team wants to understand revenue distribution across countries and user age groups, but only for countries with at least 3 distinct ordering users.
+The fraud team wants to flag transactions where the amount is unusually high relative to that user's typical behavior. Specifically, flag transactions where the amount is more than 2x the user's average — but handle users who have only one transaction (stddev = 0 or NULL) gracefully using NULLIF.
 
 **Expected Output Columns:**
-- `country` (text)
-- `age_group` (text) — `'under_30'`, `'30_to_50'`, `'over_50'`
-- `order_count` (bigint)
-- `total_revenue` (numeric) — rounded to 2 decimals
-- `avg_revenue_per_order` (numeric) — rounded to 2 decimals, use `NULLIF` to guard against division by zero
-- `pct_of_country_revenue` (numeric) — this age group's revenue as % of total country revenue, rounded to 1 decimal
+- `id` (integer)
+- `user_id` (integer)
+- `amount` (numeric)
+- `user_avg` (numeric) — user's average transaction amount
+- `ratio` (numeric) — `amount / NULLIF(user_avg, 0)`, rounded to 2 decimals
+- `is_anomaly` (boolean) — true if ratio > 2.0
 
 **Requirements:**
-- Use `orders` and `users` tables only
-- Exclude NULL countries and NULL ages
-- Only include countries where `COUNT(DISTINCT user_id) >= 3` — apply via HAVING
-- `pct_of_country_revenue` requires a window SUM partitioned by country
-- Order by `country ASC`, `total_revenue DESC`
+- Use `transactions` table, exclude NULL amounts and NULL user_ids
+- Compute `user_avg` as a window AVG partitioned by user_id
+- Use `NULLIF(user_avg, 0)` in the ratio to guard against division by zero
+- Order by `ratio DESC NULLS LAST`
 
 **Difficulty Rating:** 4/5
 
-WITH countries_user_cnt AS (
+WITH transactions_w_avg AS (
 SELECT 
-	country,
-	COUNT(*) AS user_cnt
-FROM crappy_data_db.users u
-WHERE country IS NOT NULL
-GROUP BY country
+	*,
+	ROUND(AVG(amount) OVER (PARTITION BY t.user_id)::NUMERIC, 2) AS user_avg
+FROM crappy_data_db.transactions t
+WHERE amount IS NOT NULL -- a way simpler method to handle NULL amounts 
+AND user_id IS NOT NULL-- NO NEED TO HANDLE NULL user_ids, HONESTLY, but here you are
 ),
-users_age_groups AS (
+users_transactions_cnt AS (
 SELECT 
-	u.id,
-	u.country,
-	CASE WHEN u.age < 30 THEN 'under_30' WHEN u.age >= 30 AND u.age <= 50 THEN '30_to_50' ELSE 'over_50' END AS age_group
-FROM countries_user_cnt cu
-JOIN crappy_data_db.users u ON cu.country = u.country
-WHERE cu.user_cnt >= 3
-),
-orders_countries_age_stats AS (
-SELECT 
-	ua.country,
-	ua.age_group,
-	COUNT(o.id) AS order_count,
-	SUM(o.amount) AS total_revenue,
-	ROUND(AVG(NULLIF(o.amount, 0))::NUMERIC, 2) AS avg_revenue_per_order
-FROM users_age_groups ua
-JOIN crappy_data_db.orders o ON ua.id = o.user_id
-GROUP BY ua.country, ua.age_group
-),
-countries_total_revenues AS (
-SELECT 
-	country,
-	ROUND(SUM(total_revenue)::NUMERIC, 2) AS total_country_revenue
-FROM orders_countries_age_stats
-GROUP BY country
+	user_id,
+	COUNT(*) AS transactions_cnt
+FROM transactions_w_avg
+GROUP BY user_id
 )
 SELECT 
-	oc.country,
-	oc.age_group,
-	oc.order_count,
-	oc.total_revenue,
-	oc.avg_revenue_per_order,
-	ct.total_country_revenue,
-	ROUND(oc.total_revenue::NUMERIC / ct.total_country_revenue * 100::NUMERIC, 1) AS pct_of_country_revenue
-FROM orders_countries_age_stats oc
-JOIN countries_total_revenues ct ON oc.country = ct.country
-ORDER BY country, total_revenue DESC
+	tw.id,
+	tw.user_id,
+	tw.amount,
+	tw.user_avg,
+	ROUND(tw.amount / tw.user_avg, 2) AS ratio,
+	CASE WHEN ROUND(tw.amount / tw.user_avg, 2) > 2.0 THEN TRUE ELSE FALSE END AS is_anomaly
+FROM transactions_w_avg tw
+JOIN users_transactions_cnt ut ON tw.user_id = ut.user_id AND ut.transactions_cnt > 0
 
-I didn't need to use HAVING here, I used simple counts at the beginning instead.
+Your instructions ARE CONTRADICTING EACH OTHER and unclear.
+I've used a very simple approach to handle everything properly and knowing the data I know this is all correct.
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — NULLIF clean averages (3/5)
-2. Task 2 — Transaction percentile distribution (4/5)
-3. Task 3 — Revenue by country and age group (4/5)
+1. Task 1 — NULLIF safe division in order metrics (3/5)
+2. Task 2 — Type B recursive CTE org chart with direct reports (4/5)
+3. Task 3 — NULLIF + window functions for anomaly detection (4/5)

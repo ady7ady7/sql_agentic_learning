@@ -3025,3 +3025,18 @@ Task spec was contradictory — asked for NULLIF guard but also pre-filtered NUL
 ## Student Feedback on Questions
 
 NULLIF should be practiced in real scenarios where it's genuinely needed, not forced artificially. Agent updated CLAUDE.md to reflect this. Task 3 spec was contradictory — agent acknowledged. Tasks 1 and 2 good.
+
+### Session: 2026-04-02 (Week 16, Day 4)
+## Agent Feedback on Student — Week 16 Day 4 (2026-04-02)
+
+**Task 1 (PERCENT_RANK):** Missing `HAVING COUNT(*) >= 3` in the first CTE — users with fewer than 3 orders were included, which would skew percentile rankings. Everything else correct: two-CTE structure clean, PERCENT_RANK partitioned and ordered correctly, cascading CASE WHEN tier logic right. 9/10.
+
+**Task 2 (Conditional Aggregation):** Excellent. FILTER clause used precisely where it belongs. Inline boolean for `large_dominates` is tighter than CASE WHEN. Data-aware skip of the HAVING is correct given 3 categories. Called it a "pivot" pattern — accurate. 10/10.
+
+**Task 3 (Running Totals + Best Month):** DATE_TRUNC instead of separate year/month columns is a valid and cleaner design choice. Running total and best-month window functions correct. Missing the explicit `WHERE price IS NOT NULL` filter (though NULL * quantity silently drops from SUM, so results are unaffected). SELECT * in the first CTE carries unnecessary column noise. 9/10.
+
+**Day Score: 28/30**
+
+## Student Feedback on Questions — Week 16 Day 4 (2026-04-02)
+
+Liked all three questions. Difficulty felt moderate — not the maximum challenge. Requests one genuinely hard task (5/5) per session from now on, while keeping the other two at 3-4/5 range.

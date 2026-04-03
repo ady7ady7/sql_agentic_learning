@@ -1,156 +1,175 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-04-02
-**Week 16, Day 4 Focus:** PERCENT_RANK + Complex GROUP BY + FIRST_VALUE with offset + Type A Recursive CTE
+**Generated:** 2026-04-03
+**Week 16, Day 5 Focus:** Time-proximity gaps-and-islands (session detection) + STDDEV anomaly scoring + Anti-join with NULL trap
 
 ---
 
-## Task 1: PERCENT_RANK — User Spending Percentile by Country
+## Task 1: Time-Proximity Gaps-and-Islands — User Session Detection (5/5)
 
 **Scenario:**
-The growth team wants to understand how each user's total order spend ranks within their country. They need the absolute spend, the percentile rank, and a spending tier label — so they can target marketing campaigns at mid-tier spenders who are close to becoming top performers.
+The analytics team wants to group a user's daily sessions into "activity bursts" — consecutive days where the user had at least one session, with no gap of more than 2 days between them. Each burst should get a unique burst ID per user, and the team wants to see how long each burst lasted (in days) and the total sessions within it.
 
 **Expected Output Columns:**
 - `user_id` (integer)
-- `country` (varchar)
-- `total_spent` (double precision) — sum of all order amounts for this user
-- `pct_rank` (numeric) — PERCENT_RANK() within country, rounded to 3 decimals
-- `spending_tier` (text) — `'top'` if pct_rank >= 0.75, `'mid'` if >= 0.4, `'low'` otherwise
+- `burst_id` (integer) — sequential burst number per user (1, 2, 3…)
+- `burst_start` (date) — first date of the burst
+- `burst_end` (date) — last date of the burst
+- `burst_days` (integer) — number of calendar days from start to end inclusive
+- `total_sessions` (integer) — sum of count_sessions across all days in this burst
 
 **Requirements:**
-- Use `orders` JOIN `users` — only include orders where amount IS NOT NULL and country IS NOT NULL
-- Compute total_spent per user, then rank within country
-- Only include users with at least 3 orders
-- Order by `country ASC`, `pct_rank DESC`
+- Use `user_sessions_daily`
+- Only include days where `count_sessions > 0`
+- A new burst begins when the gap from the previous active day (for that user) exceeds 2 days
+- Use LAG to detect gap, SUM OVER to build burst key, then GROUP BY to collapse
+- Order by `user_id ASC`, `burst_start ASC`
+
+**Hint:** The pattern is: LAG to get previous active date → compare gap → flag new burst → cumulative SUM of flags = burst group key → GROUP BY that key.
+
+**Difficulty Rating:** 5/5
+
+WITH user_sessions_lag AS (
+SELECT 
+	*,
+	LAG(date) OVER (PARTITION BY user_id ORDER BY date) AS prev_date
+FROM crappy_data_db.user_sessions_daily usd
+),
+streak_is_start AS (
+SELECT 
+	*,
+	date - prev_date,
+	CASE WHEN prev_date IS NULL OR date - prev_date <= 2 THEN 0 ELSE 1 END AS is_start
+FROM user_sessions_lag
+),
+sessions_streak_ids AS (
+SELECT 
+	*,
+	SUM(is_start) OVER (PARTITION BY user_id ORDER BY date) AS streak_id
+FROM streak_is_start
+)
+SELECT 
+	user_id,
+	streak_id,
+	MIN(date) AS streak_start,
+	MAX(date) AS streak_end,
+	COUNT(*) AS streak_days,
+	SUM(count_sessions) AS total_sessions
+FROM sessions_streak_ids
+GROUP BY user_id, streak_id
+ORDER BY user_id, streak_start
+
+I changed column names as streak is more natural than burst.
+
+---
+
+## Task 2: STDDEV-Based Outlier Scoring — Transaction Volatility per User
+
+**Scenario:**
+The risk team wants to measure how volatile each user's transaction amounts are, and identify which individual transactions are statistical outliers (more than 2 standard deviations from the user's mean). They want a z-score for each transaction so analysts can rank transactions by how unusual they are.
+
+**Expected Output Columns:**
+- `id` (integer) — transaction id
+- `user_id` (integer)
+- `amount` (numeric)
+- `user_avg` (numeric) — user's average transaction amount, rounded to 2 decimals
+- `user_stddev` (numeric) — user's stddev of transaction amounts, rounded to 2 decimals
+- `z_score` (numeric) — `(amount - user_avg) / NULLIF(user_stddev, 0)`, rounded to 2 decimals
+- `is_outlier` (boolean) — true if ABS(z_score) > 2.0
+
+**Requirements:**
+- Use `transactions`, exclude NULL amounts and NULL user_ids
+- Only include users with at least 5 transactions (to make stddev meaningful)
+- NULLIF(user_stddev, 0) prevents division by zero for users with identical amounts
+- Order by `ABS(z_score) DESC NULLS LAST`
 
 **Difficulty Rating:** 4/5
 
 
-WITH users_country_spent AS (
-SELECT 
-	o.user_id,
-	u.country,
-	SUM(o.amount) AS total_spent
-FROM crappy_data_db.orders o 
-JOIN crappy_data_db.users u ON o.user_id = u.id
-WHERE u.country IS NOT NULL
-GROUP BY o.user_id, u.country
-),
-users_countries_pct_rank AS (
-SELECT 
-	*, 
-	ROUND(PERCENT_RANK() OVER (PARTITION BY country ORDER BY total_spent)::NUMERIC, 3) AS pct_rank
-FROM users_country_spent
-ORDER BY country
-)
+WITH transactions_avg_std AS (
 SELECT 
 	*,
-	CASE WHEN pct_rank >= 0.75 THEN 'top' WHEN pct_rank >= 0.4 THEN 'mid' ELSE 'low' END AS spending_tier
-FROM users_countries_pct_rank
-ORDER BY country, pct_rank DESC
+	ROUND(AVG(t.amount) OVER (PARTITION BY t.user_id), 2) AS user_avg,
+	ROUND(STDDEV(t.amount) OVER (PARTITION BY t.user_id), 2) AS user_std
+FROM crappy_data_db.transactions t 
+),
+transactions_cnt_users AS (
+SELECT t.user_id, 
+COUNT(*) AS transactions_cnt
+FROM crappy_data_db.transactions t
+GROUP BY t.user_id
+)
+SELECT 
+	tas.id,
+	tas.user_id,
+	tas.amount,
+	tas.user_avg,
+	tas.user_std AS user_stddev,
+	ABS(ROUND((tas.amount - tas.user_avg) / NULLIF(tas.user_std, 0), 2)) AS z_score,
+	ABS(ROUND((tas.amount - tas.user_avg) / NULLIF(tas.user_std, 0), 2)) > 2.0 AS is_outlier
+FROM transactions_avg_std tas
+JOIN transactions_cnt_users tcu ON tas.user_id = tcu.user_id AND tcu.transactions_cnt >= 5
+ORDER BY z_score DESC NULLS LAST
 
 
 ---
 
-## Task 2: Complex GROUP BY — Product Category Revenue with Conditional Aggregation
+## Task 3: Anti-Join — Users Who Ordered But Never Transacted
 
 **Scenario:**
-The product team wants a breakdown of each category's revenue performance split by order size. They define "large orders" as amount > 300 and "small orders" as amount <= 300. They want to see how the revenue mix differs across categories and flag categories where large-order revenue exceeds small-order revenue.
+The finance reconciliation team suspects there are users who placed orders but have no corresponding transactions on record. Find all users who have at least one order but zero transactions — using all three anti-join approaches: NOT IN, NOT EXISTS, and LEFT JOIN ... WHERE IS NULL.
 
-**Expected Output Columns:**
-- `category_name` (varchar)
-- `total_revenue` (numeric) — sum of (price × quantity) across all orders in this category
-- `large_order_revenue` (numeric) — revenue from items where the parent order amount > 300
-- `small_order_revenue` (numeric) — revenue from items where the parent order amount <= 300
-- `large_dominates` (boolean) — true if large_order_revenue > small_order_revenue
+**Expected Output Columns (for each approach):**
+- `user_id` (integer)
 
 **Requirements:**
-- Use `product_categories`, `products`, `orders_products`, `orders` — join them properly
-- Only include orders where amount IS NOT NULL
-- Only include categories with at least 50 total line items (orders_products rows)
-- Order by `total_revenue DESC`
+- Use `orders` and `transactions` tables
+- Write three separate queries producing the same result:
+  1. Using `NOT IN` — then add a comment explaining when this breaks
+  2. Using `NOT EXISTS`
+  3. Using `LEFT JOIN ... WHERE IS NULL`
+- For the NOT IN version: add a SQL comment explaining the NULL trap (what happens if any `user_id` in `transactions` is NULL, and why NOT IN silently returns 0 rows)
+- Order by `user_id ASC` in all three
 
-**Difficulty Rating:** 4/5
+**Difficulty Rating:** 3/5
 
-WITH categories_order_revenues AS (
-SELECT 
-	pc."name" AS category_name,
-	SUM(p.price * op.quantity) AS total_revenue,
-	SUM(p.price * op.quantity) FILTER (WHERE o.amount > 300) AS large_orders_revenue,
-	SUM(p.price * op.quantity) FILTER (WHERE o.amount <= 300) AS small_orders_revenue
-FROM crappy_data_db.orders_products op
-JOIN crappy_data_db.products p ON op.product_id = p.id
-JOIN crappy_data_db.product_categories pc ON pc.id = p.category_id
-JOIN crappy_data_db.orders o ON op.order_id = o.id
-WHERE o.amount IS NOT NULL
-GROUP BY pc."name" 
+1. SELECT DISTINCT o.user_id
+FROM crappy_data_db.orders o
+WHERE o.user_id NOT IN
+(SELECT t.user_id 
+FROM crappy_data_db.transactions t
+WHERE t.user_id IS NOT NULL
 )
-SELECT 
-	*,
-	large_orders_revenue > small_orders_revenue AS large_dominates
-FROM categories_order_revenues
+
+IT DOES NOT BREAK, AS I USED 'IS NOT NULL' to prevent from breaking :)).
 
 
-Here, there's no need to exclude any categories, as there are only 3, plus I'm 100% sure every single one had at least 50 line items, for sure!
+2.
 
-I could do it with more CTEs using GROUP BY, but I preferred to use pivots, as it's simpler, much clearer and very easy to read - it makes the most sense here.
-
----
-
-## Task 3: Type A Recursive CTE — Monthly Category Revenue with Running Totals
-
-**Scenario:**
-The finance team wants a month-by-month revenue summary per product category, plus a running total that accumulates revenue within each category across months. They also want to know the best-revenue month for each category (the month where revenue was highest).
-
-**Expected Output Columns:**
-- `category_name` (varchar)
-- `year` (integer)
-- `month` (integer)
-- `monthly_revenue` (numeric) — sum of price × quantity for that category in that month
-- `running_total` (numeric) — cumulative revenue for this category up to and including this month
-- `best_month_revenue` (numeric) — highest monthly_revenue ever recorded for this category (same value repeated per category)
-
-**Requirements:**
-- Use `product_categories`, `products`, `orders_products`, `orders`
-- Only include rows where price IS NOT NULL and amount IS NOT NULL
-- Only include categories that appear in at least 3 distinct months of data
-- Order by `category_name ASC`, `year ASC`, `month ASC`
-
-**Note:** This task does not require a recursive CTE — solve it purely with window functions. The "Type A" label here refers to the fixed aggregation pattern (monthly aggregation → window over that result), not a recursive hierarchy.
-
-**Difficulty Rating:** 4/5
-
-WITH categories_months AS (
-SELECT 
-	*,
-	pc.name AS category_name,
-	DATE_TRUNC('Month', o.created_at) AS month_
-FROM crappy_data_db.orders_products op
-JOIN crappy_data_db.products p ON op.product_id = p.id
-JOIN crappy_data_db.product_categories pc ON pc.id = p.category_id
-JOIN crappy_data_db.orders o ON op.order_id = o.id
-),
-categories_monthly_revenues AS (
-SELECT 
-	category_name,
-	month_,
-	SUM(price * quantity) AS monthly_revenue
-FROM categories_months
-GROUP BY category_name, month_
-ORDER BY month_
+SELECT DISTINCT o.user_id
+FROM crappy_data_db.orders o
+WHERE NOT EXISTS
+(SELECT t.user_id 
+FROM crappy_data_db.transactions t
+WHERE t.user_id  = o.user_id
 )
-SELECT 
-	*,
-	sum(monthly_revenue) OVER (PARTITION BY category_name ORDER BY month_) AS running_total,
-	MAX(monthly_revenue) OVER (PARTITION BY category_name) AS best_month_revenue
-FROM categories_monthly_revenues
 
-Please note that the year column is redundant here, as I've used date_trunc it already contains the year in it and it's properly sorted with ascending dates order - it makes the most sense and we're using 1 column instead of 2, which is way clearer.
+3. 
+SELECT DISTINCT o.user_id
+FROM crappy_data_db.orders o
+LEFT JOIN crappy_data_db.transactions t ON o.user_id = t.user_id
+WHERE t.id IS NULL
+
+I'm not a fan of this pattern though.
+
+Got 35 rows in EVERY single query.
+
+
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — PERCENT_RANK user spending percentile by country (4/5)
-2. Task 2 — Complex GROUP BY with conditional aggregation on order size (4/5)
-3. Task 3 — Monthly category revenue with running totals and best-month window (4/5)
+1. Task 1 — Time-proximity burst detection with LAG + cumulative SUM (5/5)
+2. Task 2 — STDDEV z-score outlier scoring with NULLIF guard (4/5)
+3. Task 3 — Anti-join triple: NOT IN / NOT EXISTS / LEFT JOIN IS NULL (3/5)

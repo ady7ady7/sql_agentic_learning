@@ -3040,3 +3040,18 @@ NULLIF should be practiced in real scenarios where it's genuinely needed, not fo
 ## Student Feedback on Questions — Week 16 Day 4 (2026-04-02)
 
 Liked all three questions. Difficulty felt moderate — not the maximum challenge. Requests one genuinely hard task (5/5) per session from now on, while keeping the other two at 3-4/5 range.
+
+### Session: 2026-04-03 (Week 16, Day 5)
+## Agent Feedback on Student — Week 16 Day 5 (2026-04-03)
+
+**Task 1 (Session Burst Detection):** Three-CTE pipeline correct and clean. Missing `WHERE count_sessions > 0` filter in the first CTE — inactive days included in bursts, which inflates streak_days and merges bursts incorrectly. Everything else spot on. 9/10.
+
+**Task 2 (STDDEV Z-Score):** NULLIF guard correct, JOIN filter for 5+ transactions is clean. Two issues: ABS() applied to z_score before storing it, losing sign direction (z-scores should be signed — direction matters for analysis). Also missing WHERE amount IS NOT NULL and user_id IS NOT NULL in first CTE. 8/10.
+
+**Task 3 (Anti-Join Triple):** All three approaches correct, all return 35 rows. NOT IN NULL trap correctly handled with IS NOT NULL filter in subquery. Understanding of when each approach breaks is clear. 10/10.
+
+**Day Score: 27/30**
+
+## Student Feedback on Questions — Week 16 Day 5 (2026-04-03)
+
+No specific feedback — questions were fine overall.

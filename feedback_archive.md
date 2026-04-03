@@ -3055,3 +3055,55 @@ Liked all three questions. Difficulty felt moderate — not the maximum challeng
 ## Student Feedback on Questions — Week 16 Day 5 (2026-04-03)
 
 No specific feedback — questions were fine overall.
+
+---
+
+## Weekly Summary — Week 16 (2026-03-30 to 2026-04-03)
+
+### Scores
+| Day | Score | Focus |
+|-----|-------|-------|
+| Day 1 | 29/30 | Type B recursive CTE + anti-join NULL trap + time-proximity bursts |
+| Day 2 | 27/30 | NULLIF clean averages + PERCENT_RANK/NTILE/STDDEV + country×age revenue pivot |
+| Day 3 | 27/30 | NULLIF safe division + Type B org chart with direct reports + anomaly detection |
+| Day 4 | 28/30 | PERCENT_RANK by country + conditional aggregation pivot + running totals |
+| Day 5 | 27/30 | Session burst detection + STDDEV z-score + anti-join triple |
+| **Week Total** | **138/150** | **Avg: 27.6/30** |
+
+### Progress — Concept Mastery
+
+**Solidly Mastered This Week:**
+- Type B recursive CTE (unlimited-depth self-referencing) — logic correct, natural termination, depth tracking clean. Minor cosmetic recurring issue: hardcoded path anchor in Day 1 Task 1 (only 'Alice' was hardcoded, accepted as 9/10).
+- Anti-join triple (NOT IN / NOT EXISTS / LEFT JOIN IS NULL) — all three approaches executed correctly; NOT IN NULL trap understood and fixed independently.
+- Time-proximity gaps-and-islands — LAG → is_start flag → cumulative SUM → GROUP BY pipeline mastered. Day 5 minor miss: forgot `count_sessions > 0` filter.
+- PIVOT via conditional aggregation — FILTER clause used precisely, inline boolean for flags, correct data-aware HAVING decisions.
+- PERCENT_RANK — correct partitioning and ordering. Minor miss Day 4: HAVING filter for minimum order count forgotten.
+- Running totals with SUM OVER — frame awareness correct, DATE_TRUNC design choice over year/month columns was the better call.
+
+**Good, Minor Edge Cases:**
+- HAVING for pre-GROUP BY filters — missed once (Day 4 Task 1). Pattern itself is understood; needs to be a checklist item on every aggregation task.
+- NULL filters at source (WHERE amount IS NOT NULL, WHERE user_id IS NOT NULL) — missed twice (Day 5 Task 2). These should be default habit on any table with nullable columns.
+- Signed vs unsigned z-score — ABS() should only appear in the comparison, not on the stored value. Direction matters.
+
+**Introduced and Practiced:**
+- NULLIF pattern — correctly used in two genuine scenarios (safe division, z-score stddev guard). Correctly pushed back when the spec forced it artificially. Updated CLAUDE.md to only use NULLIF where dirty data genuinely exists.
+- STDDEV as window function — correct usage, NULLIF guard applied properly.
+
+### Key Wins
+- Caught a contradictory spec in Day 3 Task 3 (NULLIF guard was redundant given pre-filtering) — showed deeper reading of what the function actually buys you.
+- Pushed back on artificially forced NULLIF — this led to a curriculum improvement (CLAUDE.md updated).
+- NOT IN NULL trap — not only understood the failure mode but immediately applied the fix (`IS NOT NULL` in subquery) and explained why it works.
+- DATE_TRUNC instead of year/month columns in Day 4 Task 3 — cleaner design decision, correctly argued.
+
+### Focus Areas for Week 17
+- HAVING as a checklist item: every aggregation query should ask "does this GROUP BY need a HAVING filter from the spec?"
+- NULL filter discipline: `WHERE amount IS NOT NULL AND user_id IS NOT NULL` should be default on nullable columns — not optional.
+- Z-score / ratio signed values: ABS() belongs in the comparison condition, not in the column definition.
+- Query optimization (not yet introduced): EXPLAIN ANALYZE output, seq scan vs index scan, CTE materialization. Rotate in Week 17.
+
+### Next Week's Plan
+- Day 1: YoY comparison — LAG with 12-month offset or date arithmetic comparing same period prior year
+- Day 2: Cohort analysis — group users by registration month, track retention across subsequent months
+- Day 3: Query optimization intro — EXPLAIN ANALYZE reading, seq scan vs index scan, CTE vs subquery performance
+- Day 4: FIRST_VALUE / LAST_VALUE — advanced frame specs, getting first/last per partition in varied contexts
+- Day 5: Weekly recap + free-choice hard task (student picks concept to revisit)

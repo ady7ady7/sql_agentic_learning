@@ -3107,3 +3107,18 @@ No specific feedback — questions were fine overall.
 - Day 3: Query optimization intro — EXPLAIN ANALYZE reading, seq scan vs index scan, CTE vs subquery performance
 - Day 4: FIRST_VALUE / LAST_VALUE — advanced frame specs, getting first/last per partition in varied contexts
 - Day 5: Weekly recap + free-choice hard task (student picks concept to revisit)
+
+### Session: 2026-04-07 (Week 17, Day 1)
+## Agent Feedback on Student — Week 17 Day 1 (2026-04-07)
+
+**Task 1 (JOIN + GROUP BY):** Clean execution. WHERE filters correct, ORDER BY correct. Missing HAVING COUNT >= 10 from spec — segments with few orders included. Values unrounded — correct data-aware call. 9/10.
+
+**Task 2 (HAVING Multiple Conditions):** CTE pre-aggregation + WHERE is valid alternative to HAVING. All metrics correct, NULL filter at source, MAX for last order date. 10/10.
+
+**Task 3 (RANK by City):** Two-CTE structure correct — aggregate, then rank, then filter. RANK correctly handles ties (both users at rank 1 returned). 10/10.
+
+**Day Score: 29/30**
+
+## Student Feedback on Questions — Week 17 Day 1 (2026-04-07)
+
+Light review session after Easter break. Tasks felt easy and appropriate for the day. Student noted HAVING doesn't come naturally — prefers CTE + WHERE pattern, which is equally valid. No specific questions flagged as good/bad.

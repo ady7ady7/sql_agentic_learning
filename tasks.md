@@ -1,125 +1,149 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-04-07
-**Week 17, Day 1 Focus:** Light review — JOINs, GROUP BY, HAVING, basic window functions
+**Generated:** 2026-04-08
+**Week 17, Day 2 Focus:** YoY comparison + LAG offset + Cohort retention (5/5) + NTILE segmentation
 
 ---
 
-## Task 1: Multi-Table JOIN — Order Revenue by Country and Gender
+## Task 1: Year-over-Year Revenue Comparison per Country
 
 **Scenario:**
-The marketing team wants a simple breakdown of total order revenue and order count, grouped by country and gender. They want to see which country + gender segments are the most valuable.
+The finance team wants to compare order revenue between 2024 and 2025 for each country. They want the absolute revenue for each year side by side, the difference, and the percentage change.
 
 **Expected Output Columns:**
 - `country` (varchar)
-- `gender` (varchar)
-- `order_count` (integer)
-- `total_revenue` (numeric) — sum of order amounts, rounded to 2 decimals
+- `revenue_2024` (numeric) — total order revenue in 2024, rounded to 2 decimals
+- `revenue_2025` (numeric) — total order revenue in 2025, rounded to 2 decimals
+- `revenue_diff` (numeric) — revenue_2025 minus revenue_2024, rounded to 2 decimals
+- `pct_change` (numeric) — percentage change from 2024 to 2025, rounded to 1 decimal. Use NULLIF to guard against countries with no 2024 revenue.
 
 **Requirements:**
 - Use `orders` JOIN `users`
-- Exclude rows where country IS NULL, gender IS NULL, or amount IS NULL
-- Only include segments with at least 10 orders (HAVING)
-- Order by `total_revenue DESC`
-
-**Difficulty Rating:** 2/5
-
-SELECT 
-	u.country,
-	u.gender,
-	COUNT(o.id) AS order_count,
-	SUM(o.amount) AS total_revenue
-FROM crappy_data_db.orders o
-JOIN crappy_data_db.users u ON o.user_id = u.id
-WHERE u.country IS NOT NULL AND u.gender IS NOT NULL AND o.amount IS NOT NULL
-GROUP BY u.country, u.gender
-ORDER BY total_revenue DESC
-
-Values were already rounded as intended
-
----
-
-## Task 2: HAVING with Multiple Conditions — Active High-Value Users
-
-**Scenario:**
-The retention team wants to find users who are both frequent and high-spending: at least 5 orders AND average order value above 300. They also want to know the date of their most recent order.
-
-**Expected Output Columns:**
-- `user_id` (integer)
-- `order_count` (integer)
-- `avg_order_value` (numeric) — rounded to 2 decimals
-- `total_spent` (numeric) — rounded to 2 decimals
-- `last_order_date` (timestamp)
-
-**Requirements:**
-- Use `orders` only
-- Exclude NULL amounts
-- HAVING: order_count >= 5 AND avg_order_value > 300
-- Order by `total_spent DESC`
-
-**Difficulty Rating:** 2/5
-
-WITH user_orders_metrics AS (
-SELECT 
-	user_id,
-	COUNT(*) AS order_cnt,
-	round(AVG(amount)::NUMERIC, 2) AS avg_order_amt,
-	SUM(amount) AS total_spent,
-	MAX(created_at) AS last_order_date
-FROM crappy_data_db.orders o
-WHERE amount IS NOT NULL
-GROUP BY user_id
-)
-SELECT * FROM user_orders_metrics
-WHERE order_cnt >= 5 AND avg_order_amt > 300
-ORDER BY total_spent DESC
-
----
-
-## Task 3: Window Function Review — Rank Users by Sessions Within City
-
-**Scenario:**
-The engagement team wants to rank users by their total session count, partitioned by city — so they can see who the most active user is within each city.
-
-**Expected Output Columns:**
-- `user_id` (integer)
-- `city` (varchar)
-- `total_sessions` (integer) — sum of count_sessions across all dates
-- `city_rank` (integer) — RANK() within city, 1 = most active
-
-**Requirements:**
-- Use `user_sessions_daily` JOIN `users`
-- Exclude rows where city IS NULL
-- Only show users where `city_rank = 1` (top user per city)
-- Order by `city ASC`
+- Exclude NULL amounts and NULL countries
+- Only include countries that have revenue in **both** years
+- Order by `pct_change DESC`
 
 **Difficulty Rating:** 3/5
 
-WITH users_cities_session_cnts AS (
-SELECT 
-	usd.user_id,
-	u.city,
-	SUM(usd.count_sessions) AS total_sessions
-FROM crappy_data_db.user_sessions_daily usd
-JOIN crappy_data_db.users u ON usd.user_id = u.id
-WHERE U.CITY IS NOT null
-GROUP BY USD.user_id, u.city
-),
-sessions_city_ranks AS (
+WITH orders_users AS (
 SELECT 
 	*,
-	RANK() OVER (PARTITION BY city ORDER BY total_sessions DESC) AS city_rank
-FROM users_cities_session_cnts
+	EXTRACT('Year' FROM o.created_at) AS year_
+FROM crappy_data_db.users u
+JOIN crappy_data_db.orders o ON u.id = o.user_id
+),
+orders_countries_revenues AS (
+SELECT 
+	country,
+	SUM(amount) FILTER (WHERE year_ = 2025) AS revenue_2025,
+	round(SUM(amount) FILTER (WHERE year_ = 2024)::NUMERIC, 2) AS revenue_2024
+FROM orders_users
+GROUP BY country
 )
-SELECT * FROM sessions_city_ranks
-WHERE city_rank = 1
-ORDER BY city
+SELECT 
+	*,
+	COALESCE(revenue_2025, 0) - COALESCE(revenue_2024, 0) AS revenue_diff,
+	ROUND((COALESCE(revenue_2025::NUMERIC, 0) - COALESCE(revenue_2024, 0)) / revenue_2024::NUMERIC * 100::NUMERIC, 1) AS pct_change
+FROM orders_countries_revenues
+WHERE revenue_2025 IS NOT NULL AND revenue_2024 IS NOT NULL
+ORDER BY pct_change DESC
 
+
+
+---
+
+## Task 2: Cohort Retention — Did Users Order in the Month After Registration? (5/5)
+
+**Scenario:**
+The growth team wants to measure first-month retention: of all users who registered in a given month, what percentage placed at least one order in the following calendar month?
+
+For example: users who registered in 2024-10 — how many of them placed an order in 2024-11?
+
+**Expected Output Columns:**
+- `registration_month` (date) — truncated to month (e.g. 2024-10-01)
+- `cohort_size` (integer) — total users registered in that month
+- `retained_users` (integer) — users who placed at least one order in the month immediately following their registration month
+- `retention_rate` (numeric) — retained_users / cohort_size as a percentage, rounded to 1 decimal
+
+**Requirements:**
+- Use `users` and `orders`
+- Registration month comes from `users.created_at`
+- "Following month" = DATE_TRUNC('month', created_at) + INTERVAL '1 month'
+- A user is "retained" if they have at least one order where DATE_TRUNC('month', order.created_at) = their following month
+- Only include cohorts with at least 5 users
+- Order by `registration_month ASC`
+
+**Difficulty Rating:** 5/5
+
+WITH users_registration_dates AS (
+SELECT 
+	u.id AS user_id,
+	DATE_TRUNC('Month', u.created_at) AS registration_month,
+	DATE_TRUNC('Month', u.created_at) + INTERVAL '1 Month' AS next_month
+FROM crappy_data_db.users u
+WHERE u.created_at IS NOT NULL
+),
+cohorts AS (
+SELECT 
+	urd.registration_month,
+	COUNT(DISTINCT(urd.user_id)) AS cohort_size,
+	COUNT(DISTINCT(urd.user_id)) FILTER (WHERE DATE_TRUNC('Month', o.created_at) = next_month) AS retained_users
+FROM users_registration_dates urd
+JOIN crappy_data_db.orders o ON urd.user_id = o.user_id
+GROUP BY urd.registration_month
+)
+SELECT 
+	*,
+	ROUND(retained_users::numeric / cohort_size::NUMERIC * 100, 1) AS retention_rate
+FROM cohorts
+WHERE cohort_size >= 5
+
+
+Not that big of a deal for me - manageable task.
+
+---
+
+## Task 3: NTILE Segmentation — Transaction Amount Quartiles
+
+**Scenario:**
+The analytics team wants to divide all transactions into 4 equal buckets by amount, then report the min, max, and average amount per bucket — to understand how transaction values are distributed.
+
+**Expected Output Columns:**
+- `quartile` (integer) — 1 to 4 (1 = lowest amounts)
+- `min_amount` (numeric) — minimum amount in this quartile, rounded to 2 decimals
+- `max_amount` (numeric) — maximum amount in this quartile, rounded to 2 decimals
+- `avg_amount` (numeric) — average amount in this quartile, rounded to 2 decimals
+- `transaction_count` (integer)
+
+**Requirements:**
+- Use `transactions`, exclude NULL amounts
+- NTILE(4) ordered by amount ASC (so quartile 1 = lowest)
+- Order by `quartile ASC`
+
+**Difficulty Rating:** 3/5
+
+WITH transactions_quartiles AS (
+SELECT 
+	*,
+	NTILE(4) OVER (ORDER BY t.amount) AS quartile
+FROM crappy_data_db.transactions t
+)
+SELECT 
+	quartile,
+	ROUND(MIN(amount), 2) AS min_amount,
+	ROUND(MAX(amount), 2) AS max_amount,
+	ROUND(AVG(amount), 2) AS avg_amount,
+	COUNT(*) AS transaction_count
+FROM transactions_quartiles
+GROUP BY quartile
+ORDER BY quartile
+
+This is just too easy.
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — JOIN + GROUP BY + HAVING: order revenue by country and gender (2/5)
-2. Task 2 — HAVING with multiple conditions: active high-value users (2/5)
-3. Task 3 — RANK() partitioned by city, filter to top user per city (3/5)
+1. Task 1 — YoY revenue comparison per country with NULLIF pct_change guard (3/5)
+2. Task 2 — Cohort retention: % of users who ordered in month after registration (5/5)
+3. Task 3 — NTILE(4) transaction quartiles with min/max/avg per bucket (3/5)

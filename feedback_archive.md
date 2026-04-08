@@ -3122,3 +3122,18 @@ No specific feedback — questions were fine overall.
 ## Student Feedback on Questions — Week 17 Day 1 (2026-04-07)
 
 Light review session after Easter break. Tasks felt easy and appropriate for the day. Student noted HAVING doesn't come naturally — prefers CTE + WHERE pattern, which is equally valid. No specific questions flagged as good/bad.
+
+### Session: 2026-04-08 (Week 17, Day 2)
+## Agent Feedback on Student — Week 17 Day 2 (2026-04-08)
+
+**Task 1 (YoY Revenue):** Logic correct — FILTER per year, WHERE enforces both years present, pct_change formula right. COALESCE used correctly in diff; WHERE IS NOT NULL makes NULLIF redundant — valid approach. Only miss: revenue_2025 not rounded (revenue_2024 was). 9/10.
+
+**Task 2 (Cohort Retention):** Core logic solid. Critical miss: INNER JOIN drops users with zero orders — cohort_size only counts users who ordered at least once, not all registered users. Needs LEFT JOIN to preserve full cohort base. DISTINCT used as function syntax (minor). 8/10.
+
+**Task 3 (NTILE Quartiles):** Textbook. NTILE → GROUP BY pattern correct, all aggregations right. 10/10.
+
+**Day Score: 27/30**
+
+## Student Feedback on Questions — Week 17 Day 2 (2026-04-08)
+
+No specific feedback provided.

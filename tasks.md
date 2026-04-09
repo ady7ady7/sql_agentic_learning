@@ -1,149 +1,120 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-04-08
-**Week 17, Day 2 Focus:** YoY comparison + LAG offset + Cohort retention (5/5) + NTILE segmentation
+**Generated:** 2026-04-09
+**Week 17, Day 3 Focus:** Easy-medium session — LAG for change detection + self-join affinity + window running total
 
 ---
 
-## Task 1: Year-over-Year Revenue Comparison per Country
+## Task 1: LAG — Detect Users Whose Order Value Dropped
 
 **Scenario:**
-The finance team wants to compare order revenue between 2024 and 2025 for each country. They want the absolute revenue for each year side by side, the difference, and the percentage change.
+The retention team wants to find users whose most recent order was lower in value than their previous order — a potential sign of disengagement.
 
 **Expected Output Columns:**
-- `country` (varchar)
-- `revenue_2024` (numeric) — total order revenue in 2024, rounded to 2 decimals
-- `revenue_2025` (numeric) — total order revenue in 2025, rounded to 2 decimals
-- `revenue_diff` (numeric) — revenue_2025 minus revenue_2024, rounded to 2 decimals
-- `pct_change` (numeric) — percentage change from 2024 to 2025, rounded to 1 decimal. Use NULLIF to guard against countries with no 2024 revenue.
+- `user_id` (integer)
+- `prev_amount` (numeric) — amount of the second-to-last order, rounded to 2 decimals
+- `last_amount` (numeric) — amount of the most recent order, rounded to 2 decimals
+- `drop` (numeric) — prev_amount minus last_amount, rounded to 2 decimals
 
 **Requirements:**
-- Use `orders` JOIN `users`
-- Exclude NULL amounts and NULL countries
-- Only include countries that have revenue in **both** years
-- Order by `pct_change DESC`
+- Use `orders`, exclude NULL amounts
+- Use LAG to get the previous order amount per user (ordered by created_at ASC)
+- Only return users where the last order amount is lower than the previous one
+- Only include users with at least 2 orders
+- Order by `drop DESC`
 
 **Difficulty Rating:** 3/5
 
-WITH orders_users AS (
+WITH users_orders AS (
 SELECT 
 	*,
-	EXTRACT('Year' FROM o.created_at) AS year_
-FROM crappy_data_db.users u
-JOIN crappy_data_db.orders o ON u.id = o.user_id
-),
-orders_countries_revenues AS (
-SELECT 
-	country,
-	SUM(amount) FILTER (WHERE year_ = 2025) AS revenue_2025,
-	round(SUM(amount) FILTER (WHERE year_ = 2024)::NUMERIC, 2) AS revenue_2024
-FROM orders_users
-GROUP BY country
+	LAG(o.amount) OVER (PARTITION BY user_id ORDER BY created_at DESC) AS prev_amount,
+	rank() OVER (PARTITION BY user_id ORDER BY created_at DESC) AS rn
+FROM crappy_data_db.orders o
+ORDER BY user_id, created_at DESC
 )
 SELECT 
-	*,
-	COALESCE(revenue_2025, 0) - COALESCE(revenue_2024, 0) AS revenue_diff,
-	ROUND((COALESCE(revenue_2025::NUMERIC, 0) - COALESCE(revenue_2024, 0)) / revenue_2024::NUMERIC * 100::NUMERIC, 1) AS pct_change
-FROM orders_countries_revenues
-WHERE revenue_2025 IS NOT NULL AND revenue_2024 IS NOT NULL
-ORDER BY pct_change DESC
+	user_id,
+	prev_amount,
+	amount AS last_amount,
+	prev_amount - amount AS drop
+FROM users_orders
+WHERE rn = 2
+ORDER BY DROP desc
 
+I used slightly different, but clearer logic.
 
 
 ---
 
-## Task 2: Cohort Retention — Did Users Order in the Month After Registration? (5/5)
+## Task 2: Self-Join — Products Frequently Bought Together
 
 **Scenario:**
-The growth team wants to measure first-month retention: of all users who registered in a given month, what percentage placed at least one order in the following calendar month?
-
-For example: users who registered in 2024-10 — how many of them placed an order in 2024-11?
+The recommendations team wants to find pairs of products that appear together in the same order at least 3 times — to power a "frequently bought together" feature.
 
 **Expected Output Columns:**
-- `registration_month` (date) — truncated to month (e.g. 2024-10-01)
-- `cohort_size` (integer) — total users registered in that month
-- `retained_users` (integer) — users who placed at least one order in the month immediately following their registration month
-- `retention_rate` (numeric) — retained_users / cohort_size as a percentage, rounded to 1 decimal
+- `product_a` (integer) — lower product_id of the pair
+- `product_b` (integer) — higher product_id of the pair
+- `times_bought_together` (integer)
 
 **Requirements:**
-- Use `users` and `orders`
-- Registration month comes from `users.created_at`
-- "Following month" = DATE_TRUNC('month', created_at) + INTERVAL '1 month'
-- A user is "retained" if they have at least one order where DATE_TRUNC('month', order.created_at) = their following month
-- Only include cohorts with at least 5 users
-- Order by `registration_month ASC`
-
-**Difficulty Rating:** 5/5
-
-WITH users_registration_dates AS (
-SELECT 
-	u.id AS user_id,
-	DATE_TRUNC('Month', u.created_at) AS registration_month,
-	DATE_TRUNC('Month', u.created_at) + INTERVAL '1 Month' AS next_month
-FROM crappy_data_db.users u
-WHERE u.created_at IS NOT NULL
-),
-cohorts AS (
-SELECT 
-	urd.registration_month,
-	COUNT(DISTINCT(urd.user_id)) AS cohort_size,
-	COUNT(DISTINCT(urd.user_id)) FILTER (WHERE DATE_TRUNC('Month', o.created_at) = next_month) AS retained_users
-FROM users_registration_dates urd
-JOIN crappy_data_db.orders o ON urd.user_id = o.user_id
-GROUP BY urd.registration_month
-)
-SELECT 
-	*,
-	ROUND(retained_users::numeric / cohort_size::NUMERIC * 100, 1) AS retention_rate
-FROM cohorts
-WHERE cohort_size >= 5
-
-
-Not that big of a deal for me - manageable task.
-
----
-
-## Task 3: NTILE Segmentation — Transaction Amount Quartiles
-
-**Scenario:**
-The analytics team wants to divide all transactions into 4 equal buckets by amount, then report the min, max, and average amount per bucket — to understand how transaction values are distributed.
-
-**Expected Output Columns:**
-- `quartile` (integer) — 1 to 4 (1 = lowest amounts)
-- `min_amount` (numeric) — minimum amount in this quartile, rounded to 2 decimals
-- `max_amount` (numeric) — maximum amount in this quartile, rounded to 2 decimals
-- `avg_amount` (numeric) — average amount in this quartile, rounded to 2 decimals
-- `transaction_count` (integer)
-
-**Requirements:**
-- Use `transactions`, exclude NULL amounts
-- NTILE(4) ordered by amount ASC (so quartile 1 = lowest)
-- Order by `quartile ASC`
+- Use `orders_products`
+- Self-join on `order_id`, with `op1.product_id < op2.product_id` to avoid duplicates
+- Only include pairs appearing together in at least 3 distinct orders
+- Order by `times_bought_together DESC`
 
 **Difficulty Rating:** 3/5
 
-WITH transactions_quartiles AS (
-SELECT 
-	*,
-	NTILE(4) OVER (ORDER BY t.amount) AS quartile
-FROM crappy_data_db.transactions t
-)
-SELECT 
-	quartile,
-	ROUND(MIN(amount), 2) AS min_amount,
-	ROUND(MAX(amount), 2) AS max_amount,
-	ROUND(AVG(amount), 2) AS avg_amount,
-	COUNT(*) AS transaction_count
-FROM transactions_quartiles
-GROUP BY quartile
-ORDER BY quartile
+SELECT
+	op1.product_id AS product_a,
+	op2.product_id AS product_b,
+	COUNT(*) AS times_bought_together
+FROM crappy_data_db.orders_products op1
+JOIN crappy_data_db.orders_products op2 ON op1.order_id = op2.order_id
+WHERE op1.product_id > op2.product_id
+GROUP BY op1.product_id, op2.product_id
+HAVING COUNT(*) >= 3
+ORDER BY times_bought_together DESC
 
-This is just too easy.
+
+---
+
+## Task 3: Running Total — Cumulative Revenue per User Over Time
+
+**Scenario:**
+The finance team wants to see how each user's cumulative order spend grows over time — one row per order, with the running total up to and including that order.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `order_id` (integer)
+- `created_at` (timestamp)
+- `amount` (numeric)
+- `cumulative_spent` (numeric) — running total of amount for this user up to this order, rounded to 2 decimals
+
+**Requirements:**
+- Use `orders`, exclude NULL amounts
+- SUM OVER partitioned by user_id, ordered by created_at ASC
+- Only include users with at least 3 orders
+- Order by `user_id ASC`, `created_at ASC`
+
+**Difficulty Rating:** 3/5
+
+SELECT 
+	o.user_id,
+	o.id AS order_id,
+	o.created_at,
+	o.amount,
+	SUM(o.amount) OVER (PARTITION BY o.user_id ORDER BY o.created_at) AS cumulative_spent
+FROM crappy_data_db.orders o
+
+
+Very easy.
+
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — YoY revenue comparison per country with NULLIF pct_change guard (3/5)
-2. Task 2 — Cohort retention: % of users who ordered in month after registration (5/5)
-3. Task 3 — NTILE(4) transaction quartiles with min/max/avg per bucket (3/5)
+1. Task 1 — LAG to detect order value drop per user (3/5)
+2. Task 2 — Self-join: products bought together at least 3 times (3/5)
+3. Task 3 — Running cumulative spend per user with SUM OVER (3/5)

@@ -3137,3 +3137,18 @@ Light review session after Easter break. Tasks felt easy and appropriate for the
 ## Student Feedback on Questions — Week 17 Day 2 (2026-04-08)
 
 No specific feedback provided.
+
+### Session: 2026-04-09 (Week 17, Day 3)
+## Agent Feedback on Student — Week 17 Day 3 (2026-04-09)
+
+**Task 1 (LAG Order Drop):** Clever inversion — RANK() rn=2 with LAG DESC to get last vs prev amount. Logic correct. Missing WHERE amount IS NOT NULL in CTE. 9/10.
+
+**Task 2 (Self-Join Co-purchase):** Clean and minimal. product_id > vs < is cosmetic only. HAVING COUNT(*) >= 3 correct — no unnecessary CTE. 10/10.
+
+**Task 3 (Running Total):** Window function correct. NULL filter omitted — student verified no NULLs in data, valid call. One miss: "at least 3 orders" filter missing — users with 1-2 orders included. 8/10.
+
+**Day Score: 27/30**
+
+## Student Feedback on Questions — Week 17 Day 3 (2026-04-09)
+
+Tasks felt easy. No specific feedback.

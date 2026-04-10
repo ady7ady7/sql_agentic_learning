@@ -3152,3 +3152,18 @@ No specific feedback provided.
 ## Student Feedback on Questions — Week 17 Day 3 (2026-04-09)
 
 Tasks felt easy. No specific feedback.
+
+### Session: 2026-04-10 (Week 17, Day 4)
+## Agent Feedback on Student — Week 17 Day 4 (2026-04-10)
+
+**Task 1 (3-Level Rollup):** Three CTEs + UNION ALL correct. JOIN condition `ON tr.grand_total > pr.revenue` works but is semantically wrong — should be CROSS JOIN for scalar broadcast. GROUP BY missing category_id in product_revenues (PK functional dependency saves it in PG). 8/10.
+
+**Task 2 (FIRST_VALUE):** Two FIRST_VALUE windows with reversed ORDER BY correct. HAVING for 3+ transactions right. One miss: shifted boolean inverted — `first = last` gives TRUE when same, should be `!=` for shifted. 9/10.
+
+**Task 3 (Engagement Score):** Core structure correct — three signals, NTILE, sum, PERCENT_RANK. Two misses: INNER JOINs drop users with no orders or no sessions (needs LEFT JOIN + COALESCE to default missing to 1). Active user base not anchored from users table — active users with zero orders excluded from NTILE. 8/10.
+
+**Day Score: 25/30**
+
+## Student Feedback on Questions — Week 17 Day 4 (2026-04-10)
+
+Long day. No specific feedback on questions.

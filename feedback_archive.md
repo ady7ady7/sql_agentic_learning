@@ -3167,3 +3167,66 @@ Tasks felt easy. No specific feedback.
 ## Student Feedback on Questions — Week 17 Day 4 (2026-04-10)
 
 Long day. No specific feedback on questions.
+
+---
+
+## Weekly Summary — Week 17 (2026-04-07 to 2026-04-10)
+
+### Scores
+| Day | Score | Focus |
+|-----|-------|-------|
+| Day 1 | 29/30 | Light review — JOIN/GROUP BY/HAVING/RANK() |
+| Day 2 | 27/30 | YoY comparison + cohort retention + NTILE quartiles |
+| Day 3 | 27/30 | LAG drop detection + self-join co-purchase + running totals |
+| Day 4 | 25/30 | 3-level rollup + FIRST_VALUE shift detection + composite engagement score |
+| **Week Total** | **108/120** | **Avg: 27.0/30** |
+
+### Progress — Concept Mastery
+
+**Solid:**
+- LAG/LEAD patterns — drop detection, previous value comparison, clean execution
+- FIRST_VALUE with reversed ORDER BY for last value — correct, no frame spec needed
+- Self-join co-purchase — minimal and correct, HAVING used directly without unnecessary CTE
+- NTILE(4) + GROUP BY — quartile summary pattern clean
+- Type A 3-level rollup — structure correct, UNION ALL stacking right
+
+**Recurring Gap — Needs Focus:**
+- **LEFT JOIN + COALESCE for base population**: missed in Day 2 cohort retention (INNER JOIN dropped users with zero orders) and Day 4 engagement score (INNER JOIN dropped users with no sessions/orders). Same root cause both times. This is the key pattern for Week 18.
+- **Pre-filtering before windowing**: "at least N X" filter missing from Task 3 Day 3 (running totals) and Task 3 Day 2 (cohort). The fix is always: CTE to count, filter, then window.
+
+**Minor Recurring:**
+- Inverted boolean (shifted = same instead of different) — Task 2 Day 4
+- CROSS JOIN vs filter-condition JOIN for scalar broadcast — Task 1 Day 4
+
+### Key Wins
+- Pushed back correctly on NULLIF when COALESCE + WHERE was sufficient — right judgment
+- Data-aware NULL skip (Task 3 Day 3) — verified no NULLs, skipped filter, correct call
+- PERCENT_RANK cast to NUMERIC for ROUND — clean fix without prompting
+
+### Focus Areas for Week 18
+- LEFT JOIN + COALESCE — anchor from base population, left-join optional metrics, COALESCE missing to default
+- LEAD (looking forward) — complement to LAG, not yet practiced
+- Funnel analysis — registered → ordered → transacted, conditional aggregation + LEFT JOIN chain
+- Query optimization intro — EXPLAIN ANALYZE, seq scan vs index scan, CTE materialization
+
+### Next Week's Plan
+- Day 1: LEFT JOIN + COALESCE base population drill + LEAD
+- Day 2: Funnel analysis (hard) + window reinforcement
+- Day 3: Query optimization intro — EXPLAIN ANALYZE concepts + rewriting
+- Day 4: Mixed reinforcement + Type B recursive CTE
+- Day 5: Weekly recap
+
+### Session: 2026-04-13 (Week 18, Day 1)
+## Agent Feedback on Student — Week 18 Day 1 (2026-04-13)
+
+**Task 1 (LEFT JOIN + COALESCE):** Direct LEFT JOIN + GROUP BY correct. COALESCE on SUM correct; COALESCE on COUNT redundant (COUNT never returns NULL) but harmless. AVG left NULL for no-order users — right call. 9/10.
+
+**Task 2 (LEAD):** LEAD with DATE cast correct. JOIN to orders_cnt for 2+ filter clean. CASE WHEN for days_until_next redundant (subtraction of NULL already returns NULL) but not wrong. 10/10.
+
+**Task 3 (LEFT JOIN Chain):** Two LEFT JOINs in single FROM before GROUP BY causes row multiplication — user with 3 orders + 5 transactions produces 15 rows, inflating both counts. Safe pattern: pre-aggregate each table in separate CTEs, then LEFT JOIN summaries. 9/10.
+
+**Day Score: 28/30**
+
+## Student Feedback on Questions — Week 18 Day 1 (2026-04-13)
+
+Learned COALESCE is redundant on COUNT. Task 3 rated 5/5 but felt easy — difficulty rating to be recalibrated.

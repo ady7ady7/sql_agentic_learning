@@ -3230,3 +3230,18 @@ Long day. No specific feedback on questions.
 ## Student Feedback on Questions — Week 18 Day 1 (2026-04-13)
 
 Learned COALESCE is redundant on COUNT. Task 3 rated 5/5 but felt easy — difficulty rating to be recalibrated.
+
+### Session: 2026-04-14 (Week 18, Day 2)
+## Agent Feedback on Student — Week 18 Day 2 (2026-04-14)
+
+**Task 1 (Top Product per Category):** Textbook two-CTE structure, RANK() partitioned by category, filter to rank = 1. 10/10.
+
+**Task 2 (Monthly Breakdown by Type):** Logic correct. DATE_TRUNC preferred over EXTRACT for time grouping — valid call. Missing WHERE to exclude NULL types and amounts. 9/10.
+
+**Task 3 (Above-Average Spend):** Scalar subquery referencing CTE correct. Missing WHERE clause to filter to above-average users only — all users returned. 9/10.
+
+**Day Score: 28/30**
+
+## Student Feedback on Questions — Week 18 Day 2 (2026-04-14)
+
+Light session, appropriate for a long day. DATE_TRUNC preferred over EXTRACT for grouping — noted as best practice going forward.

@@ -1,140 +1,123 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-04-13
-**Week 18, Day 1 Focus:** LEFT JOIN + COALESCE base population + LEAD
+**Generated:** 2026-04-14
+**Week 18, Day 2 Focus:** Light session — window functions review + basic aggregation
 
 ---
 
-## Task 1: LEFT JOIN + COALESCE — All Active Users with Order Metrics
+## Task 1: Top Product per Category by Revenue
 
 **Scenario:**
-The growth team wants a full list of all users with their order stats — but users who have never placed an order must still appear in the result with zeros, not be silently dropped.
+The product team wants to know the single best-selling product (by revenue) within each category.
+
+**Expected Output Columns:**
+- `category_name` (varchar)
+- `product_name` (varchar)
+- `revenue` (numeric) — sum of price × quantity, rounded to 2 decimals
+
+**Requirements:**
+- Use `product_categories`, `products`, `orders_products`
+- Only include rows where price IS NOT NULL
+- Use RANK() or ROW_NUMBER() partitioned by category, then filter to rank = 1
+- Order by `revenue DESC`
+
+**Difficulty Rating:** 2/5
+
+WITH products_sales AS (
+SELECT 
+	pc."name" AS category_name,
+	p.name AS product_name,
+	SUM(p.price * op.quantity) AS revenue
+FROM crappy_data_db.orders_products op
+JOIN crappy_data_db.products p ON p.id = op.product_id
+JOIN crappy_data_db.product_categories pc ON p.category_id = pc.id
+WHERE price IS NOT NULL
+GROUP BY pc.name, p.name
+),
+categories_rank AS (
+SELECT 
+	*,
+	RANK() OVER (PARTITION BY category_name ORDER BY revenue DESC) AS sales_rank
+FROM products_sales
+)
+SELECT * FROM categories_rank WHERE sales_rank = 1
+ORDER BY revenue DESC
+
+
+
+---
+
+## Task 2: Transaction Count and Amount by Type and Month
+
+**Scenario:**
+The finance team wants a monthly breakdown of transaction volume and total amount per transaction type.
+
+**Expected Output Columns:**
+- `year` (integer)
+- `month` (integer)
+- `type` (text)
+- `transaction_count` (integer)
+- `total_amount` (numeric) — rounded to 2 decimals
+
+**Requirements:**
+- Use `transactions`, exclude NULL types and NULL amounts
+- Extract year and month from created_at
+- Order by `year ASC`, `month ASC`, `type ASC`
+
+**Difficulty Rating:** 2/5
+
+
+WITH transactions_y_m AS (
+SELECT 
+	*,
+	date_trunc('Year', created_at) AS YEAR,
+	date_trunc('Month', created_at) AS month
+FROM crappy_data_db.transactions t
+)
+SELECT 
+	YEAR,
+	MONTH,
+	TYPE,
+	COUNT(*) AS transaction_count,
+	SUM(amount) AS total_amount
+FROM transactions_y_m
+GROUP BY YEAR, MONTH, TYPE
+ORDER BY YEAR, month, type
+
+
+---
+
+## Task 3: Users with Above-Average Order Spend
+
+**Scenario:**
+Find users whose total order spend is above the overall average total spend across all users.
 
 **Expected Output Columns:**
 - `user_id` (integer)
-- `country` (varchar)
-- `order_count` (integer) — 0 if no orders
-- `total_spent` (numeric) — 0.00 if no orders
-- `avg_order_value` (numeric) — NULL if no orders (can't average zero orders)
+- `total_spent` (numeric) — rounded to 2 decimals
+- `overall_avg` (numeric) — the overall average, same value on every row, rounded to 2 decimals
 
 **Requirements:**
-- Base: all users from `users` table
-- LEFT JOIN aggregated order metrics onto the user base
-- Use COALESCE to convert NULL order_count and total_spent to 0
-- avg_order_value should remain NULL for users with no orders — do not COALESCE it to 0
-- Exclude NULL countries
+- Use `orders`, exclude NULL amounts
+- Compute total_spent per user, then compare against the average of those totals
+- Include `overall_avg` as a window or scalar subquery so it's visible in output
 - Order by `total_spent DESC`
 
 **Difficulty Rating:** 3/5
 
+WITH users_spents AS (
 SELECT 
-	u.id AS user_id,
-	u.country,
-	COALESCE(COUNT(o.id), 0) AS order_count,
-	ROUND(COALESCE(SUM(o.amount), 0)::NUMERIC, 2) AS total_spent,
-	ROUND(AVG(o.amount)::NUMERIC, 2) AS avg_order_value
-FROM crappy_data_db.users u
-LEFT JOIN crappy_data_db.orders o ON u.id = o.user_id
-WHERE u.country IS NOT NULL
-GROUP BY u.id, u.country
-ORDER BY total_spent DESC
-
-
-
-
----
-
-## Task 2: LEAD — Days Until Next Order per User
-
-**Scenario:**
-The retention team wants to understand ordering cadence: for each order, how many days until the same user placed their next order? Orders with no subsequent order should show NULL.
-
-**Expected Output Columns:**
-- `user_id` (integer)
-- `order_id` (integer)
-- `order_date` (date) — DATE(created_at)
-- `next_order_date` (date) — date of the user's next order, NULL if none
-- `days_until_next` (integer) — next_order_date minus order_date in days, NULL if no next order
-
-**Requirements:**
-- Use `orders`, exclude NULL amounts
-- Use LEAD(DATE(created_at)) OVER (PARTITION BY user_id ORDER BY created_at ASC)
-- Only include users with at least 2 orders
-- Order by `user_id ASC`, `order_date ASC`
-
-**Difficulty Rating:** 3/5
-
-WITH orders_dates AS (
-SELECT
-	*,
-	DATE(created_at) AS order_date,
-	LEAD(DATE(created_at)) OVER (PARTITION BY user_id ORDER BY created_at) AS next_order_date
-FROM crappy_data_db.orders o
-),
-orders_cnt AS (
-SELECT 
-user_id,
-COUNT(*) AS order_cnt
+	user_id,
+	ROUND(SUM(o.amount)::numeric, 2) AS total_spent
 FROM crappy_data_db.orders o
 GROUP BY user_id
 )
 SELECT 
-	od.user_id,
-	od.id AS order_id,
-	od.order_date,
-	od.next_order_date,
-	oc.order_cnt,
-	CASE WHEN od.next_order_date IS NULL THEN NULL ELSE od.next_order_date - od.order_date END AS days_until_next 
-FROM orders_dates od
-JOIN orders_cnt oc ON od.user_id = oc.user_id AND oc.order_cnt >= 2
-ORDER BY od.user_id, od.order_date
-
-
-I've added order_cnt to make sure data prints properly. It's all good.
-
----
-
-## Task 3: LEFT JOIN Chain — Active Users with Orders and Transactions (5/5)
-
-**Scenario:**
-The finance team wants to understand engagement depth: for every active user, show their order count, transaction count, and total transaction amount — even if they have no orders or no transactions. Then flag users who have orders but zero transactions (potential payment issues).
-
-**Expected Output Columns:**
-- `user_id` (integer)
-- `order_count` (integer) — 0 if none
-- `transaction_count` (integer) — 0 if none
-- `total_transaction_amount` (numeric) — 0.00 if none
-- `has_orders_no_transactions` (boolean) — true if order_count > 0 AND transaction_count = 0
-
-**Requirements:**
-- Base: all users from `users` table
-- LEFT JOIN order metrics (pre-aggregated) onto users
-- LEFT JOIN transaction metrics (pre-aggregated) onto users
-- Both joins must be LEFT — no active user should be dropped
-- COALESCE all counts and amounts to 0
-- Order by `has_orders_no_transactions DESC`, `order_count DESC`
-
-**Difficulty Rating:** 5/5
-
-That's marked as 5/5 difficulty, but that was very easy for me.
-
-WITH users_metrics AS (
-SELECT 
-	u.id AS user_id,
-	COALESCE(COUNT(o.id), 0) AS order_count,
-	COALESCE(COUNT(t.id), 0) AS transaction_count,
-	COALESCE(SUM(t.amount), 0.00) AS total_transaction_amount
-FROM crappy_data_db.users u
-LEFT JOIN crappy_data_db.orders o ON u.id = o.user_id
-LEFT JOIN crappy_data_db.transactions t ON u.id = t.user_id
-GROUP BY u.id
-)
-SELECT 
-	*,
-	(order_count > 0) AND (transaction_count = 0) AS has_orders_no_transactions
-FROM users_metrics 
-ORDER BY has_orders_no_transactions DESC, order_count DESC
-
+	user_id,
+	total_spent,
+	ROUND((SELECT AVG(total_spent) FROM users_spents), 2) AS overall_avg
+FROM users_spents
+ORDER BY total_spent DESC
 
 
 
@@ -142,6 +125,6 @@ ORDER BY has_orders_no_transactions DESC, order_count DESC
 
 ## Submission Instructions
 
-1. Task 1 — LEFT JOIN + COALESCE: all active users with order metrics, zeros for no orders (3/5)
-2. Task 2 — LEAD: days until next order per user (3/5)
-3. Task 3 — LEFT JOIN chain: active users with orders + transactions, flag payment gap (5/5)
+1. Task 1 — Top product per category by revenue using RANK (2/5)
+2. Task 2 — Monthly transaction breakdown by type (2/5)
+3. Task 3 — Users with above-average total spend (3/5)

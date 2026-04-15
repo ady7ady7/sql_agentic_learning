@@ -3245,3 +3245,18 @@ Learned COALESCE is redundant on COUNT. Task 3 rated 5/5 but felt easy — diffi
 ## Student Feedback on Questions — Week 18 Day 2 (2026-04-14)
 
 Light session, appropriate for a long day. DATE_TRUNC preferred over EXTRACT for grouping — noted as best practice going forward.
+
+### Session: 2026-04-15 (Week 18, Day 3)
+## Agent Feedback on Student — Week 18 Day 3 (2026-04-15)
+
+**Task 1 (Funnel — Recursive CTE):** Creative and valid. Recursive CTE walking through funnel stages with conditional LEFT JOINs per level works correctly. Dropoff formula right. Two minor issues: COUNT(DISTINCT(user_id)) — DISTINCT is a clause not a function; spec asked for LEFT JOIN off users base to exclude orphaned user_ids (doesn't matter on this data but architecturally cleaner). 9/10.
+
+**Task 2 (Monthly Streaks — LAG pattern):** LAG-based gaps-and-islands is more universal than ROW_NUMBER subtraction — works for any gap threshold, not just fixed intervals. Better general solution. COUNT(DISTINCT month) handles same-month dedup cleanly at aggregation. Full credit. 10/10.
+
+**Task 3 (PERCENT_RANK Bands):** Textbook. Cascading CASE WHEN correct, NULL filters at source. 10/10.
+
+**Day Score: 29/30**
+
+## Student Feedback on Questions — Week 18 Day 3 (2026-04-15)
+
+No specific feedback provided.

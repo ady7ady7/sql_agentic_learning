@@ -13303,3 +13303,417 @@ ORDER BY total_spent DESC
 1. Task 1 — Top product per category by revenue using RANK (2/5)
 2. Task 2 — Monthly transaction breakdown by type (2/5)
 3. Task 3 — Users with above-average total spend (3/5)
+
+### Task Archive: 2026-04-16 (Week 18, Day 4)
+# Daily SQL Practice Tasks
+
+**Generated:** 2026-04-15
+**Week 18, Day 3 Focus:** Funnel analysis (5/5) + gaps-and-islands monthly streaks + PERCENT_RANK with conditional bucket
+
+---
+
+## Task 1: Funnel Analysis — Registration → Order → Transaction (5/5)
+
+**Scenario:**
+The growth team wants to measure how many users complete each stage of the engagement funnel:
+- **Stage 1**: Registered (all users)
+- **Stage 2**: Placed at least one order
+- **Stage 3**: Made at least one transaction
+
+They want the absolute count at each stage and the drop-off rate from the previous stage.
+
+**Expected Output Columns:**
+- `stage` (integer) — 1, 2, or 3
+- `stage_name` (text) — 'Registered', 'Ordered', 'Transacted'
+- `user_count` (integer) — number of users reaching this stage
+- `dropoff_pct` (numeric) — % of users lost vs previous stage, rounded to 1 decimal. Stage 1 = 0.0.
+
+**Requirements:**
+- Base population: all users from `users`
+- Stage 2: users who have at least one row in `orders`
+- Stage 3: users who have at least one row in `transactions`
+- Use LEFT JOIN + COUNT DISTINCT to build each stage count — do NOT use subqueries in WHERE
+- `dropoff_pct` = (prev_stage_count - current_stage_count) / prev_stage_count * 100
+- Use LAG to compute dropoff from the previous stage row
+- Final result: 3 rows, one per stage
+- Order by `stage ASC`
+
+**Difficulty Rating:** 5/5
+
+
+WITH RECURSIVE registered_count AS (
+SELECT
+	'Registered' AS stage_name,
+	COUNT(u.id) AS user_count
+FROM crappy_data_db.users u
+),
+ordered_count AS (
+SELECT 
+	'Ordered' AS stage_name,
+	COUNT(DISTINCT(o.user_id)) AS user_count
+FROM crappy_data_db.orders o
+),
+transacted_count AS (
+SELECT 
+	'Transacted' AS stage_name,
+	COUNT(DISTINCT(t.user_id)) AS user_count
+FROM crappy_data_db.transactions t
+),
+HIERARCHY AS (
+SELECT
+	1 AS LEVEL,
+	rc.stage_name,
+	rc.user_count,
+	0.0 AS dropoff_pct
+FROM registered_count rc
+UNION ALL
+SELECT
+	h.LEVEL + 1,
+	COALESCE(oc.stage_name, tc.stage_name),
+	COALESCE(oc.user_count, tc.user_count),
+	COALESCE(ROUND((1 - oc.user_count / h.user_count::NUMERIC) * 100, 1), ROUND((1 - Tc.user_count / h.user_count::NUMERIC) * 100, 1))
+FROM HIERARCHY h
+LEFT JOIN ordered_count oc ON h.LEVEL = 1
+LEFT JOIN transacted_count tc ON h.LEVEL = 2
+WHERE H.LEVEL < 3
+)
+SELECT * FROM hierarchy
+
+
+I used recursive cte instead, a pattern we've practiced before. Imo it's very effective here.
+
+
+
+---
+
+## Task 2: Gaps-and-Islands — Monthly Order Streaks per User
+
+**Scenario:**
+The retention team wants to find users who placed orders in consecutive calendar months — and measure how long their longest ordering streak was (in months).
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `streak_start` (date) — first month of the streak (DATE_TRUNC to month)
+- `streak_end` (date) — last month of the streak
+- `streak_length` (integer) — number of consecutive months in the streak
+
+**Requirements:**
+- Use `orders`, exclude NULL amounts
+- Collapse to one row per user per month first (a user with 3 orders in the same month counts as 1 active month)
+- Use the ROW_NUMBER subtraction trick to identify streak groups
+- Only return each user's **longest** streak (if tied, return the earliest)
+- Only include users with a streak of at least 2 months
+- Order by `streak_length DESC`, `user_id ASC`
+
+**Difficulty Rating:** 4/5
+
+
+WITH orders_months AS (
+SELECT 
+	*,
+	DATE_TRUNC('Month', created_at) AS month
+FROM crappy_data_db.orders o
+),
+orders_prev_months AS (
+SELECT 
+	*,
+	LAG(month) OVER (PARTITION BY user_id ORDER BY created_at) AS prev_order_month
+FROM orders_months
+),
+orders_new_streak_markers AS (
+SELECT 
+	*,
+	CASE WHEN prev_order_month IS NULL OR prev_order_month - MONTH > INTERVAL '1' Month THEN 1 ELSE 0 END AS is_new_streak
+FROM orders_prev_months
+),
+orders_streak_keys AS (
+SELECT
+	*,
+	SUM(is_new_streak) OVER (PARTITION BY user_id ORDER BY created_at) AS streak_key
+FROM orders_new_streak_markers 
+),
+users_streaks AS (
+SELECT 
+	user_id,
+	MIN(month) AS streak_start,
+	MAX(month) AS streak_end,
+	COUNT(DISTINCT(month)) AS streak_length
+FROM orders_streak_keys
+GROUP BY user_id, streak_key
+HAVING COUNT(DISTINCT(month)) >= 2
+ORDER BY streak_length DESC, user_id
+)
+SELECT * FROM users_streaks
+
+I used different pattern to identify patterns properly, IMO it's more universal and works in more contexts, but prove me wrong. I didn't read your instructions as I wanted to think myself, but I followed your objective and requirements, so you should credit me properly for that. Imo it's a better solution as well.
+
+---
+
+## Task 3: PERCENT_RANK — Transaction Amount Buckets with Percentile Labels
+
+**Scenario:**
+The analytics team wants to label each transaction with a human-readable percentile band based on amount — so analysts can quickly see if a transaction is in the bottom, middle, or top of the distribution.
+
+**Expected Output Columns:**
+- `id` (integer)
+- `user_id` (integer)
+- `amount` (numeric)
+- `pct_rank` (numeric) — PERCENT_RANK() on amount, rounded to 3 decimals
+- `band` (text) — 'bottom 25%' if pct_rank < 0.25, 'middle 50%' if < 0.75, 'top 25%' otherwise
+
+**Requirements:**
+- Use `transactions`, exclude NULL amounts and NULL user_ids
+- PERCENT_RANK ordered by amount ASC (global, no partition)
+- Order by `amount DESC`
+
+**Difficulty Rating:** 3/5
+
+WITH transactions_pct_rank AS (
+SELECT 
+	*,
+	round(percent_rank() OVER (ORDER BY amount)::NUMERIC, 3) AS pct_rank
+FROM crappy_data_db.transactions t 
+WHERE t.amount IS NOT NULL AND t.user_id IS NOT NULL
+)
+SELECT 
+	id,
+	user_id,
+	amount,
+	pct_rank,
+	CASE 
+	WHEN pct_rank < 0.25 THEN 'bottom 25%' 
+	WHEN pct_rank < 0.75 THEN 'middle 50%' ELSE 'top 25%' 
+	END AS band
+FROM transactions_pct_rank
+ORDER BY amount DESC
+
+
+---
+
+## Submission Instructions
+
+1. Task 1 — Funnel analysis: registered → ordered → transacted with dropoff % (5/5)
+2. Task 2 — Monthly order streaks per user, longest streak only (4/5)
+3. Task 3 — PERCENT_RANK transaction amount bands (3/5)
+
+### Task Archive: 2026-04-17 (Week 18, Day 5)
+# Daily SQL Practice Tasks
+
+**Generated:** 2026-04-16
+**Week 18, Day 4 Focus:** Type B recursive CTE + LAG with offset + complex multi-condition aggregation (5/5)
+
+---
+
+## Task 1: Type B Recursive CTE — Full Organisational Hierarchy
+
+**Scenario:**
+Given the employee dataset below, traverse the full org chart from the CEO down to every leaf node. Show each employee's depth in the hierarchy, their full reporting path, and how many people report directly to them.
+
+```sql
+-- Use this inline dataset (paste into your query as a CTE):
+-- id | name          | manager_id | department
+--  1 | CEO           | NULL       | Executive
+--  2 | CTO           | 1          | Tech
+--  3 | CFO           | 1          | Finance
+--  4 | VP Eng        | 2          | Tech
+--  5 | VP Data       | 2          | Tech
+--  6 | FP&A Lead     | 3          | Finance
+--  7 | Eng Lead 1    | 4          | Tech
+--  8 | Eng Lead 2    | 4          | Tech
+--  9 | Data Lead     | 5          | Tech
+-- 10 | Analyst       | 6          | Finance
+-- 11 | Engineer 1    | 7          | Tech
+-- 12 | Engineer 2    | 8          | Tech
+```
+
+**Expected Output Columns:**
+- `id` (integer)
+- `name` (text)
+- `depth` (integer) — 1 = CEO, increases with each level
+- `path` (text) — e.g. `CEO -> CTO -> VP Eng`
+- `direct_reports` (integer) — number of people who directly report to this person (0 for leaf nodes)
+
+**Requirements:**
+- Anchor: `WHERE manager_id IS NULL` — never hardcode the root node
+- Recursive join: employees on `manager_id = cte.id`
+- Compute `direct_reports` in a separate CTE after the recursion, then LEFT JOIN back
+- Order by `depth ASC`, `id ASC`
+
+**Difficulty Rating:** 4/5
+
+WITH RECURSIVE employees (id, name, manager_id, department) AS (
+    VALUES
+    (1,  'CEO',        NULL, 'Executive'),
+    (2,  'CTO',        1,    'Tech'),
+    (3,  'CFO',        1,    'Finance'),
+    (4,  'VP Eng',     2,    'Tech'),
+    (5,  'VP Data',    2,    'Tech'),
+    (6,  'FP&A Lead',  3,    'Finance'),
+    (7,  'Eng Lead 1', 4,    'Tech'),
+    (8,  'Eng Lead 2', 4,    'Tech'),
+    (9,  'Data Lead',  5,    'Tech'),
+    (10, 'Analyst',    6,    'Finance'),
+    (11, 'Engineer 1', 7,    'Tech'),
+    (12, 'Engineer 2', 8,    'Tech')
+),
+hierarchy AS (
+SELECT
+	id,
+	name,
+	1 AS DEPTH,
+	manager_id,
+	name AS PATH,
+	department
+FROM employees WHERE manager_id IS NULL
+UNION ALL
+SELECT 
+	e.id,
+	e.name,
+	h.DEPTH + 1,
+	e.manager_id,
+	h.PATH || '->' || e.name,
+	e.department
+FROM employees e 
+JOIN HIERARCHY H ON e.manager_id = h.id
+),
+direct_report_cte AS (
+SELECT
+	manager_id,
+	COUNT(*) AS direct_reports
+FROM HIERARCHY
+GROUP BY manager_id
+)
+SELECT 
+	h.id,
+	h.name,
+	h.DEPTH,
+	h.PATH,
+	COALESCE(dr.direct_reports, 0)
+FROM HIERARCHY h
+LEFT JOIN direct_report_cte dr ON h.id = dr.manager_id
+
+It's already ordered in proper order.
+
+
+---
+
+## Task 2: LAG with Offset — Compare Orders to 3 Orders Ago
+
+**Scenario:**
+The analytics team wants to understand long-term order value trends per user. For each order, show the amount from 3 orders ago for the same user, and the difference — to detect gradual spend changes over time.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `order_id` (integer)
+- `created_at` (timestamp)
+- `amount` (numeric)
+- `amount_3_orders_ago` (numeric) — amount from 3 orders prior for this user, NULL if fewer than 3 prior orders
+- `diff` (numeric) — amount minus amount_3_orders_ago, NULL if no comparison available
+
+**Requirements:**
+- Use `orders`, exclude NULL amounts
+- Use `LAG(amount, 3)` partitioned by user_id, ordered by created_at ASC
+- Only include users with at least 4 orders
+- Order by `user_id ASC`, `created_at ASC`
+
+**Difficulty Rating:** 3/5
+
+
+WITH users_order_cnt AS (
+SELECT
+	o.user_id,
+	COUNT(*) AS order_cnt
+FROM crappy_data_db.orders o
+GROUP BY o.user_id
+),
+users_orders AS (
+SELECT 
+	o.user_id,
+	o.id AS order_id,
+	o.created_at,
+	o.amount,
+	LAG(o.amount, 3) OVER (PARTITION BY o.user_id ORDER BY o.created_at) AS amount_3_orders_ago
+FROM crappy_data_db.orders o
+JOIN users_order_cnt oc ON o.user_id = oc.user_id AND oc.order_cnt >= 4
+)
+SELECT 
+	*,
+	amount - amount_3_orders_ago AS diff
+FROM users_orders
+
+---
+
+## Task 3: Complex Aggregation — User Engagement Tier Report (5/5)
+
+**Scenario:**
+The product team wants a single summary report combining order behaviour, session behaviour, and ticket behaviour per user — with tier labels based on composite thresholds.
+
+**Expected Output Columns:**
+- `user_id` (integer)
+- `order_count` (integer)
+- `total_sessions` (integer)
+- `ticket_count` (integer)
+- `engagement_tier` (text):
+  - `'power'` — order_count >= 10 AND total_sessions >= 50
+  - `'active'` — order_count >= 5 OR total_sessions >= 30
+  - `'casual'` — everyone else
+
+**Requirements:**
+- Base: all users from `users`
+- LEFT JOIN pre-aggregated order metrics (from `orders`)
+- LEFT JOIN pre-aggregated session metrics (from `user_sessions_daily`)
+- LEFT JOIN pre-aggregated ticket metrics (from `chat_tickets`)
+- COALESCE all counts to 0
+- Tier logic: evaluate `'power'` first, then `'active'`, then `'casual'`
+- Order by `engagement_tier ASC`, `order_count DESC`
+
+**Difficulty Rating:** 5/5
+
+WITH users_order_cnt AS (
+SELECT 
+	o.user_id,
+	COUNT(o.id) AS order_count
+FROM crappy_data_db.orders o
+GROUP BY o.user_id
+),
+users_total_sessions AS (
+SELECT 
+	usd.user_id,
+	SUM(usd.count_sessions) AS total_sessions
+FROM crappy_data_db.user_sessions_daily usd
+GROUP BY usd.user_id
+),
+users_ticket_cnt AS (
+SELECT 
+	user_id,
+	COUNT(id) AS ticket_cnt
+FROM crappy_data_db.chat_tickets ct
+GROUP BY user_id
+),
+users_metrics AS (
+SELECT 
+	u.id AS user_id,
+	COALESCE(uoc.order_count, 0) AS order_count,
+	COALESCE(usc.total_sessions, 0) AS total_sessions,
+	COALESCE(utc.ticket_cnt, 0) AS ticket_count
+FROM crappy_data_db.users u
+LEFT JOIN users_order_cnt uoc ON u.id = uoc.user_id
+LEFT JOIN users_total_sessions usc ON u.id = usc.user_id
+LEFT JOIN users_ticket_cnt utc ON u.id = utc.user_id
+)
+SELECT 
+	*,
+CASE 
+WHEN order_count >= 10 AND total_sessions >= 50 THEN 'power'
+WHEN order_count >= 5 AND total_sessions >= 30 THEN 'active' ELSE 'casual' END AS engagement_tier
+FROM users_metrics
+ORDER BY engagement_tier, order_count DESC
+
+
+---
+
+## Submission Instructions
+
+1. Task 1 — Type B recursive CTE: full org chart with depth, path, direct reports (4/5)
+2. Task 2 — LAG(amount, 3): compare each order to 3 orders prior (3/5)
+3. Task 3 — Triple LEFT JOIN aggregation + composite engagement tier (5/5)

@@ -3260,3 +3260,18 @@ Light session, appropriate for a long day. DATE_TRUNC preferred over EXTRACT for
 ## Student Feedback on Questions — Week 18 Day 3 (2026-04-15)
 
 No specific feedback provided.
+
+### Session: 2026-04-16 (Week 18, Day 4)
+## Agent Feedback on Student — Week 18 Day 4 (2026-04-16)
+
+**Task 1 (Type B Recursive CTE):** Anchor on manager_id IS NULL, recursive join correct, path concatenation clean, direct_reports in post-recursion CTE with LEFT JOIN back. All requirements met. 10/10.
+
+**Task 2 (LAG offset 3):** LAG(amount, 3) correct first use. Pre-aggregated count CTE for 4+ order filter clean. NULL diff when no prior value — correct behaviour. 10/10.
+
+**Task 3 (Triple LEFT JOIN Tiers):** Pre-aggregation pattern correct — three separate CTEs, three LEFT JOINs, COALESCE all to 0. One miss: 'active' tier used AND instead of OR — users with 5+ orders but low sessions classified as 'casual' incorrectly. 9/10.
+
+**Day Score: 29/30**
+
+## Student Feedback on Questions — Week 18 Day 4 (2026-04-16)
+
+No specific feedback provided.

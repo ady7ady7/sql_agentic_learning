@@ -1,81 +1,72 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-04-17
-**Week 18, Day 5 Focus:** Query optimization concepts + session gaps-and-islands + YoY window
+**Generated:** 2026-04-20
+**Week 19, Day 1 Focus:** Anti-join patterns + conditional aggregation GROUP BY
 
 ---
 
-## Task 1: Query Optimization — Rewrite a Slow Query
+## Task 1: Anti-Join — Users Who Never Placed an Order
 
 **Scenario:**
-The following query is logically correct but poorly written — it uses a correlated subquery in the SELECT clause that re-executes for every row, and a WHERE subquery that also re-scans the table. Your job is to rewrite it to be more efficient using CTEs or JOINs, without changing the result.
+The CRM team wants a list of users who have **never placed any order** — to target them with a first-purchase campaign.
 
-**Original slow query:**
-```sql
-SELECT
-    u.id AS user_id,
-    u.country,
-    (SELECT SUM(o.amount) FROM orders o WHERE o.user_id = u.id) AS total_spent,
-    (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) AS order_count
-FROM users u
-WHERE (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) >= 5
-ORDER BY total_spent DESC;
-```
+Write this query using whichever anti-join approach you prefer (`NOT IN`, `NOT EXISTS`, or `LEFT JOIN ... WHERE IS NULL`). Output `user_id` only.
 
-**Your task:**
-1. Rewrite this query using a CTE + JOIN to eliminate the correlated subqueries
-2. Add a brief SQL comment (1-2 lines) explaining why the original is slow and why your version is faster
+**Then answer in a comment:** Which of the three approaches breaks silently if `orders.user_id` contains NULLs, and why?
 
-**Expected Output Columns:** same as original — `user_id`, `country`, `total_spent`, `order_count`
+**Expected Output Columns:** `user_id`
+
+**Tables:** `users`, `orders`
 
 **Difficulty Rating:** 3/5
 
----
 
-## Task 2: Time-Based Gaps — User Session Inactivity Periods (5/5)
+SELECT 
+	u.id AS user_id
+FROM crappy_data_db.users u
+WHERE NOT EXISTS
+(SELECT o.user_id FROM crappy_data_db.orders o
+WHERE o.user_id = u.id AND o.user_id IS NOT NULL
+)
 
-**Scenario:**
-The product team wants to find users who had a significant gap in their daily session activity — specifically, find all pairs of consecutive active days (days with count_sessions > 0) per user where the gap between them is **more than 14 days**, and report how long that inactivity gap was.
 
-**Expected Output Columns:**
-- `user_id` (integer)
-- `last_active_date` (date) — the last active day before the gap
-- `next_active_date` (date) — the first active day after the gap
-- `gap_days` (integer) — number of days between them
 
-**Requirements:**
-- Use `user_sessions_daily`, only include days where `count_sessions > 0`
-- Use LEAD to get the next active date per user
-- Only return rows where gap_days > 14
-- Order by `gap_days DESC`, `user_id ASC`
-
-**Difficulty Rating:** 5/5
 
 ---
 
-## Task 3: YoY Comparison with Window — Monthly Revenue Trend
+## Task 2: Conditional Aggregation — Transaction Type Breakdown per User
 
 **Scenario:**
-The finance team wants a month-by-month order revenue table that also shows the same month's revenue from the prior year — so they can compare directly in one row.
+The finance team wants a per-user summary of transaction activity, broken down by type — but as columns, not rows.
 
-**Expected Output Columns:**
-- `month` (date) — DATE_TRUNC to month
-- `revenue` (numeric) — total order amount for this month, rounded to 2 decimals
-- `prev_year_revenue` (numeric) — revenue for the same calendar month one year prior, NULL if no data, rounded to 2 decimals
-- `yoy_diff` (numeric) — revenue minus prev_year_revenue, NULL if no prior year data
+For each user who has at least 1 transaction, show:
+- `user_id`
+- `total_transactions` — total count of all transactions
+- `deposit_count` — number of `deposit` transactions
+- `withdrawal_count` — number of `withdrawal` transactions
+- `purchase_count` — number of `purchase` transactions
+
+**Tables:** `transactions`
 
 **Requirements:**
-- Use `orders`, exclude NULL amounts
-- Use LAG(revenue, 12) OVER (ORDER BY month ASC) to get same-month prior year value
-- Only include months with at least 1 order
-- Order by `month ASC`
+- Use conditional aggregation (`CASE WHEN` inside `COUNT`) for the per-type counts
 
 **Difficulty Rating:** 4/5
+
+WITH users_transactions_breakdown AS (
+SELECT 
+	user_id,
+	COUNT(id) AS total_transactions,
+	COUNT(id) FILTER (WHERE TYPE = 'deposit') AS deposit_count,
+	COUNT(id) FILTER (WHERE TYPE = 'withdrawal') AS withdrawal_count,
+	COUNT(id) FILTER (WHERE TYPE = 'purchase') AS purchase_count
+FROM crappy_data_db.transactions t
+GROUP BY user_id
+
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Rewrite correlated subquery as CTE + JOIN with explanation comment (3/5)
-2. Task 2 — LEAD-based inactivity gap detection > 14 days (5/5)
-3. Task 3 — Monthly revenue with LAG(12) for prior year comparison (4/5)
+1. Task 1 — Anti-join approach + NULL trap explanation (3/5)
+2. Task 2 — Per-user transaction type breakdown (4/5)

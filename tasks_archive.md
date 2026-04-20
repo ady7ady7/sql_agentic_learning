@@ -13717,3 +13717,89 @@ ORDER BY engagement_tier, order_count DESC
 1. Task 1 — Type B recursive CTE: full org chart with depth, path, direct reports (4/5)
 2. Task 2 — LAG(amount, 3): compare each order to 3 orders prior (3/5)
 3. Task 3 — Triple LEFT JOIN aggregation + composite engagement tier (5/5)
+
+
+### Task Archive: 2026-04-17 (Week 18, Day 5)
+
+# Daily SQL Practice Tasks
+
+**Generated:** 2026-04-17
+**Week 18, Day 5 Focus:** Query optimization concepts + session gaps-and-islands + YoY window
+
+---
+
+## Task 1: Query Optimization — Rewrite a Slow Query
+
+**Scenario:**
+The following query is logically correct but poorly written — it uses a correlated subquery in the SELECT clause that re-executes for every row, and a WHERE subquery that also re-scans the table. Your job is to rewrite it to be more efficient using CTEs or JOINs, without changing the result.
+
+**Original slow query:**
+```sql
+SELECT
+    u.id AS user_id,
+    u.country,
+    (SELECT SUM(o.amount) FROM orders o WHERE o.user_id = u.id) AS total_spent,
+    (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) AS order_count
+FROM users u
+WHERE (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) >= 5
+ORDER BY total_spent DESC;
+```
+
+**Your task:**
+1. Rewrite this query using a CTE + JOIN to eliminate the correlated subqueries
+2. Add a brief SQL comment (1-2 lines) explaining why the original is slow and why your version is faster
+
+**Expected Output Columns:** same as original — `user_id`, `country`, `total_spent`, `order_count`
+
+**Difficulty Rating:** 3/5
+
+**Student Solution:**
+```sql
+SELECT 
+    o.user_id,
+    u.country,
+    SUM(o.amount) AS total_spent,
+    COUNT(o.id) AS order_count
+FROM crappy_data_db.users u
+JOIN crappy_data_db.orders o ON o.user_id = u.id
+GROUP BY o.user_id, u.country
+HAVING COUNT(*) >= 5
+ORDER BY total_spent DESC
+```
+EXPLAIN ANALYZE: 8.6ms → 0.3ms, buffers 127 → 29. Score: 10/10.
+
+---
+
+## Task 2: Time-Based Gaps — User Session Inactivity Periods (5/5)
+
+**Scenario:**
+Find all pairs of consecutive active days per user where the gap > 14 days.
+
+**Expected Output Columns:** `user_id`, `last_active_date`, `next_active_date`, `gap_days`
+
+**Difficulty Rating:** 5/5
+
+**Student Solution:** Used LAG instead of LEAD (gap calculated backward not forward). Missing count_sessions > 0 filter. HAVING >= 14 vs > 14. Score: 8/10.
+
+---
+
+## Task 3: YoY Comparison with Window — Monthly Revenue Trend (4/5)
+
+**Scenario:**
+Monthly revenue with LAG(12) for same-month prior year comparison.
+
+**Expected Output Columns:** `month`, `revenue`, `prev_year_revenue`, `yoy_diff`
+
+**Difficulty Rating:** 4/5
+
+**Student Solution:** LAG(total_revenue, 12) correct. GROUP BY YEAR, MONTH redundant (MONTH contains year). Score: 9/10.
+
+**Day Score: 27/30**
+
+---
+
+## Submission Instructions
+
+1. Task 1 — Query optimization rewrite (3/5)
+2. Task 2 — LEAD-based inactivity gap detection > 14 days (5/5)
+3. Task 3 — Monthly revenue with LAG(12) YoY comparison (4/5)

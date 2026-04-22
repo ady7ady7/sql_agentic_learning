@@ -13866,3 +13866,14 @@ GROUP BY user_id
 
 1. Task 1 — Anti-join approach + NULL trap explanation (3/5)
 2. Task 2 — Per-user transaction type breakdown (4/5)
+
+### Task Archive: 2026-04-21 (Week 19, Day 2)
+
+**Focus:** dominant_type via RANK + Type A recursive CTE rollup + NULLIF safe division
+**Day Score: 25/30**
+
+**Task 1 (dominant_type):** Three CTEs — per-type filter counts, long aggregation, RANK. Clean JOIN on rank=1. Alphabetical tie-breaking included. Bonus per-type counts included. 10/10.
+
+**Task 2 (3-level rollup):** Used WITH RECURSIVE + self-joining HIERARCHY — wrong tool. Type A pattern is plain UNION ALL of three independent CTEs, no recursion. JOIN logic on label names fragile and incorrect. Student noted it "doesn't seem real" — correct instinct. 6/10.
+
+**Task 3 (NULLIF):** Verified data has no zero-session rows, adapted correctly. Simple one-liner cleaner than CTE version. NULLIF not needed given actual data. 9/10.

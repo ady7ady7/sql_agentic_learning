@@ -13877,3 +13877,14 @@ GROUP BY user_id
 **Task 2 (3-level rollup):** Used WITH RECURSIVE + self-joining HIERARCHY — wrong tool. Type A pattern is plain UNION ALL of three independent CTEs, no recursion. JOIN logic on label names fragile and incorrect. Student noted it "doesn't seem real" — correct instinct. 6/10.
 
 **Task 3 (NULLIF):** Verified data has no zero-session rows, adapted correctly. Simple one-liner cleaner than CTE version. NULLIF not needed given actual data. 9/10.
+
+### Task Archive: 2026-04-22 (Week 19, Day 3)
+
+**Focus:** Type A fixed-hierarchy UNION ALL + PERCENT_RANK bands + gaps-and-islands monthly streaks
+**Day Score: 26/30**
+
+**Task 1 (Type A rollup):** Correct logic, still used WITH RECURSIVE + self-join unnecessarily. Pattern should be two independent CTEs + plain UNION ALL. 8/10.
+
+**Task 2 (PERCENT_RANK):** Good structure. Minor typos: 075 instead of 0.75, 'bottom' instead of 'bottom 25%'. 9/10.
+
+**Task 3 (Monthly streaks):** Solid gaps-and-islands. SUM(is_new_streak) group ID correct. COUNT(DISTINCT month) handles duplicates correctly. ROW_NUMBER needs alias to avoid runtime error. Student verified only 1 streak per user in data. 9/10.

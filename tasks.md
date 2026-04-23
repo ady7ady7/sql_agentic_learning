@@ -1,188 +1,134 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-04-22
-**Week 19, Day 3 Focus:** Type A fixed-hierarchy UNION ALL (no recursion) + PERCENT_RANK + gaps-and-islands
+**Generated:** 2026-04-23
+**Week 19, Day 4 Focus:** LAG/LEAD + self-join affinity + cohort basics
 
 ---
 
-## Task 1: Type A Fixed-Hierarchy Rollup — Spend by Country → User
+## Task 1: LAG — Days Between Consecutive Orders per User
 
 **Scenario:**
-The finance team wants a 2-level breakdown of total order spend:
-- **Level 1:** Total spend per country
-- **Level 2:** Total spend per user (within their country)
+The retention team wants to understand how long users typically wait between orders.
 
-Use the **Type A fixed-hierarchy CTE** pattern — meaning: two independent aggregation CTEs, then a plain `UNION ALL`. No `WITH RECURSIVE`, no self-joins.
+For each order, show:
+- `order_id`
+- `user_id`
+- `created_at`
+- `prev_order_date` — date of the previous order for that user (NULL if first order)
+- `days_since_prev` — number of days since the previous order (NULL if first order)
 
-**Expected Output Columns:**
-- `level` (integer — 1 or 2)
-- `label` (text — country name for level 1, `'User #' || user_id` for level 2)
-- `total_spend` (numeric, rounded to 2 decimals)
+**Tables:** `orders`
 
-**Order by:** `level ASC`, `total_spend DESC`
-
-**Tables:** `orders`, `users`
-
-**Note:** Exclude NULL amounts. For level 2, only include users with at least 1 order.
+**Requirements:**
+- Use `LAG` to get the previous order date per user
+- Exclude NULL amounts
+- Order by `user_id ASC`, `created_at ASC`
 
 **Difficulty Rating:** 3/5
 
-
-WITH RECURSIVE countries_revenues AS (
-SELECT 
-	u.country,
-	SUM(o.amount) AS country_revenue
-FROM crappy_data_db.users u
-JOIN crappy_data_db.orders o ON u.id = o.user_id
-WHERE u.country IS NOT NULL
-GROUP BY u.country
-),
-users_revenues AS (
-SELECT 
-	o.user_id,
-	u.country,
-	SUM(o.amount) AS user_revenue
-FROM crappy_data_db.users u
-JOIN crappy_data_db.orders o ON u.id = o.user_id
-WHERE u.country IS NOT NULL
-GROUP BY o.user_id, u.country
-),
-hierarchy AS (
-SELECT 
-	1 AS LEVEL,
-	COUNTRY::TEXT AS LABEL,
-	country_revenue AS total_spend
-FROM countries_revenues
-UNION ALL
-SELECT
-	h.LEVEL + 1,
-	ur.user_id::TEXT,
-	ur.user_revenue
-FROM hierarchy h
-LEFT JOIN users_revenues ur ON h.label = ur.country
-WHERE h.LEVEL < 2
-)
-SELECT * FROM HIERARCHY
-ORDER BY LEVEL, total_spend DESC
-
-
-
----
-
-## Task 2: PERCENT_RANK — Order Value Percentile Bands
-
-**Scenario:**
-The analytics team wants to understand how each order ranks within its user's order history by value.
-
-For every order, show:
-- `order_id`
-- `user_id`
-- `amount`
-- `percentile` — `PERCENT_RANK()` of this order within the user's orders by amount (0.0 to 1.0), rounded to 2 decimals
-- `band` — label based on percentile:
-  - `'top 10%'` if percentile >= 0.9
-  - `'top 25%'` if percentile >= 0.75
-  - `'mid'` if percentile >= 0.25
-  - `'bottom 25%'` otherwise
-
-**Tables:** `orders`
-
-**Requirements:**
-- Exclude NULL amounts
-- Order by `user_id ASC`, `amount DESC`
-
-**Difficulty Rating:** 4/5
-
-WITH users_orders_rank AS (
-SELECT 
-	id AS order_id,
-	user_id,
-	amount,
-	PERCENT_RANK() OVER (PARTITION BY user_id ORDER BY o.amount ) AS percentile
-FROM crappy_data_db.orders o
-)
+WITH orders_prev AS (
 SELECT 
 	*,
-	CASE WHEN percentile >= 0.9 THEN 'top 10%' 
-	WHEN percentile >= 075 THEN 'top 25%' 
-	WHEN percentile >= 0.25 THEN 'mid' ELSE 'bottom'
-	END AS band
-FROM users_orders_rank
-ORDER BY user_id, amount DESC
+	LAG(o.created_at) OVER (PARTITION BY user_id ORDER BY created_at DESC) AS prev_order_date,
+	ABS(EXTRACT('Day' FROM created_at - LAG(o.created_at) OVER (PARTITION BY user_id ORDER BY created_at DESC))) AS days_since_prev
+FROM crappy_data_db.orders o
+)
+SELECT * FROM orders_prev
+WHERE amount IS NOT null
+
+
 
 ---
 
-## Task 3: Gaps-and-Islands — Monthly Order Streaks per User
+## Task 2: Self-Join — Users Who Ordered in Both January and February
 
 **Scenario:**
-The retention team wants to find users with long consecutive-month ordering streaks — months where a user placed at least one order, with no gap months in between.
-
-For each user, find their **longest streak** of consecutive calendar months with at least one order.
+The marketing team wants to find users who placed at least one order in **both** January 2025 and February 2025 — to identify early-year repeat buyers.
 
 **Expected Output Columns:**
 - `user_id`
-- `streak_start` (date — first month of the streak, DATE_TRUNC to month)
-- `streak_end` (date — last month of the streak)
-- `streak_months` (integer — length of the streak)
-
-Only return each user's single longest streak. If tied, return the most recent one.
 
 **Tables:** `orders`
 
 **Requirements:**
-- Use DATE_TRUNC('month', ...) to collapse orders to months
-- Use the gaps-and-islands approach: ROW_NUMBER to identify streak groups
-- Order by `streak_months DESC`, `user_id ASC`
+- Use a self-join (join `orders` to itself)
+- No subqueries or CTEs required — a clean self-join with the right conditions is enough
+- Order by `user_id ASC`
 
-**Difficulty Rating:** 5/5
+**Difficulty Rating:** 3/5
 
-WITH orders_months AS (
+SELECT 
+	DISTINCT(o1.user_id)
+FROM crappy_data_db.orders o1
+JOIN crappy_data_db.orders o2 ON o1.user_id = o2.user_id 
+WHERE DATE_TRUNC('Month', o1.created_at) = '2025-01-01 00:00:00.000'
+AND DATE_TRUNC('Month', o2.created_at) = '2025-02-01 00:00:00.000'
+
+No ordering needed, it's already ordered for whatever reason
+
+
+---
+
+## Task 3: Cohort Retention — Did Users Order Again After First Month?
+
+**Scenario:**
+The growth team wants a simple cohort retention check: for each user, find their first order month, then check whether they placed any order in the **following month** (exactly one month later).
+
+**Expected Output Columns:**
+- `user_id`
+- `first_order_month` (date — DATE_TRUNC to month)
+- `returned_next_month` (boolean — true if they placed an order in the month immediately after their first)
+
+**Tables:** `orders`
+
+**Requirements:**
+- Use a CTE to find each user's first order month
+- Use a LEFT JOIN back to orders to check for activity in `first_order_month + INTERVAL '1 month'`
+- Order by `user_id ASC`
+
+**Difficulty Rating:** 4/5
+
+WITH users_orders AS (
 SELECT 
 	*,
-	DATE_TRUNC('month', created_at) AS MONTH,
-	LAG(DATE_TRUNC('month', created_at)) OVER (PARTITION BY user_id ORDER BY created_at) AS prev_month
+	DATE_TRUNC('Month', created_at) AS month_
 FROM crappy_data_db.orders o
 ),
-users_new_streaks AS (
+users_first_orders AS (
 SELECT 
 	*,
-	CASE WHEN prev_month IS NULL OR month - prev_month > INTERVAL '31 Days' THEN 1 ELSE 0 END AS is_new_streak
-FROM orders_months
+	FIRST_VALUE(month_) OVER (PARTITION BY user_id ORDER BY created_at)
+FROM users_orders
 ),
-users_streak_ids AS (
+users_months AS (
+SELECT 
+	DISTINCT user_id, MONTH_
+FROM users_first_orders
+ORDER BY user_id, month_
+),
+users_next_month AS (
 SELECT 
 	*,
-	SUM(is_new_streak) OVER (PARTITION BY user_id ORDER BY created_at) AS streak_id
-FROM users_new_streaks
+	row_number() OVER (PARTITION BY user_id ORDER BY month_) AS rn_,
+	LEAD(month_) OVER (PARTITION BY user_id) AS next_month
+FROM users_months
 ),
-users_streaks AS (
-SELECT 
-	user_id,
-	MIN(month) AS streak_start,
-	MAX(month) AS streak_end,
-	COUNT(DISTINCT(month)) AS streak_months
-FROM users_streak_ids
-GROUP BY user_id, streak_id
-ORDER BY streak_months DESC, user_id
-),
-streaks_rn AS (
-SELECT
-	*,
-	ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY streak_months DESC, streak_start)
-FROM users_streaks
+users_rn AS (
+SELECT * FROM users_next_month
+WHERE rn_ = 1
 )
 SELECT 
-	user_id,
-	streak_start,
-	streak_end,
-	streak_months
-FROM streaks_rn
-WHERE ROW_NUMBER = 1
+	*,
+	next_month - month_ AS diff,
+	CASE WHEN next_month - month_ <= INTERVAL '31 days' THEN TRUE ELSE FALSE END AS returned_next_month
+FROM users_rn
+
+It works.
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Type A 2-level UNION ALL rollup, no recursion (3/5)
-2. Task 2 — PERCENT_RANK percentile bands per user (4/5)
-3. Task 3 — Longest consecutive monthly order streak per user (5/5)
+1. Task 1 — LAG days between consecutive orders (3/5)
+2. Task 2 — Self-join users active in both Jan and Feb 2025 (3/5)
+3. Task 3 — Cohort: did user return the following month (4/5)

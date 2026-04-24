@@ -13888,3 +13888,14 @@ GROUP BY user_id
 **Task 2 (PERCENT_RANK):** Good structure. Minor typos: 075 instead of 0.75, 'bottom' instead of 'bottom 25%'. 9/10.
 
 **Task 3 (Monthly streaks):** Solid gaps-and-islands. SUM(is_new_streak) group ID correct. COUNT(DISTINCT month) handles duplicates correctly. ROW_NUMBER needs alias to avoid runtime error. Student verified only 1 streak per user in data. 9/10.
+
+### Task Archive: 2026-04-23 (Week 19, Day 4)
+
+**Focus:** LAG between orders + self-join affinity + cohort retention
+**Day Score: 29/30**
+
+**Task 1 (LAG between orders):** LAG with DESC order + ABS for days difference — works correctly. No NULL amounts in data. 10/10.
+
+**Task 2 (Self-join Jan+Feb):** Clean self-join on user_id with different month filters on each alias. DISTINCT correct. 10/10.
+
+**Task 3 (Cohort retention):** Works. Used LEAD on distinct months instead of LEFT JOIN pattern from spec. INTERVAL '31 days' slightly loose — INTERVAL '1 month' is calendar-aware and cleaner. Could simplify with MIN(created_at) GROUP BY instead of FIRST_VALUE window. 9/10.

@@ -3275,3 +3275,37 @@ No specific feedback provided.
 ## Student Feedback on Questions — Week 18 Day 4 (2026-04-16)
 
 No specific feedback provided.
+
+---
+
+## Weekly Summary — Week 19 (2026-04-20 to 2026-04-24)
+
+### Scores
+| Day | Focus | Score |
+|-----|-------|-------|
+| Day 1 | Anti-join + conditional aggregation | 2 tasks (light session) |
+| Day 2 | dominant_type via RANK + Type A rollup + NULLIF | 25/30 |
+| Day 3 | Type A UNION ALL + PERCENT_RANK + monthly streaks | 26/30 |
+| Day 4 | LAG between orders + self-join + cohort retention | 29/30 |
+| Day 5 | STDDEV + ticket response time + funnel analysis | 30/30 |
+
+Week trajectory: improving every day, finished with a perfect score.
+
+### Key Wins
+- dominant_type pattern locked in — GROUP BY user+type → RANK() → filter rank=1
+- Gaps-and-islands solid — SUM(is_new_streak) group ID, COUNT(DISTINCT month)
+- Data-aware adaptation — NULLIF not needed, minutes not hours, pending = first delivery status
+- EPOCH time calculations on real chat data
+- Funnel analysis — three-step CTE + UNION ALL pattern
+- 29 and 30/30 to close the week despite a busy work period
+
+### Focus Areas
+- Type A fixed-hierarchy CTE — used WITH RECURSIVE unnecessarily on Days 2 and 3
+- Task instruction quality — ambiguous wording called out correctly by student each time
+
+### Week 20 Plan
+- Type A CTE one more drill
+- Type B recursive CTE — needs real self-referencing table in schema first
+- Query optimization — EXPLAIN ANALYZE not revisited since Week 18 Day 5
+- Window functions: FIRST_VALUE, NTILE, cumulative SUM with custom frames
+- Schema expansion: employees table with manager_id, or product_categories with parent_id

@@ -13899,3 +13899,14 @@ GROUP BY user_id
 **Task 2 (Self-join Jan+Feb):** Clean self-join on user_id with different month filters on each alias. DISTINCT correct. 10/10.
 
 **Task 3 (Cohort retention):** Works. Used LEAD on distinct months instead of LEFT JOIN pattern from spec. INTERVAL '31 days' slightly loose — INTERVAL '1 month' is calendar-aware and cleaner. Could simplify with MIN(created_at) GROUP BY instead of FIRST_VALUE window. 9/10.
+
+### Task Archive: 2026-04-24 (Week 19, Day 5)
+
+**Focus:** STDDEV volatility + ticket response time + funnel analysis
+**Day Score: 30/30**
+
+**Task 1 (STDDEV volatility):** Used window functions instead of GROUP BY but result identical. Student verified all users have 2+ transactions so HAVING filter unnecessary. 10/10.
+
+**Task 2 (Ticket response time):** Adapted to minutes (data showed 5-8 min averages, not hours). Filtered on author_id IS NOT NULL to isolate agent responses — smart business logic interpretation. 10/10.
+
+**Task 3 (Funnel analysis):** Used pending status for "has delivery record" — correct, as pending is the initial status and avoids double-counting. funnel_step labels were numeric strings rather than descriptive text but logic was sound. 10/10.

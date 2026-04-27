@@ -1,165 +1,172 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-04-24
-**Week 19, Day 5 Focus:** STDDEV window + Type B recursive CTE + funnel analysis
+**Generated:** 2026-04-27
+**Week 20, Day 1 Focus:** Type A CTE drill + NTILE + EXPLAIN ANALYZE query optimization
 
 ---
 
-## Task 1: STDDEV — Transaction Amount Volatility per User
+## Task 1: Type A CTE — Revenue by Category and Product
 
 **Scenario:**
-The risk team wants to flag users whose transaction amounts are highly volatile — they want the average and standard deviation of transaction amounts per user, so they can identify outliers.
+The product team wants a 2-level revenue breakdown: total revenue per category (level 1), and total revenue per product (level 2). Both in one result set.
 
-For each user with at least 2 transactions, show:
-- `user_id`
-- `tx_count` — total number of transactions
-- `avg_amount` — average transaction amount, rounded to 2 decimals
-- `stddev_amount` — standard deviation of transaction amounts, rounded to 2 decimals
-- `volatility` — label: `'high'` if stddev > 300, `'medium'` if stddev > 150, `'low'` otherwise
+**The rule for this task:** Two independent aggregation CTEs, then a plain `UNION ALL`. No `WITH RECURSIVE`, no `hierarchy` CTE, no self-joins. If you catch yourself writing `FROM cte JOIN cte`, stop and rethink.
 
-**Tables:** `transactions`
+**Expected Output Columns:**
+- `level` (integer — 1 or 2)
+- `label` (text — category name for level 1, product name for level 2)
+- `revenue` (numeric, rounded to 2 decimals)
 
-**Requirements:**
-- Exclude NULL amounts
-- Use `STDDEV(amount)` in a GROUP BY aggregation (not a window function)
-- Order by `stddev_amount DESC`
+**Order by:** `level ASC`, `revenue DESC`
+
+**Tables:** `orders_products`, `products`, `product_categories`
 
 **Difficulty Rating:** 3/5
 
-WITH user_transactions AS (
+WITH product_revenues AS (
 SELECT 
+	p.name AS product_name,
+	SUM(p.price * op.quantity) AS product_revenue
+FROM crappy_data_db.orders_products op
+JOIN crappy_data_db.products p ON op.product_id = p.id
+JOIN crappy_data_db.product_categories pc ON p.category_id = pc.id
+GROUP BY p.name
+),
+categories_revenues AS (
+SELECT 
+	pc.name AS category_name,
+	SUM(p.price * op.quantity) AS category_revenue
+FROM crappy_data_db.orders_products op
+JOIN crappy_data_db.products p ON op.product_id = p.id
+JOIN crappy_data_db.product_categories pc ON p.category_id = pc.id
+GROUP BY pc.name
+)
+SELECT 
+	1 AS LEVEL,
+	category_name AS LABEL, 
+	category_revenue AS revenue
+FROM categories_revenues
+UNION ALL
+SELECT 
+	2,
+	product_name,
+	product_revenue
+FROM product_revenues
+ORDER BY LEVEL, revenue DESC
+
+
+No need to round anything. It felt pretty natural as well.
+
+
+
+---
+
+## Task 2: NTILE — User Spend Quartiles
+
+**Scenario:**
+The marketing team wants to segment users into 4 equal spend buckets — from lowest to highest total order spend — so they can target each segment differently.
+
+For each user who has placed at least one order, show:
+- `user_id`
+- `total_spend` (numeric, rounded to 2 decimals)
+- `quartile` — 1 (lowest) to 4 (highest), using `NTILE(4)`
+- `segment` — label based on quartile:
+  - `'platinum'` for quartile 4
+  - `'gold'` for quartile 3
+  - `'silver'` for quartile 2
+  - `'bronze'` for quartile 1
+
+**Tables:** `orders`
+
+**Requirements:**
+- Exclude NULL amounts
+- Use a CTE to aggregate total spend per user, then apply `NTILE(4)` in the final SELECT
+- Order by `total_spend DESC`
+
+**Difficulty Rating:** 4/5
+
+WITH users_spend AS (
+SELECT 
+	user_id,
+	SUM(o.amount) AS total_spend
+FROM crappy_data_db.orders o
+GROUP BY user_id
+),
+users_quartiles AS (
+SELECT
 	*,
-	round(AVG(amount) OVER (PARTITION BY user_id), 2) AS user_avg_transaction,
-	round(STDDEV(amount) OVER (PARTITION BY user_id), 2) AS user_stddev_transaction
-FROM crappy_data_db.transactions t 
+	NTILE(4) OVER (ORDER BY total_spend) AS quartile 
+FROM users_spend
 )
 SELECT 
 	user_id,
-	user_avg_transaction,
-	user_stddev_transaction,
-	COUNT(*) AS tx_count,
-	CASE WHEN user_stddev_transaction > 300 THEN 'high' WHEN user_stddev_transaction > 150 THEN 'medium' ELSE 'low' END AS volatility
-FROM user_transactions
-GROUP BY user_id, user_avg_transaction, user_stddev_transaction
+	total_spend,
+	quartile,
+	CASE WHEN quartile = 4 THEN 'platinum' WHEN quartile = 3 THEN 'gold' WHEN quartile = 2 THEN 'silver' ELSE 'bronze' END AS segment
+FROM users_quartiles
+ORDER BY total_spend DESC
+
+Few things - it's already rounded to 2 decimals, no nulls here, everything works as expected. That was a bit easy, not gonna lie.
 
 ---
 
-## Task 2: Support Ticket Response Time — Average Time to First Message per Priority
+## Task 3: Query Optimization — Rewrite and Compare
 
 **Scenario:**
-The support team wants to know how quickly tickets get their first response, broken down by priority level.
+The following query is logically correct but inefficient — it uses a correlated subquery in the WHERE clause that re-executes for every user row.
 
-For each priority, show:
-- `priority`
-- `ticket_count` — number of tickets that have at least one message
-- `avg_hours_to_first_message` — average time in hours between `chat_tickets.created_at` and the first `chat_messages.created_at` for that ticket, rounded to 1 decimal
+**Original slow query:**
+```sql
+SELECT u.id AS user_id, u.country
+FROM crappy_data_db.users u
+WHERE (
+    SELECT AVG(t.amount)
+    FROM crappy_data_db.transactions t
+    WHERE t.user_id = u.id
+) > 500;
+```
 
-**Tables:** `chat_tickets`, `chat_messages`
+**Your tasks:**
+1. Rewrite this using a CTE + JOIN (or HAVING) to eliminate the correlated subquery
+2. Run `EXPLAIN ANALYZE` on both versions and paste the key timing lines
+3. In a comment, explain: what makes the original slow, and what makes yours faster?
 
-**Requirements:**
-- Use a CTE to find the first message timestamp per ticket (`MIN(created_at)`)
-- Only include tickets that have at least one message
-- Use `EXTRACT(EPOCH FROM ...)` for the time difference, convert to hours
-- Order by `avg_hours_to_first_message ASC`
+**Expected Output Columns:** `user_id`, `country`
 
-**Difficulty Rating:** 4/5
+**Tables:** `users`, `transactions`
 
-Few caveats here:
-- I din't track FIRST MESSAGE, but rather first response, as with every ticket in this database, creation time = first_message_time, so it would be pointless.
-- I didn't count hours, but rather minutes, as maximum amount was around 12-15 minutes, so it was pointless to go for hours here. avgs are between 5-8 range.
+**Difficulty Rating:** 5/5
 
-AND ALSO YOUR task instruction swas a bit misleading - first you talk about first response, and then in the requirements you talk about first_message, it makes no sense. I've made the most logical decision ehere.
+Original speed: 
+Planning Time: 0.083 ms
+Execution Time: 5.944 ms
 
+The issue seems to be that we're doing a weird aggregation in where clause, which runs as the first data filter. It means we're trying to filter out the users BEFORE even calculating there collective price averages. Instead of doing one aggregated filtering AFTER the prices are calculated, we're executing a weird filtering command, then calculating the AVG to filter it out, and it's very ineffective. That's my call from my knowledge, but you could further explain it, if I'm wrong or missing the point.
 
-WITH tickets_response_times AS (
-SELECT 
-	ct.id AS ticket_id,
-	ct.priority,
-	ct.created_at AS ticket_created_at,
-	FIRST_VALUE(cm.created_at) OVER (PARTITION BY cm.ticket_id ORDER BY cm.created_at) AS first_response
-FROM crappy_data_db.chat_tickets ct
-JOIN crappy_data_db.chat_messages cm ON ct.id = cm.ticket_id
-WHERE cm.message_text IS NOT NULL AND cm.author_id IS NOT NULL
-),
-tickets_first_response_minutes AS (
-SELECT 
-	*,
-	EXTRACT(EPOCH FROM first_response - ticket_created_at) / 60 AS minutes_to_first_response
-FROM tickets_response_times
-)
+However, my query is a lot better, as first it calculates averages for every user (the aggergation level is each user, country is also there but it doesn't affect the aggregation level since every user_id/id is unique). We easily calculate the averages, and only then exclude the users that are not meeting the required value, but it's done on already calculated values, so it's a lot faster, no weird recalculations there. And we have a simple INNER JOIN as well.
+
 SELECT
-	priority,
-	COUNT(*) AS ticket_count,
-	round(AVG(minutes_to_first_response), 1) AS avg_minutes_to_first_response
-FROM tickets_first_response_minutes
-GROUP BY priority
+	user_id,
+	u.country,
+	round(AVG(amount), 2) AS avg_transaction
+FROM crappy_data_db.transactions t
+JOIN crappy_data_db.users u ON t.user_id = u.id
+GROUP BY user_id, country
+HAVING round(AVG(amount), 2) > 500
 
-IMO it's all good and you should give it a 10/10 unless there are some serious issues
+Easy as hell,
 
----
+Planning:
+  Buffers: shared hit=2
+Planning Time: 0.127 ms
+Execution Time: 0.383 ms
 
-## Task 3: Funnel Analysis — Order to Delivery Conversion
 
-**Scenario:**
-The ops team wants a simple conversion funnel: of all users who placed at least one order, how many also have at least one delivery record, and how many of those deliveries have status `'delivered'`?
 
-Report the funnel as three rows:
-- `'placed order'` — count of distinct users with at least 1 order
-- `'has delivery record'` — count of distinct users whose orders have any delivery record
-- `'fully delivered'` — count of distinct users who have at least one delivery with status `'delivered'`
-
-**Expected Output Columns:**
-- `funnel_step` (text)
-- `user_count` (integer)
-
-**Tables:** `orders`, `deliveries`
-
-**Requirements:**
-- Use CTEs for each step, then UNION ALL the three counts
-- Order by `user_count DESC`
-
-**Difficulty Rating:** 4/5
-
-WITH users_with_orders_cnt AS (
-SELECT 
-	COUNT(DISTINCT(o.user_id)) AS placed_order
-FROM crappy_data_db.orders o
-),
-users_with_delivery_orders_cnt AS (
-SELECT 
-	count(DISTINCT(o.user_id)) AS has_delivery_record
-FROM crappy_data_db.orders o
-LEFT JOIN crappy_data_db.deliveries d ON o.id = d.order_id
-WHERE d.status = 'pending'
-),
-users_with_delivered_orders_cnt AS (
-SELECT 
-	count(DISTINCT(o.user_id)) AS fully_delivered_record
-FROM crappy_data_db.orders o
-LEFT JOIN crappy_data_db.deliveries d ON o.id = d.order_id
-WHERE d.status = 'delivered'
-)
-SELECT 
-	1::TEXT AS funnel_step,
-	uwc.placed_order AS user_count
-FROM users_with_orders_cnt uwc
-UNION ALL
-SELECT 
-	2::TEXT,
-	uwd.has_delivery_record
-FROM users_with_delivery_orders_cnt uwd
-UNION ALL
-SELECT 
-	3::TEXT,
-	uwdo.fully_delivered_record
-FROM users_with_delivered_orders_cnt uwdo
-ORDER BY user_count DESC
-
-It works.
 ---
 
 ## Submission Instructions
 
-1. Task 1 — STDDEV volatility labels per user (3/5)
-2. Task 2 — Type B recursive category tree with depth + path (4/5)
-3. Task 3 — 3-step order-to-delivery funnel (4/5)
+1. Task 1 — Type A 2-level UNION ALL, no recursion (3/5)
+2. Task 2 — NTILE quartile segmentation (4/5)
+3. Task 3 — Correlated subquery rewrite + EXPLAIN ANALYZE comparison (5/5)

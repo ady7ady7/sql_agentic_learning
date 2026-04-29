@@ -13910,3 +13910,14 @@ GROUP BY user_id
 **Task 2 (Ticket response time):** Adapted to minutes (data showed 5-8 min averages, not hours). Filtered on author_id IS NOT NULL to isolate agent responses — smart business logic interpretation. 10/10.
 
 **Task 3 (Funnel analysis):** Used pending status for "has delivery record" — correct, as pending is the initial status and avoids double-counting. funnel_step labels were numeric strings rather than descriptive text but logic was sound. 10/10.
+
+### Task Archive: 2026-04-27 (Week 20, Day 1)
+
+**Focus:** Type A CTE drill + NTILE + EXPLAIN ANALYZE query optimization
+**Day Score: 30/30**
+
+**Task 1 (Type A CTE):** Two independent CTEs, plain UNION ALL, no recursion. Pattern clicked naturally. 10/10.
+
+**Task 2 (NTILE):** Two CTEs, NTILE(4) applied cleanly, CASE labels correct. 10/10.
+
+**Task 3 (Query optimization):** 5.944ms → 0.383ms (15x faster). Correct explanation: correlated subquery re-runs AVG per row vs single aggregation pass. Included avg_transaction as bonus output. 10/10.

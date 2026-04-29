@@ -1,172 +1,259 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-04-27
-**Week 20, Day 1 Focus:** Type A CTE drill + NTILE + EXPLAIN ANALYZE query optimization
+**Generated:** 2026-04-29
+**Week 20, Days 2+3 Focus:** FIRST_VALUE + custom window frames + anti-join NULL trap + LAG offset + YoY comparison + NULLIF in real division
 
 ---
 
-## Task 1: Type A CTE — Revenue by Category and Product
+## DAY 2
+
+---
+
+## Task 1: FIRST_VALUE — Most Recent Transaction per User
 
 **Scenario:**
-The product team wants a 2-level revenue breakdown: total revenue per category (level 1), and total revenue per product (level 2). Both in one result set.
+The finance team wants to see each transaction alongside the user's most recent transaction amount — for comparison purposes.
 
-**The rule for this task:** Two independent aggregation CTEs, then a plain `UNION ALL`. No `WITH RECURSIVE`, no `hierarchy` CTE, no self-joins. If you catch yourself writing `FROM cte JOIN cte`, stop and rethink.
+For every transaction, show:
+- `transaction_id`
+- `user_id`
+- `amount`
+- `created_at`
+- `latest_amount` — the amount of the most recent transaction for that user (including the current row if it's the latest)
 
-**Expected Output Columns:**
-- `level` (integer — 1 or 2)
-- `label` (text — category name for level 1, product name for level 2)
-- `revenue` (numeric, rounded to 2 decimals)
+**Tables:** `crappy_data_db.transactions`
 
-**Order by:** `level ASC`, `revenue DESC`
-
-**Tables:** `orders_products`, `products`, `product_categories`
+**Requirements:**
+- Use `FIRST_VALUE(amount ORDER BY created_at DESC)` — not LAST_VALUE
+- Exclude NULL amounts
+- Order by `user_id ASC`, `created_at ASC`
 
 **Difficulty Rating:** 3/5
 
-WITH product_revenues AS (
-SELECT 
-	p.name AS product_name,
-	SUM(p.price * op.quantity) AS product_revenue
-FROM crappy_data_db.orders_products op
-JOIN crappy_data_db.products p ON op.product_id = p.id
-JOIN crappy_data_db.product_categories pc ON p.category_id = pc.id
-GROUP BY p.name
-),
-categories_revenues AS (
-SELECT 
-	pc.name AS category_name,
-	SUM(p.price * op.quantity) AS category_revenue
-FROM crappy_data_db.orders_products op
-JOIN crappy_data_db.products p ON op.product_id = p.id
-JOIN crappy_data_db.product_categories pc ON p.category_id = pc.id
-GROUP BY pc.name
-)
-SELECT 
-	1 AS LEVEL,
-	category_name AS LABEL, 
-	category_revenue AS revenue
-FROM categories_revenues
-UNION ALL
-SELECT 
-	2,
-	product_name,
-	product_revenue
-FROM product_revenues
-ORDER BY LEVEL, revenue DESC
 
+SELECT
+	id AS TRANSACTION_ID,
+	user_id,
+	amount,
+	created_at,
+	FIRST_VALUE(amount) OVER (PARTITION BY user_id ORDER BY created_at DESC) AS latest_amount
+FROM crappy_data_db.transactions
 
-No need to round anything. It felt pretty natural as well.
-
-
+2/10 difficulty
 
 ---
 
-## Task 2: NTILE — User Spend Quartiles
+## Task 2: Cumulative SUM with Custom Frame — Rolling 3-Order Revenue
 
 **Scenario:**
-The marketing team wants to segment users into 4 equal spend buckets — from lowest to highest total order spend — so they can target each segment differently.
+The finance team wants a running total of order revenue per user, but only looking at the current order and the 2 preceding ones — a rolling 3-order window.
 
-For each user who has placed at least one order, show:
+For every order, show:
+- `order_id`
 - `user_id`
-- `total_spend` (numeric, rounded to 2 decimals)
-- `quartile` — 1 (lowest) to 4 (highest), using `NTILE(4)`
-- `segment` — label based on quartile:
-  - `'platinum'` for quartile 4
-  - `'gold'` for quartile 3
-  - `'silver'` for quartile 2
-  - `'bronze'` for quartile 1
+- `amount`
+- `rolling_3_revenue` — sum of `amount` over the current row and 2 preceding rows within the user's order history (ordered by `created_at ASC`)
 
-**Tables:** `orders`
+**Tables:** `crappy_data_db.orders`
 
 **Requirements:**
+- Use `SUM(amount) OVER (PARTITION BY user_id ORDER BY created_at ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)`
 - Exclude NULL amounts
-- Use a CTE to aggregate total spend per user, then apply `NTILE(4)` in the final SELECT
-- Order by `total_spend DESC`
+- Order by `user_id ASC`, `created_at ASC`
 
 **Difficulty Rating:** 4/5
 
-WITH users_spend AS (
-SELECT 
-	user_id,
-	SUM(o.amount) AS total_spend
-FROM crappy_data_db.orders o
-GROUP BY user_id
-),
-users_quartiles AS (
 SELECT
-	*,
-	NTILE(4) OVER (ORDER BY total_spend) AS quartile 
-FROM users_spend
-)
-SELECT 
+	id AS order_id,
 	user_id,
-	total_spend,
-	quartile,
-	CASE WHEN quartile = 4 THEN 'platinum' WHEN quartile = 3 THEN 'gold' WHEN quartile = 2 THEN 'silver' ELSE 'bronze' END AS segment
-FROM users_quartiles
-ORDER BY total_spend DESC
+	amount,
+	SUM(amount) OVER (PARTITION BY user_id ORDER BY created_at ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS rolling_3_revenue
+FROM crappy_data_db.orders
 
-Few things - it's already rounded to 2 decimals, no nulls here, everything works as expected. That was a bit easy, not gonna lie.
+The ROWS BETWEEN X PRECEDING AND CURRENT ROW it's totally worth remembering. Other than that, pretty easy.
+
 
 ---
 
-## Task 3: Query Optimization — Rewrite and Compare
+## Task 3: Anti-Join NULL Trap — Products Never Ordered
 
 **Scenario:**
-The following query is logically correct but inefficient — it uses a correlated subquery in the WHERE clause that re-executes for every user row.
-
-**Original slow query:**
-```sql
-SELECT u.id AS user_id, u.country
-FROM crappy_data_db.users u
-WHERE (
-    SELECT AVG(t.amount)
-    FROM crappy_data_db.transactions t
-    WHERE t.user_id = u.id
-) > 500;
-```
+The inventory team wants to find products that have never appeared in any order.
 
 **Your tasks:**
-1. Rewrite this using a CTE + JOIN (or HAVING) to eliminate the correlated subquery
-2. Run `EXPLAIN ANALYZE` on both versions and paste the key timing lines
-3. In a comment, explain: what makes the original slow, and what makes yours faster?
+1. Write the query using `LEFT JOIN ... WHERE IS NULL`
+2. Write it again using `NOT EXISTS`
+3. Write the `NOT IN` version — then in a comment explain: what happens to `NOT IN` if `orders_products.product_id` contained even one NULL, and why does it silently return 0 rows?
 
-**Expected Output Columns:** `user_id`, `country`
+**Expected Output Columns:** `product_id`, `name`
 
-**Tables:** `users`, `transactions`
+**Tables:** `crappy_data_db.products`, `crappy_data_db.orders_products`
+
+**Order by:** `product_id ASC`
 
 **Difficulty Rating:** 5/5
 
-Original speed: 
-Planning Time: 0.083 ms
-Execution Time: 5.944 ms
+THERE ARE NO SUCH PRODUCTS
 
-The issue seems to be that we're doing a weird aggregation in where clause, which runs as the first data filter. It means we're trying to filter out the users BEFORE even calculating there collective price averages. Instead of doing one aggregated filtering AFTER the prices are calculated, we're executing a weird filtering command, then calculating the AVG to filter it out, and it's very ineffective. That's my call from my knowledge, but you could further explain it, if I'm wrong or missing the point.
+SELECT * FROM crappy_data_db.orders_products op
+LEFT JOIN crappy_data_db.products p ON op.product_id = p.id
+WHERE p.id IS NULL
 
-However, my query is a lot better, as first it calculates averages for every user (the aggergation level is each user, country is also there but it doesn't affect the aggregation level since every user_id/id is unique). We easily calculate the averages, and only then exclude the users that are not meeting the required value, but it's done on already calculated values, so it's a lot faster, no weird recalculations there. And we have a simple INNER JOIN as well.
 
-SELECT
-	user_id,
-	u.country,
-	round(AVG(amount), 2) AS avg_transaction
+SELECT * FROM crappy_data_db.orders_products op
+WHERE NOT EXISTS
+(SELECT p.id FROM crappy_data_db.products p
+WHERE op.product_id = p.id
+AND p.id IS NOT NULL
+)
+
+SELECT * FROM crappy_data_db.orders_products op
+WHERE OP.product_id NOT IN 
+(SELECT p.id FROM crappy_data_db.products p
+WHERE op.product_id = p.id
+AND p.id IS NOT NULL
+)
+
+
+It doesn't matter if we add the NOT NULL condition honestly. I'd like us to settle ON ONE SOLUTION - maybe NOT EXISTS from now on, as it's pointless and confusing, and I sometimes confuse one iwth another as we mingle these three.
+
+
+
+
+---
+
+## DAY 3
+
+---
+
+## Task 4: LAG with Offset — Compare Order to 3 Orders Prior
+
+**Scenario:**
+The analytics team wants to see how each order's amount compares to the order placed 3 orders ago by the same user.
+
+For every order, show:
+- `order_id`
+- `user_id`
+- `amount`
+- `amount_3_prior` — amount from 3 orders ago for this user (NULL if fewer than 3 prior orders exist)
+- `diff_from_3_prior` — `amount - amount_3_prior` (NULL if no prior)
+
+**Tables:** `crappy_data_db.orders`
+
+**Requirements:**
+- Use `LAG(amount, 3)` partitioned by user, ordered by `created_at ASC`
+- Exclude NULL amounts
+- Order by `user_id ASC`, `created_at ASC`
+
+**Difficulty Rating:** 3/5
+
+SELECT 
+	*,
+	LAG(amount, 3) OVER (PARTITION BY user_id ORDER BY created_at) AS amount_3_prior,
+	amount - LAG(amount, 3) OVER (PARTITION BY user_id ORDER BY created_at) AS diff_from_3_prior
+FROM crappy_data_db.orders o
+
+Again, pretty easy once you know the trick with LAG(x, OFFSET). I could use abs() here, but we didn't compare anything anyway, so there was no point in doing it.
+
+
+
+---
+
+## Task 5: YoY — Monthly Transaction Revenue Comparison
+
+**Scenario:**
+The finance team wants a month-by-month transaction revenue table showing the same month's revenue from the prior year for direct comparison.
+
+For each month, show:
+- `month` (DATE_TRUNC to month)
+- `revenue` — total transaction amount for this month
+- `prev_year_revenue` — revenue for the same calendar month one year prior (NULL if no data)
+- `yoy_pct_change` — percentage change vs prior year, rounded to 1 decimal, NULL if no prior year. Formula: `(revenue - prev_year_revenue) / prev_year_revenue * 100`
+
+**Tables:** `crappy_data_db.transactions`
+
+**Requirements:**
+- Exclude NULL amounts
+- Use `LAG(revenue, 12) OVER (ORDER BY month ASC)` for prior year
+- Use `NULLIF` to avoid division by zero in the percentage calculation
+- Only include months with at least 1 transaction
+- Order by `month ASC`
+
+**Difficulty Rating:** 4/5
+
+WITH orders_months AS (
+SELECT 
+	*,
+	DATE_TRUNC('Month', created_at) AS month_
 FROM crappy_data_db.transactions t
-JOIN crappy_data_db.users u ON t.user_id = u.id
-GROUP BY user_id, country
-HAVING round(AVG(amount), 2) > 500
+),
+monthly_revs AS (
+SELECT
+	month_,
+	SUM(amount) AS monthly_revenue
+FROM orders_months
+GROUP BY month_
+)
+SELECT 
+	*,
+	LAG(monthly_revenue, 12) OVER (ORDER BY month_) AS prev_year_revenue,
+	ROUND((monthly_revenue - LAG(monthly_revenue, 12) OVER (ORDER BY month_)) / LAG(monthly_revenue, 12) OVER (ORDER BY month_) * 100, 1) AS yoy_pct_change
+FROM monthly_revs
 
-Easy as hell,
+---
 
-Planning:
-  Buffers: shared hit=2
-Planning Time: 0.127 ms
-Execution Time: 0.383 ms
+## Task 6: NULLIF + COALESCE — Cleaning Dirty Aggregations
+
+**Scenario:**
+The analytics team is building a user quality report from `crappy_data_db.users`. Some users have empty string `''` in their `city` field instead of NULL, which skews city-based counts.
+
+For each country, show:
+- `country`
+- `total_users` — total number of users in that country
+- `users_with_city` — count of users who have a real city (not NULL and not empty string `''`)
+- `pct_with_city` — percentage of users with a real city, rounded to 1 decimal. Use `NULLIF` on the denominator to avoid division by zero, and `COALESCE` to show `0.0` instead of NULL for countries with no users having a city.
+
+**Tables:** `crappy_data_db.users`
+
+**Requirements:**
+- Use `COUNT(NULLIF(city, ''))` to exclude empty strings from the city count
+- Use `NULLIF(total_users, 0)` in the division
+- Use `COALESCE(..., 0.0)` to replace NULL pct with 0.0
+- Exclude NULL countries
+- Order by `total_users DESC`
+
+**Difficulty Rating:** 5/5
+
+WITH USERS_COUNTERS AS (
+SELECT 
+	country,
+	COUNT(*) AS total_users,
+	COUNT(NULLIF(city, '')) AS users_with_city
+FROM crappy_data_db.users u
+WHERE COUNTRY IS NOT null
+GROUP BY country
+)
+SELECT 
+	country,
+	total_users,
+	users_with_city,
+	round(users_with_city / total_users::NUMERIC, 3) * 100 AS pct_with_city
+FROM users_counters
+ORDER BY total_users DESC
 
 
+Frankly it's a useless task for this db, since all countries have 100% users with cities. There's no such issue.
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Type A 2-level UNION ALL, no recursion (3/5)
-2. Task 2 — NTILE quartile segmentation (4/5)
-3. Task 3 — Correlated subquery rewrite + EXPLAIN ANALYZE comparison (5/5)
+**Day 2:**
+1. Task 1 — FIRST_VALUE latest transaction amount per user (3/5)
+2. Task 2 — Rolling 3-order SUM with custom frame (4/5)
+3. Task 3 — Anti-join three ways + NOT IN NULL trap explanation (5/5)
+
+**Day 3:**
+4. Task 4 — LAG(amount, 3) offset comparison (3/5)
+5. Task 5 — YoY monthly transaction revenue with NULLIF division (4/5)
+6. Task 6 — NULLIF + COALESCE dirty city data cleanup (5/5)

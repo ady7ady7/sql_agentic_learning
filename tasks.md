@@ -1,259 +1,126 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-04-29
-**Week 20, Days 2+3 Focus:** FIRST_VALUE + custom window frames + anti-join NULL trap + LAG offset + YoY comparison + NULLIF in real division
+**Generated:** 2026-04-30
+**Week 20, Day 4 Focus:** Anti-join (NOT EXISTS) + YoY with NULLIF + window frame comparison
 
 ---
 
-## DAY 2
-
----
-
-## Task 1: FIRST_VALUE — Most Recent Transaction per User
+## Task 1: Anti-Join — Orders With No Delivery (NOT EXISTS)
 
 **Scenario:**
-The finance team wants to see each transaction alongside the user's most recent transaction amount — for comparison purposes.
+The ops team wants to find orders that have no delivery record at all — they may have slipped through the system.
 
-For every transaction, show:
-- `transaction_id`
-- `user_id`
-- `amount`
-- `created_at`
-- `latest_amount` — the amount of the most recent transaction for that user (including the current row if it's the latest)
+Write this using `NOT EXISTS` only. Start from `orders`, check against `deliveries`.
 
-**Tables:** `crappy_data_db.transactions`
+**Expected Output Columns:** `order_id`, `user_id`
 
-**Requirements:**
-- Use `FIRST_VALUE(amount ORDER BY created_at DESC)` — not LAST_VALUE
-- Exclude NULL amounts
-- Order by `user_id ASC`, `created_at ASC`
+**Tables:** `crappy_data_db.orders`, `crappy_data_db.deliveries`
+
+**Order by:** `order_id ASC`
 
 **Difficulty Rating:** 3/5
 
 
-SELECT
-	id AS TRANSACTION_ID,
-	user_id,
-	amount,
-	created_at,
-	FIRST_VALUE(amount) OVER (PARTITION BY user_id ORDER BY created_at DESC) AS latest_amount
-FROM crappy_data_db.transactions
-
-2/10 difficulty
-
----
-
-## Task 2: Cumulative SUM with Custom Frame — Rolling 3-Order Revenue
-
-**Scenario:**
-The finance team wants a running total of order revenue per user, but only looking at the current order and the 2 preceding ones — a rolling 3-order window.
-
-For every order, show:
-- `order_id`
-- `user_id`
-- `amount`
-- `rolling_3_revenue` — sum of `amount` over the current row and 2 preceding rows within the user's order history (ordered by `created_at ASC`)
-
-**Tables:** `crappy_data_db.orders`
-
-**Requirements:**
-- Use `SUM(amount) OVER (PARTITION BY user_id ORDER BY created_at ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)`
-- Exclude NULL amounts
-- Order by `user_id ASC`, `created_at ASC`
-
-**Difficulty Rating:** 4/5
-
-SELECT
-	id AS order_id,
-	user_id,
-	amount,
-	SUM(amount) OVER (PARTITION BY user_id ORDER BY created_at ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS rolling_3_revenue
-FROM crappy_data_db.orders
-
-The ROWS BETWEEN X PRECEDING AND CURRENT ROW it's totally worth remembering. Other than that, pretty easy.
-
-
----
-
-## Task 3: Anti-Join NULL Trap — Products Never Ordered
-
-**Scenario:**
-The inventory team wants to find products that have never appeared in any order.
-
-**Your tasks:**
-1. Write the query using `LEFT JOIN ... WHERE IS NULL`
-2. Write it again using `NOT EXISTS`
-3. Write the `NOT IN` version — then in a comment explain: what happens to `NOT IN` if `orders_products.product_id` contained even one NULL, and why does it silently return 0 rows?
-
-**Expected Output Columns:** `product_id`, `name`
-
-**Tables:** `crappy_data_db.products`, `crappy_data_db.orders_products`
-
-**Order by:** `product_id ASC`
-
-**Difficulty Rating:** 5/5
-
-THERE ARE NO SUCH PRODUCTS
-
-SELECT * FROM crappy_data_db.orders_products op
-LEFT JOIN crappy_data_db.products p ON op.product_id = p.id
-WHERE p.id IS NULL
-
-
-SELECT * FROM crappy_data_db.orders_products op
-WHERE NOT EXISTS
-(SELECT p.id FROM crappy_data_db.products p
-WHERE op.product_id = p.id
-AND p.id IS NOT NULL
-)
-
-SELECT * FROM crappy_data_db.orders_products op
-WHERE OP.product_id NOT IN 
-(SELECT p.id FROM crappy_data_db.products p
-WHERE op.product_id = p.id
-AND p.id IS NOT NULL
-)
-
-
-It doesn't matter if we add the NOT NULL condition honestly. I'd like us to settle ON ONE SOLUTION - maybe NOT EXISTS from now on, as it's pointless and confusing, and I sometimes confuse one iwth another as we mingle these three.
-
-
-
-
----
-
-## DAY 3
-
----
-
-## Task 4: LAG with Offset — Compare Order to 3 Orders Prior
-
-**Scenario:**
-The analytics team wants to see how each order's amount compares to the order placed 3 orders ago by the same user.
-
-For every order, show:
-- `order_id`
-- `user_id`
-- `amount`
-- `amount_3_prior` — amount from 3 orders ago for this user (NULL if fewer than 3 prior orders exist)
-- `diff_from_3_prior` — `amount - amount_3_prior` (NULL if no prior)
-
-**Tables:** `crappy_data_db.orders`
-
-**Requirements:**
-- Use `LAG(amount, 3)` partitioned by user, ordered by `created_at ASC`
-- Exclude NULL amounts
-- Order by `user_id ASC`, `created_at ASC`
-
-**Difficulty Rating:** 3/5
-
-SELECT 
-	*,
-	LAG(amount, 3) OVER (PARTITION BY user_id ORDER BY created_at) AS amount_3_prior,
-	amount - LAG(amount, 3) OVER (PARTITION BY user_id ORDER BY created_at) AS diff_from_3_prior
+SELECT o.id 
 FROM crappy_data_db.orders o
+WHERE NOT EXISTS
+(SELECT * FROM crappy_data_db.deliveries d
+WHERE d.order_id = o.id
+)
 
-Again, pretty easy once you know the trick with LAG(x, OFFSET). I could use abs() here, but we didn't compare anything anyway, so there was no point in doing it.
 
+There are no such orders - all of them have delivery records, and I remember that as I've used to check that in different tasks. Before the next week we need to add another scheme to our data. Let's make it one of the tasks for tomorrow - to create a new schema, add data there and let you know about it, so you can put all the related data in your memory, so you'll remember that forever. FYI: I have some schemas to chosoe from, as I've purchased a premium package for SQL course which included tasks with different datasets. They all have CREATE TABLE + INSERT DATA code in them, with new data. I just need to get through them and pick one.
+
+As an alternative, we could think about working with a real dataset with sales of smarthphones, which is exceptionally big.
 
 
 ---
 
-## Task 5: YoY — Monthly Transaction Revenue Comparison
+## Task 2: YoY — Monthly Order Revenue with NULLIF Division
 
 **Scenario:**
-The finance team wants a month-by-month transaction revenue table showing the same month's revenue from the prior year for direct comparison.
+The finance team wants month-by-month order revenue with prior year comparison and percentage change.
 
-For each month, show:
+For each month show:
 - `month` (DATE_TRUNC to month)
-- `revenue` — total transaction amount for this month
-- `prev_year_revenue` — revenue for the same calendar month one year prior (NULL if no data)
-- `yoy_pct_change` — percentage change vs prior year, rounded to 1 decimal, NULL if no prior year. Formula: `(revenue - prev_year_revenue) / prev_year_revenue * 100`
+- `revenue` — total order amount for that month
+- `prev_year_revenue` — same month one year prior via `LAG(revenue, 12)`
+- `yoy_pct_change` — `(revenue - prev_year_revenue) / NULLIF(prev_year_revenue, 0) * 100`, rounded to 1 decimal, NULL if no prior year
 
-**Tables:** `crappy_data_db.transactions`
+**Tables:** `crappy_data_db.orders`
 
 **Requirements:**
 - Exclude NULL amounts
-- Use `LAG(revenue, 12) OVER (ORDER BY month ASC)` for prior year
-- Use `NULLIF` to avoid division by zero in the percentage calculation
-- Only include months with at least 1 transaction
+- Use `NULLIF(prev_year_revenue, 0)` in the denominator — not just `prev_year_revenue`
 - Order by `month ASC`
 
 **Difficulty Rating:** 4/5
 
-WITH orders_months AS (
+WITH orders_years AS (
 SELECT 
-	*,
-	DATE_TRUNC('Month', created_at) AS month_
-FROM crappy_data_db.transactions t
+*,
+DATE_TRUNC('Month', created_at) AS MONTH,
+DATE_TRUNC('Year', created_at) AS year
+FROM crappy_data_db.orders o
 ),
-monthly_revs AS (
+monthly_revenues AS (
 SELECT
-	month_,
-	SUM(amount) AS monthly_revenue
-FROM orders_months
-GROUP BY month_
+	MONTH,
+	sum(AMOUNT) AS revenue
+FROM orders_years
+GROUP BY MONTH
 )
 SELECT 
 	*,
-	LAG(monthly_revenue, 12) OVER (ORDER BY month_) AS prev_year_revenue,
-	ROUND((monthly_revenue - LAG(monthly_revenue, 12) OVER (ORDER BY month_)) / LAG(monthly_revenue, 12) OVER (ORDER BY month_) * 100, 1) AS yoy_pct_change
-FROM monthly_revs
+	lag(revenue, 12) OVER (ORDER BY MONTH) AS prev_year_revenue,
+	round(((revenue - lag(revenue, 12) OVER (ORDER BY MONTH)) / NULLIF(lag(revenue, 12) OVER (ORDER BY MONTH), 0) * 100)::NUMERIC, 1) AS yoy_pct_change
+FROM monthly_revenues
+
 
 ---
 
-## Task 6: NULLIF + COALESCE — Cleaning Dirty Aggregations
+## Task 3: Window Frame Comparison — Three Ways to SUM
 
 **Scenario:**
-The analytics team is building a user quality report from `crappy_data_db.users`. Some users have empty string `''` in their `city` field instead of NULL, which skews city-based counts.
+The finance team wants to understand cumulative vs rolling vs total revenue patterns on orders per user.
 
-For each country, show:
-- `country`
-- `total_users` — total number of users in that country
-- `users_with_city` — count of users who have a real city (not NULL and not empty string `''`)
-- `pct_with_city` — percentage of users with a real city, rounded to 1 decimal. Use `NULLIF` on the denominator to avoid division by zero, and `COALESCE` to show `0.0` instead of NULL for countries with no users having a city.
+For every order write **one query** that produces all three columns side by side:
+- `order_id`
+- `user_id`
+- `amount`
+- `running_total` — cumulative SUM from the first order to now: `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
+- `rolling_3` — rolling SUM over current + 2 prior orders: `ROWS BETWEEN 2 PRECEDING AND CURRENT ROW`
+- `partition_total` — total SUM for the entire user, same on every row: `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`
 
-**Tables:** `crappy_data_db.users`
+**Then answer in a comment:** What's the difference between `running_total` and `partition_total`, and when would you use each?
+
+**Tables:** `crappy_data_db.orders`
 
 **Requirements:**
-- Use `COUNT(NULLIF(city, ''))` to exclude empty strings from the city count
-- Use `NULLIF(total_users, 0)` in the division
-- Use `COALESCE(..., 0.0)` to replace NULL pct with 0.0
-- Exclude NULL countries
-- Order by `total_users DESC`
+- Exclude NULL amounts
+- All three in a single SELECT, no CTEs needed
+- Order by `user_id ASC`, `created_at ASC`
 
 **Difficulty Rating:** 5/5
 
-WITH USERS_COUNTERS AS (
 SELECT 
-	country,
-	COUNT(*) AS total_users,
-	COUNT(NULLIF(city, '')) AS users_with_city
-FROM crappy_data_db.users u
-WHERE COUNTRY IS NOT null
-GROUP BY country
-)
-SELECT 
-	country,
-	total_users,
-	users_with_city,
-	round(users_with_city / total_users::NUMERIC, 3) * 100 AS pct_with_city
-FROM users_counters
-ORDER BY total_users DESC
+	id AS order_id,
+	user_id,
+	amount,
+	SUM(amount) OVER (PARTITION BY USER_id ORDER BY created_at) AS running_total,
+	SUM(amount) OVER (PARTITION BY USER_id ORDER BY created_at ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS rolling_3,
+	SUM(amount) OVER (PARTITION BY USER_id ORDER BY created_at ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS partition_total
+FROM crappy_data_db.orders o
 
 
-Frankly it's a useless task for this db, since all countries have 100% users with cities. There's no such issue.
+Very interesting - that UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING.
+
+
 
 ---
 
 ## Submission Instructions
 
-**Day 2:**
-1. Task 1 — FIRST_VALUE latest transaction amount per user (3/5)
-2. Task 2 — Rolling 3-order SUM with custom frame (4/5)
-3. Task 3 — Anti-join three ways + NOT IN NULL trap explanation (5/5)
-
-**Day 3:**
-4. Task 4 — LAG(amount, 3) offset comparison (3/5)
-5. Task 5 — YoY monthly transaction revenue with NULLIF division (4/5)
-6. Task 6 — NULLIF + COALESCE dirty city data cleanup (5/5)
+1. Task 1 — NOT EXISTS anti-join, orders with no delivery (3/5)
+2. Task 2 — YoY monthly order revenue with NULLIF in denominator (4/5)
+3. Task 3 — Three window frames in one query + explanation (5/5)

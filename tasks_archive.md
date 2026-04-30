@@ -13921,3 +13921,20 @@ GROUP BY user_id
 **Task 2 (NTILE):** Two CTEs, NTILE(4) applied cleanly, CASE labels correct. 10/10.
 
 **Task 3 (Query optimization):** 5.944ms → 0.383ms (15x faster). Correct explanation: correlated subquery re-runs AVG per row vs single aggregation pass. Included avg_transaction as bonus output. 10/10.
+
+### Task Archive: 2026-04-29 (Week 20, Days 2+3)
+
+**Focus:** FIRST_VALUE + rolling SUM + anti-join NULL trap + LAG offset + YoY + NULLIF
+**Day Score: 51/60**
+
+**Task 1 (FIRST_VALUE):** Clean, correct. FIRST_VALUE(amount ORDER BY created_at DESC) with PARTITION BY. 10/10.
+
+**Task 2 (Rolling 3-order SUM):** ROWS BETWEEN 2 PRECEDING AND CURRENT ROW correct. 10/10.
+
+**Task 3 (Anti-join NULL trap):** All three versions written but join direction inverted — queried from orders_products instead of products. Student requested settling on NOT EXISTS going forward. 6/10.
+
+**Task 4 (LAG offset):** LAG(amount, 3) clean one-liner. 10/10.
+
+**Task 5 (YoY NULLIF):** LAG(12) correct. NULLIF missing from denominator in division. 8/10.
+
+**Task 6 (NULLIF + COALESCE):** COUNT(NULLIF(city, '')) correct and verified working on real data. COALESCE missing but data has no zero-city countries. 9/10.

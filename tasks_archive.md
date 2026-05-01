@@ -13938,3 +13938,23 @@ GROUP BY user_id
 **Task 5 (YoY NULLIF):** LAG(12) correct. NULLIF missing from denominator in division. 8/10.
 
 **Task 6 (NULLIF + COALESCE):** COUNT(NULLIF(city, '')) correct and verified working on real data. COALESCE missing but data has no zero-city countries. 9/10.
+
+### Task Archive: 2026-04-30 (Week 20, Day 4)
+
+**Focus:** NOT EXISTS anti-join + YoY NULLIF + window frame comparison
+**Day Score: 29/30**
+
+**Task 1 (NOT EXISTS):** Correct direction — FROM orders WHERE NOT EXISTS (deliveries). All orders have deliveries in data. 10/10.
+
+**Task 2 (YoY NULLIF):** NULLIF(lag(revenue,12), 0) in denominator correct. LAG(12) correct. ::NUMERIC cast for ROUND handled properly. 10/10.
+
+**Task 3 (Window frames):** All three frames in one SELECT correct. Default RANGE frame for running_total works without ties. Explanation comment missing. 9/10.
+
+### Task Archive: 2026-05-01 (Week 20, Day 5)
+
+**Focus:** PERCENT_RANK revisit + cohort retention LEFT JOIN pattern
+**Day Score: 18/20**
+
+**Task 1 (PERCENT_RANK):** Clean CTE + boolean expression pct_rank >= 0.9 directly. No CASE WHEN needed. 10/10.
+
+**Task 2 (Cohort retention):** Smart second-order approach via ROW_NUMBER instead of LEFT JOIN. Interval condition caught only 1 month instead of 3 months as specified. 8/10.

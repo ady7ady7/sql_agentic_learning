@@ -1,126 +1,92 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-04-30
-**Week 20, Day 4 Focus:** Anti-join (NOT EXISTS) + YoY with NULLIF + window frame comparison
+**Generated:** 2026-05-01
+**Week 20, Day 5 Focus:** PERCENT_RANK revisit + cohort retention with LEFT JOIN pattern
 
 ---
 
-## Task 1: Anti-Join — Orders With No Delivery (NOT EXISTS)
+## Task 1: PERCENT_RANK — Transaction Amount Ranking per User
 
 **Scenario:**
-The ops team wants to find orders that have no delivery record at all — they may have slipped through the system.
+The risk team wants to see where each transaction sits within the user's personal transaction history — as a percentile.
 
-Write this using `NOT EXISTS` only. Start from `orders`, check against `deliveries`.
+For every transaction show:
+- `transaction_id`
+- `user_id`
+- `amount`
+- `pct_rank` — `PERCENT_RANK()` of this transaction within the user's transactions by amount, rounded to 2 decimals
+- `is_top_10_pct` — boolean, true if `pct_rank >= 0.9`
 
-**Expected Output Columns:** `order_id`, `user_id`
+**Tables:** `crappy_data_db.transactions`
 
-**Tables:** `crappy_data_db.orders`, `crappy_data_db.deliveries`
-
-**Order by:** `order_id ASC`
+**Requirements:**
+- Exclude NULL amounts
+- Order by `user_id ASC`, `amount DESC`
 
 **Difficulty Rating:** 3/5
 
-
-SELECT o.id 
-FROM crappy_data_db.orders o
-WHERE NOT EXISTS
-(SELECT * FROM crappy_data_db.deliveries d
-WHERE d.order_id = o.id
-)
-
-
-There are no such orders - all of them have delivery records, and I remember that as I've used to check that in different tasks. Before the next week we need to add another scheme to our data. Let's make it one of the tasks for tomorrow - to create a new schema, add data there and let you know about it, so you can put all the related data in your memory, so you'll remember that forever. FYI: I have some schemas to chosoe from, as I've purchased a premium package for SQL course which included tasks with different datasets. They all have CREATE TABLE + INSERT DATA code in them, with new data. I just need to get through them and pick one.
-
-As an alternative, we could think about working with a real dataset with sales of smarthphones, which is exceptionally big.
-
-
----
-
-## Task 2: YoY — Monthly Order Revenue with NULLIF Division
-
-**Scenario:**
-The finance team wants month-by-month order revenue with prior year comparison and percentage change.
-
-For each month show:
-- `month` (DATE_TRUNC to month)
-- `revenue` — total order amount for that month
-- `prev_year_revenue` — same month one year prior via `LAG(revenue, 12)`
-- `yoy_pct_change` — `(revenue - prev_year_revenue) / NULLIF(prev_year_revenue, 0) * 100`, rounded to 1 decimal, NULL if no prior year
-
-**Tables:** `crappy_data_db.orders`
-
-**Requirements:**
-- Exclude NULL amounts
-- Use `NULLIF(prev_year_revenue, 0)` in the denominator — not just `prev_year_revenue`
-- Order by `month ASC`
-
-**Difficulty Rating:** 4/5
-
-WITH orders_years AS (
+WITH users_pct_ranks AS (
 SELECT 
-*,
-DATE_TRUNC('Month', created_at) AS MONTH,
-DATE_TRUNC('Year', created_at) AS year
-FROM crappy_data_db.orders o
-),
-monthly_revenues AS (
-SELECT
-	MONTH,
-	sum(AMOUNT) AS revenue
-FROM orders_years
-GROUP BY MONTH
+	*,
+	ROUND(PERCENT_RANK() OVER (PARTITION BY user_id ORDER BY amount)::numeric, 2) AS pct_rank
+FROM crappy_data_db.transactions t
+WHERE AMOUNT IS NOT null
 )
 SELECT 
 	*,
-	lag(revenue, 12) OVER (ORDER BY MONTH) AS prev_year_revenue,
-	round(((revenue - lag(revenue, 12) OVER (ORDER BY MONTH)) / NULLIF(lag(revenue, 12) OVER (ORDER BY MONTH), 0) * 100)::NUMERIC, 1) AS yoy_pct_change
-FROM monthly_revenues
+	pct_rank >= 0.9 AS is_top_10_pct
+FROM users_pct_ranks 
+
+
+
+
+
 
 
 ---
 
-## Task 3: Window Frame Comparison — Three Ways to SUM
+## Task 2: Cohort Retention — LEFT JOIN Pattern
 
 **Scenario:**
-The finance team wants to understand cumulative vs rolling vs total revenue patterns on orders per user.
+The growth team wants to know what share of users who placed their first order in 2025 came back to order again within 3 months of their first order.
 
-For every order write **one query** that produces all three columns side by side:
-- `order_id`
+For each user show:
 - `user_id`
-- `amount`
-- `running_total` — cumulative SUM from the first order to now: `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
-- `rolling_3` — rolling SUM over current + 2 prior orders: `ROWS BETWEEN 2 PRECEDING AND CURRENT ROW`
-- `partition_total` — total SUM for the entire user, same on every row: `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`
+- `first_order_month` — DATE_TRUNC to month of their first ever order
+- `returned_within_3_months` — boolean, true if they placed any order between 1 and 3 months after `first_order_month`
 
-**Then answer in a comment:** What's the difference between `running_total` and `partition_total`, and when would you use each?
+Only include users whose first order was in 2025.
 
 **Tables:** `crappy_data_db.orders`
 
 **Requirements:**
-- Exclude NULL amounts
-- All three in a single SELECT, no CTEs needed
-- Order by `user_id ASC`, `created_at ASC`
+- CTE 1: find each user's first order date using `MIN(created_at)`
+- Final SELECT: LEFT JOIN back to orders to check for any order where `created_at >= first_order_date + INTERVAL '1 month'` AND `created_at < first_order_date + INTERVAL '4 months'`
+- Use `IS NOT NULL` on the joined order to derive the boolean
+- Order by `user_id ASC`
 
-**Difficulty Rating:** 5/5
+**Difficulty Rating:** 4/5
 
+I've done it in a different way, and IMO it's very effective as well.
+I simply took everyone's SECOND order - so it automatically excludes everyone who didn't make the second order, and checked it if it was in the given interval
+
+WITH users_orders AS (
 SELECT 
-	id AS order_id,
-	user_id,
-	amount,
-	SUM(amount) OVER (PARTITION BY USER_id ORDER BY created_at) AS running_total,
-	SUM(amount) OVER (PARTITION BY USER_id ORDER BY created_at ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS rolling_3,
-	SUM(amount) OVER (PARTITION BY USER_id ORDER BY created_at ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS partition_total
+	*,
+	DATE_TRUNC('Month', o.created_at) AS month_,
+	FIRST_VALUE(DATE_TRUNC('Month', o.created_at)) OVER (PARTITION BY user_id ORDER BY created_at) AS first_order_month,
+	row_number() OVER (PARTITION BY USER_ID ORDER BY created_at) AS rn
 FROM crappy_data_db.orders o
-
-
-Very interesting - that UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING.
-
-
+)
+SELECT 
+	*,
+	CASE WHEN MONTH_ < first_order_month + INTERVAL '1' MONTH THEN TRUE ELSE FALSE END AS returned_within_3_months
+FROM users_orders
+WHERE EXTRACT('YEAR' FROM first_order_month) = 2025 AND rn = 2
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — NOT EXISTS anti-join, orders with no delivery (3/5)
-2. Task 2 — YoY monthly order revenue with NULLIF in denominator (4/5)
-3. Task 3 — Three window frames in one query + explanation (5/5)
+1. Task 1 — PERCENT_RANK with top 10% flag (3/5)
+2. Task 2 — Cohort 3-month return check via LEFT JOIN (4/5)

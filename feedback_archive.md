@@ -3309,3 +3309,36 @@ Week trajectory: improving every day, finished with a perfect score.
 - Query optimization — EXPLAIN ANALYZE not revisited since Week 18 Day 5
 - Window functions: FIRST_VALUE, NTILE, cumulative SUM with custom frames
 - Schema expansion: employees table with manager_id, or product_categories with parent_id
+
+---
+
+## Weekly Summary — Week 20 (2026-04-27 to 2026-05-01)
+
+### Scores
+| Day | Focus | Score |
+|-----|-------|-------|
+| Day 1 | Type A CTE drill + NTILE + EXPLAIN ANALYZE | 30/30 |
+| Days 2+3 | FIRST_VALUE + rolling SUM + anti-join + LAG offset + YoY + NULLIF | 51/60 |
+| Day 4 | NOT EXISTS anti-join + YoY NULLIF + window frame comparison | 29/30 |
+| Day 5 | PERCENT_RANK + cohort retention | 18/20 |
+
+Week total: ~128/140.
+
+### Key Wins
+- Type A CTE finally natural — no recursion, no self-join
+- NULLIF in division — properly applied after missing it on Days 2+3
+- Window frame specs — all three frames in one query, solid understanding
+- NTILE — new function, clean first attempt
+- NOT EXISTS direction — corrected on Day 4 after inversion on Days 2+3
+- Creative solutions — ROW_NUMBER second-order approach, boolean expressions
+
+### Focus Areas
+- Anti-join direction — inverted on Days 2+3, corrected Day 4
+- Interval precision — used 1 month instead of 4 months for a 3-month window
+
+### Week 21 Plan
+- Schema expansion — student adding new dataset next week
+- Anti-join one more drill, correct direction
+- Cohort LEFT JOIN pattern — explicit date range version
+- Apply learned patterns to new schema
+- Query optimization — EXPLAIN ANALYZE on complex queries

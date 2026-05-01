@@ -1,51 +1,48 @@
-## Weekly Summary — Week 19 (2026-04-20 to 2026-04-24)
+## Weekly Summary — Week 20 (2026-04-27 to 2026-05-01)
 
 ### Scores
 | Day | Focus | Score |
 |-----|-------|-------|
-| Day 1 | Anti-join + conditional aggregation | 2 tasks (light session) |
-| Day 2 | dominant_type via RANK + Type A rollup + NULLIF | 25/30 |
-| Day 3 | Type A UNION ALL + PERCENT_RANK + monthly streaks | 26/30 |
-| Day 4 | LAG between orders + self-join + cohort retention | 29/30 |
-| Day 5 | STDDEV + ticket response time + funnel analysis | 30/30 |
+| Day 1 | Type A CTE drill + NTILE + EXPLAIN ANALYZE | 30/30 |
+| Days 2+3 | FIRST_VALUE + rolling SUM + anti-join + LAG offset + YoY + NULLIF | 51/60 |
+| Day 4 | NOT EXISTS anti-join + YoY NULLIF + window frame comparison | 29/30 |
+| Day 5 | PERCENT_RANK + cohort retention | 18/20 |
 
-**Week trajectory: improving every day, finished with a perfect score.**
+**Week total: ~128/140. Strong week with one double session to catch up.**
 
 ---
 
 ### Key Wins
 
-- **dominant_type pattern locked in** — GROUP BY user+type → RANK() → filter rank=1. Clean, natural, no unpivoting needed. You also added bonus per-type counts on your own initiative.
-- **Gaps-and-islands solid** — SUM(is_new_streak) as running group ID, COUNT(DISTINCT month) to handle duplicates. Pattern is internalized.
-- **Data-aware adaptation** — consistently checking actual data before applying specs (NULLIF not needed, minutes not hours, pending = first delivery status). This is professional-level instinct, keep it.
-- **EPOCH time calculations** — first use of `EXTRACT(EPOCH FROM ...)` on real chat data. Clean execution.
-- **Funnel analysis** — three-step CTE + UNION ALL funnel pattern understood and executed correctly.
-- **29 and 30/30 to close the week** — strong finish despite a busy, draining work week.
+- **Type A CTE finally natural** — Day 1 was clean, no recursion, no self-join. Pattern is locked.
+- **NULLIF in division** — properly applied `NULLIF(lag(revenue,12), 0)` in YoY denominator on Day 4 after missing it on Days 2+3. Learned from the correction.
+- **Window frame specs** — `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`, `ROWS BETWEEN 2 PRECEDING AND CURRENT ROW`, `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING` all in one query. Solid understanding.
+- **NTILE** — new function, applied cleanly first time.
+- **NOT EXISTS direction** — correct FROM/WHERE direction on Day 4 after the inversion on Days 2+3.
+- **Creative solutions** — second-order ROW_NUMBER approach for cohort retention, boolean expressions instead of CASE WHEN. Good instincts.
 
 ---
 
 ### Focus Areas
 
-- **Type A fixed-hierarchy CTE pattern** — used `WITH RECURSIVE` + self-join on Days 2 and 3 instead of plain UNION ALL. The pattern: three independent aggregation CTEs, then a flat UNION ALL — no recursion, no joining back. This needs to click as muscle memory.
-- **Task instruction quality** — a few tasks this week had ambiguous wording (first message vs first response, funnel step labels). Called out correctly each time. Agent needs to tighten task specs.
+- **Anti-join direction** — inverted on Days 2+3 (queried from orders_products instead of products). Corrected on Day 4. Worth one more drill early next week.
+- **NULLIF in YoY** — missed on Day 5 task, caught on Day 4 retry. Now solid.
+- **Interval precision** — cohort task used `INTERVAL '1 MONTH'` instead of `'4 months'` for a 3-month window. Read the spec carefully on time ranges.
 
 ---
 
-### Agent Notes (self-correction)
+### Agent Notes
 
-- Proposed tasks with non-existent schema columns (Type B recursive CTE with fake `parent_id`) twice — now saved to memory, will not repeat.
-- Penalized correct solutions based on misreading data context (LAG direction, NULL amounts, pending status logic) — pushback was valid every time.
-- Task wording mismatches between scenario description and output spec — needs stricter internal consistency check before publishing tasks.
+- Proposed Type B recursive CTE tasks twice with fake schema — saved to memory, will not repeat until real self-referencing table exists.
+- Student requested settling on NOT EXISTS as the default anti-join pattern going forward.
+- Schema expansion planned for next week — student has premium course datasets to choose from, including a large smartphone sales dataset.
 
 ---
 
-### Week 20 Plan
+### Week 21 Plan
 
-**Concepts to rotate in:**
-- Type A CTE pattern — one more clean drill until it's automatic
-- Type B recursive CTE — needs a real self-referencing table first; worth discussing adding one to the schema
-- Query optimization — EXPLAIN ANALYZE reading, seq scan vs index scan (not covered since Week 18 Day 5)
-- Window functions: `FIRST_VALUE`, `NTILE`, cumulative SUM with custom frame specs — underused this week
-- YoY / period-over-period comparisons — not revisited since Week 18
-
-**Schema expansion discussion:** Student flagged that the current schema limits certain patterns (Type B recursive, more complex join graphs). Consider adding: an `employees` table with `manager_id` self-reference, or a `product_categories` hierarchy with `parent_id`.
+- **Schema expansion** — add new dataset (student to choose and share CREATE TABLE + INSERT)
+- **Anti-join one more drill** — correct direction, NOT EXISTS only
+- **Cohort LEFT JOIN pattern** — the spec version with explicit date range, not yet done cleanly
+- **STDDEV + window functions in new schema** — apply learned patterns to fresh data
+- **Query optimization** — EXPLAIN ANALYZE on more complex queries, index scan vs seq scan discussion

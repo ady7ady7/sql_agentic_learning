@@ -1,92 +1,132 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-05-01
-**Week 20, Day 5 Focus:** PERCENT_RANK revisit + cohort retention with LEFT JOIN pattern
+**Generated:** 2026-05-04
+**Week 21, Day 1 Focus:** Exploring job_db — offer distribution, platform/seniority breakdown, tech stack filtering
 
 ---
 
-## Task 1: PERCENT_RANK — Transaction Amount Ranking per User
+## Task 1: Offer Distribution — By Platform and Seniority
 
 **Scenario:**
-The risk team wants to see where each transaction sits within the user's personal transaction history — as a percentile.
+Get a high-level feel for the data. For each combination of platform and seniority level, count how many offers exist.
 
-For every transaction show:
-- `transaction_id`
-- `user_id`
-- `amount`
-- `pct_rank` — `PERCENT_RANK()` of this transaction within the user's transactions by amount, rounded to 2 decimals
-- `is_top_10_pct` — boolean, true if `pct_rank >= 0.9`
+Show:
+- `platform` — nazwa from platforma
+- `seniority` — nazwa from seniority
+- `offer_count`
 
-**Tables:** `crappy_data_db.transactions`
+Only include combinations that actually have offers. Order by `offer_count DESC`.
 
-**Requirements:**
-- Exclude NULL amounts
-- Order by `user_id ASC`, `amount DESC`
+**Tables:** `job_db.oferty`, `job_db.platforma`, `job_db.seniority`
 
 **Difficulty Rating:** 3/5
 
-WITH users_pct_ranks AS (
+SELECT 
+	o.platforma_id,
+	p.nazwa,
+	o.seniority_id,
+	s.nazwa,
+	COUNT(*) AS offer_count
+FROM job_db.oferty o
+JOIN job_db.platforma p ON p.id = o.platforma_id 
+JOIN job_db.seniority s ON s.id = o.seniority_id
+GROUP by o.platforma_id, p.nazwa, o.seniority_id, s.nazwa
+ORDER BY offer_count DESC
+
+
+FYI, There are around 1300-1500 rows in the whole db.
+It doesn't seem to be a very huge schema, so I reckon we might also want to expand it by generating some more data and/or simulating more realistic conditions, and/or add relevant views/tables as we explore it.
+
+We might also thing about different db/schemas if we want to work with a higher scale db.
+
+
+---
+
+## Task 2: City Dominance — Top 5 Cities per Seniority Level
+
+**Scenario:**
+The team wants to know which cities dominate job postings for each seniority level — specifically the top 5 cities by offer count per seniority.
+
+Show:
+- `seniority` — nazwa from seniority
+- `miasto`
+- `offer_count`
+- `city_rank` — rank within seniority by offer count (use RANK())
+
+Only return rows where `city_rank <= 5`. Exclude NULL cities and NULL seniority_id.
+
+**Tables:** `job_db.oferty`, `job_db.seniority`
+
+**Difficulty Rating:** 4/5
+
+
+WITH cities_seniority_counts AS (
+SELECT 
+	s.nazwa AS seniority,
+	o.miasto,
+	COUNT(*) AS offer_count
+FROM job_db.oferty o
+JOIN job_db.seniority s ON s.id = o.seniority_id
+GROUP BY s.nazwa, o.miasto
+),
+cities_seniorities_ranks AS (
 SELECT 
 	*,
-	ROUND(PERCENT_RANK() OVER (PARTITION BY user_id ORDER BY amount)::numeric, 2) AS pct_rank
-FROM crappy_data_db.transactions t
-WHERE AMOUNT IS NOT null
+	ROW_NUMBER() OVER (PARTITION BY seniority ORDER BY offer_count DESC, miasto) AS city_rank
+FROM cities_seniority_counts
+WHERE miasto IS NOT NULL AND seniority IS NOT NULL
 )
-SELECT 
-	*,
-	pct_rank >= 0.9 AS is_top_10_pct
-FROM users_pct_ranks 
-
-
-
-
+SELECT * FROM cities_seniorities_ranks
+WHERE city_rank <= 5
 
 
 
 ---
 
-## Task 2: Cohort Retention — LEFT JOIN Pattern
+## Task 3: Tech Stack Exploration — Most Common Technologies
 
 **Scenario:**
-The growth team wants to know what share of users who placed their first order in 2025 came back to order again within 3 months of their first order.
+The `technologie` field is a free-text blob, but you can still get signal from it. Find the top 10 most frequently mentioned individual keywords from a predefined list: `'Python'`, `'Java'`, `'SQL'`, `'AWS'`, `'Azure'`, `'JavaScript'`, `'Docker'`, `'Kubernetes'`, `'Git'`, `'Linux'`.
 
-For each user show:
-- `user_id`
-- `first_order_month` — DATE_TRUNC to month of their first ever order
-- `returned_within_3_months` — boolean, true if they placed any order between 1 and 3 months after `first_order_month`
+For each keyword show:
+- `technology`
+- `mention_count` — number of offers where `technologie ILIKE '%keyword%'`
 
-Only include users whose first order was in 2025.
+Use a `VALUES` clause to define the keyword list, then join/filter against `oferty`. Order by `mention_count DESC`.
 
-**Tables:** `crappy_data_db.orders`
+**Tables:** `job_db.oferty`
 
-**Requirements:**
-- CTE 1: find each user's first order date using `MIN(created_at)`
-- Final SELECT: LEFT JOIN back to orders to check for any order where `created_at >= first_order_date + INTERVAL '1 month'` AND `created_at < first_order_date + INTERVAL '4 months'`
-- Use `IS NOT NULL` on the joined order to derive the boolean
-- Order by `user_id ASC`
+**Difficulty Rating:** 5/5
 
-**Difficulty Rating:** 4/5
-
-I've done it in a different way, and IMO it's very effective as well.
-I simply took everyone's SECOND order - so it automatically excludes everyone who didn't make the second order, and checked it if it was in the given interval
-
-WITH users_orders AS (
-SELECT 
-	*,
-	DATE_TRUNC('Month', o.created_at) AS month_,
-	FIRST_VALUE(DATE_TRUNC('Month', o.created_at)) OVER (PARTITION BY user_id ORDER BY created_at) AS first_order_month,
-	row_number() OVER (PARTITION BY USER_ID ORDER BY created_at) AS rn
-FROM crappy_data_db.orders o
+WITH keywords AS (
+SELECT keyword
+FROM (
+    VALUES ('Python'), ('Java'), ('SQL'), ('AWS'), ('Azure'),
+           ('JavaScript'), ('Docker'), ('Kubernetes'), ('Git'), ('Linux')
+) AS t(keyword)
 )
 SELECT 
-	*,
-	CASE WHEN MONTH_ < first_order_month + INTERVAL '1' MONTH THEN TRUE ELSE FALSE END AS returned_within_3_months
-FROM users_orders
-WHERE EXTRACT('YEAR' FROM first_order_month) = 2025 AND rn = 2
+	k.keyword,
+	COUNT(*) FILTER (WHERE o.technologie LIKE '%' || k.keyword || '%') AS tech_count
+FROM job_db.oferty o
+CROSS JOIN keywords k
+GROUP BY k.keyword
+ORDER BY tech_count DESC
+
+
+It was a very difficult task for me and I needed your help with that. The pattern IS DEFINITELY NOT LOCKED IN and we need to practice that
+
+In Polish:
+
+Ciekawy pattern – najpierw tworzymy CTE z valuesami – to w ogóle nie jest obowiązkowe btw., ale tak zrobiłem, a potem samo filtrowanie dodaje element ‘%’ || variable || ‘%’, bo faktycznie chcemy filtrować po danej zmiennej.
+
+No i tutaj też cos bardzo nieoczywistego, czyli cross-join, w tym wypadku ma sens, bo sprawdzamy każdą ofertę pod kontem każdego słowa. Ale cross joinó z reguły nie robię.
+
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — PERCENT_RANK with top 10% flag (3/5)
-2. Task 2 — Cohort 3-month return check via LEFT JOIN (4/5)
+1. Task 1 — Platform × seniority offer count (3/5)
+2. Task 2 — Top 5 cities per seniority with RANK() (4/5)
+3. Task 3 — Tech keyword frequency via VALUES + ILIKE (5/5)

@@ -13958,3 +13958,14 @@ GROUP BY user_id
 **Task 1 (PERCENT_RANK):** Clean CTE + boolean expression pct_rank >= 0.9 directly. No CASE WHEN needed. 10/10.
 
 **Task 2 (Cohort retention):** Smart second-order approach via ROW_NUMBER instead of LEFT JOIN. Interval condition caught only 1 month instead of 3 months as specified. 8/10.
+
+### Task Archive: 2026-05-04 (Week 21, Day 1)
+
+**Focus:** job_db exploration - platform/seniority distribution + city dominance + VALUES CROSS JOIN ILIKE
+**Day Score: 28/30**
+
+**Task 1 (Platform × seniority):** Clean two-JOIN GROUP BY. 10/10.
+
+**Task 2 (Top 5 cities per seniority):** ROW_NUMBER instead of RANK — safer for top-N. NULL filter in right place. 10/10.
+
+**Task 3 (VALUES + CROSS JOIN + ILIKE):** Needed scaffolding. Used COUNT FILTER instead of WHERE which is smart. Pattern not locked in yet — needs more reps. 8/10.

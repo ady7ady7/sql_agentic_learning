@@ -1,132 +1,132 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-05-04
-**Week 21, Day 1 Focus:** Exploring job_db — offer distribution, platform/seniority breakdown, tech stack filtering
+**Generated:** 2026-05-05
+**Week 21, Day 2 Focus:** VALUES CROSS JOIN repeat + salary text parsing + platform share per seniority
 
 ---
 
-## Task 1: Offer Distribution — By Platform and Seniority
+## Task 1: VALUES + CROSS JOIN — Contract Type per Seniority
 
 **Scenario:**
-Get a high-level feel for the data. For each combination of platform and seniority level, count how many offers exist.
+The team wants to know how often each contract type (`'B2B'`, `'Permanent'`, `'Mandate contract'`) appears for each seniority level.
 
-Show:
-- `platform` — nazwa from platforma
+For each seniority + contract type combination show:
 - `seniority` — nazwa from seniority
-- `offer_count`
+- `contract_type` — the contract type keyword
+- `offer_count` — number of offers where `umowa ILIKE '%keyword%'` for that seniority
 
-Only include combinations that actually have offers. Order by `offer_count DESC`.
-
-**Tables:** `job_db.oferty`, `job_db.platforma`, `job_db.seniority`
-
-**Difficulty Rating:** 3/5
-
-SELECT 
-	o.platforma_id,
-	p.nazwa,
-	o.seniority_id,
-	s.nazwa,
-	COUNT(*) AS offer_count
-FROM job_db.oferty o
-JOIN job_db.platforma p ON p.id = o.platforma_id 
-JOIN job_db.seniority s ON s.id = o.seniority_id
-GROUP by o.platforma_id, p.nazwa, o.seniority_id, s.nazwa
-ORDER BY offer_count DESC
-
-
-FYI, There are around 1300-1500 rows in the whole db.
-It doesn't seem to be a very huge schema, so I reckon we might also want to expand it by generating some more data and/or simulating more realistic conditions, and/or add relevant views/tables as we explore it.
-
-We might also thing about different db/schemas if we want to work with a higher scale db.
-
-
----
-
-## Task 2: City Dominance — Top 5 Cities per Seniority Level
-
-**Scenario:**
-The team wants to know which cities dominate job postings for each seniority level — specifically the top 5 cities by offer count per seniority.
-
-Show:
-- `seniority` — nazwa from seniority
-- `miasto`
-- `offer_count`
-- `city_rank` — rank within seniority by offer count (use RANK())
-
-Only return rows where `city_rank <= 5`. Exclude NULL cities and NULL seniority_id.
+Use a `VALUES` clause for the contract type list and `CROSS JOIN` to `oferty`. Exclude NULL seniority_id.
 
 **Tables:** `job_db.oferty`, `job_db.seniority`
 
-**Difficulty Rating:** 4/5
+**Order by:** `seniority ASC`, `offer_count DESC`
 
+**Difficulty Rating:** 3/5
 
-WITH cities_seniority_counts AS (
-SELECT 
-	s.nazwa AS seniority,
-	o.miasto,
-	COUNT(*) AS offer_count
-FROM job_db.oferty o
-JOIN job_db.seniority s ON s.id = o.seniority_id
-GROUP BY s.nazwa, o.miasto
-),
-cities_seniorities_ranks AS (
-SELECT 
-	*,
-	ROW_NUMBER() OVER (PARTITION BY seniority ORDER BY offer_count DESC, miasto) AS city_rank
-FROM cities_seniority_counts
-WHERE miasto IS NOT NULL AND seniority IS NOT NULL
+WITH keywords AS (
+SELECT keyword
+FROM ( 
+	VALUES ('B2B'), ('Permanent'), ('Mandate') 
+) AS t(keyword)
 )
-SELECT * FROM cities_seniorities_ranks
-WHERE city_rank <= 5
-
+SELECT 
+	o.seniority_id,
+	k.keyword AS contract_type,
+	COUNT(*) FILTER (WHERE o.umowa ILIKE '%' || k.keyword || '%') AS offer_count
+FROM keywords k
+CROSS JOIN job_db.oferty o
+GROUP BY o.seniority_id, k.keyword
+ORDER BY seniority_id, offer_count DESC
 
 
 ---
 
-## Task 3: Tech Stack Exploration — Most Common Technologies
+## Task 2: Salary Parsing — Average Salary Floor by Seniority
 
 **Scenario:**
-The `technologie` field is a free-text blob, but you can still get signal from it. Find the top 10 most frequently mentioned individual keywords from a predefined list: `'Python'`, `'Java'`, `'SQL'`, `'AWS'`, `'Azure'`, `'JavaScript'`, `'Docker'`, `'Kubernetes'`, `'Git'`, `'Linux'`.
+The `zarobki` field is messy text, but rows containing `'PLN/month'` follow a pattern like `'14 400 - 17 600 PLN/month'`. The team wants to extract the lower bound of the salary range and average it per seniority.
 
-For each keyword show:
-- `technology`
-- `mention_count` — number of offers where `technologie ILIKE '%keyword%'`
+For each seniority show:
+- `seniority` — nazwa from seniority
+- `avg_salary_floor` — average of the lower bound salary, rounded to 0 decimals
 
-Use a `VALUES` clause to define the keyword list, then join/filter against `oferty`. Order by `mention_count DESC`.
+**To extract the lower bound:**
+1. Filter to rows where `zarobki ILIKE '%PLN/month%'`
+2. Use `SPLIT_PART(zarobki, ' - ', 1)` to get the part before ` - `
+3. Use `REGEXP_REPLACE(..., '[^0-9]', '', 'g')` to strip non-numeric characters
+4. Cast to integer
 
-**Tables:** `job_db.oferty`
+**Tables:** `job_db.oferty`, `job_db.seniority`
+
+**Requirements:**
+- Exclude NULL seniority_id
+- Order by `avg_salary_floor DESC`
+
+**Difficulty Rating:** 4/5
+
+SELECT 
+	seniority_id,
+	round(AVG(REPLACE((REGEXP_MATCH(zarobki, '(\d[\d\s]+)'))[1], ' ', '')::NUMERIC), 2) AS avg_salary_floor
+FROM job_db.oferty o
+WHERE seniority_id IS NOT null
+GROUP BY seniority_id
+ORDER BY avg_salary_floor DESC
+
+
+---
+
+## Task 3: Platform Share — Dominance per Seniority
+
+**Scenario:**
+For each seniority level, which platform has the highest share of offers? Show all platform/seniority combinations with their percentage share.
+
+For each combination show:
+- `seniority` — nazwa from seniority
+- `platform` — nazwa from platforma
+- `offer_count`
+- `total_for_seniority` — total offers for that seniority across all platforms
+- `share_pct` — `offer_count / total_for_seniority * 100`, rounded to 1 decimal
+
+Exclude NULL seniority_id and NULL platforma_id. Order by `seniority ASC`, `share_pct DESC`.
+
+**Tables:** `job_db.oferty`, `job_db.platforma`, `job_db.seniority`
+
+**Requirements:**
+- Use `SUM(offer_count) OVER (PARTITION BY seniority)` to get `total_for_seniority`
 
 **Difficulty Rating:** 5/5
 
-WITH keywords AS (
-SELECT keyword
-FROM (
-    VALUES ('Python'), ('Java'), ('SQL'), ('AWS'), ('Azure'),
-           ('JavaScript'), ('Docker'), ('Kubernetes'), ('Git'), ('Linux')
-) AS t(keyword)
+WITH seniorities_platforms_counts AS (
+SELECT 
+	o.seniority_id,
+	o.platforma_id,
+	COUNT(*) AS offer_count
+FROM job_db.oferty o
+WHERE o.seniority_id IS NOT NULL
+GROUP BY o.seniority_id , o.platforma_id
+),
+seniorities_counts AS (
+SELECT 
+	*,
+	SUM(offer_count) OVER (PARTITION BY seniority_id) AS total_for_seniority
+FROM seniorities_platforms_counts 
 )
 SELECT 
-	k.keyword,
-	COUNT(*) FILTER (WHERE o.technologie LIKE '%' || k.keyword || '%') AS tech_count
-FROM job_db.oferty o
-CROSS JOIN keywords k
-GROUP BY k.keyword
-ORDER BY tech_count DESC
-
-
-It was a very difficult task for me and I needed your help with that. The pattern IS DEFINITELY NOT LOCKED IN and we need to practice that
-
-In Polish:
-
-Ciekawy pattern – najpierw tworzymy CTE z valuesami – to w ogóle nie jest obowiązkowe btw., ale tak zrobiłem, a potem samo filtrowanie dodaje element ‘%’ || variable || ‘%’, bo faktycznie chcemy filtrować po danej zmiennej.
-
-No i tutaj też cos bardzo nieoczywistego, czyli cross-join, w tym wypadku ma sens, bo sprawdzamy każdą ofertę pod kontem każdego słowa. Ale cross joinó z reguły nie robię.
+	p.nazwa AS seniority,
+	s.nazwa AS platform,
+	offer_count,
+	total_for_seniority,
+	ROUND((offer_count / total_for_seniority)::NUMERIC * 100, 1) AS share_pct
+FROM seniorities_counts sc
+JOIN job_db.platforma p ON p.id = sc.platforma_id
+JOIN job_db.seniority s ON s.id = sc.seniority_id
+ORDER BY seniority_id, share_pct DESC
 
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Platform × seniority offer count (3/5)
-2. Task 2 — Top 5 cities per seniority with RANK() (4/5)
-3. Task 3 — Tech keyword frequency via VALUES + ILIKE (5/5)
+1. Task 1 — VALUES + CROSS JOIN contract types per seniority (3/5)
+2. Task 2 — Salary floor extraction + average per seniority (4/5)
+3. Task 3 — Platform share % per seniority with window SUM (5/5)

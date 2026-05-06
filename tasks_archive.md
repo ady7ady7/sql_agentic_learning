@@ -13969,3 +13969,14 @@ GROUP BY user_id
 **Task 2 (Top 5 cities per seniority):** ROW_NUMBER instead of RANK — safer for top-N. NULL filter in right place. 10/10.
 
 **Task 3 (VALUES + CROSS JOIN + ILIKE):** Needed scaffolding. Used COUNT FILTER instead of WHERE which is smart. Pattern not locked in yet — needs more reps. 8/10.
+
+### Task Archive: 2026-05-05 (Week 21, Day 2)
+
+**Focus:** VALUES CROSS JOIN repeat + salary text parsing + platform share per seniority
+**Day Score: 25/30**
+
+**Task 1 (VALUES + CROSS JOIN):** Pattern clicked independently this time. COUNT FILTER clean. Missing seniority name JOIN — used seniority_id instead. 9/10.
+
+**Task 2 (Salary parsing):** REGEXP_MATCH needed scaffolding — genuinely complex. Aggregation structure around it correct. REGEXP not expected to be independent yet. 8/10.
+
+**Task 3 (Platform share):** Window SUM correct, percentage calculation correct. Column aliases swapped — platforma labelled as seniority and vice versa. 8/10.

@@ -1,132 +1,116 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-05-05
-**Week 21, Day 2 Focus:** VALUES CROSS JOIN repeat + salary text parsing + platform share per seniority
+**Generated:** 2026-05-06
+**Week 21, Day 3 Focus:** GROUP BY multi-dimension + VALUES CROSS JOIN 3rd rep + cumulative SUM on job data
 
 ---
 
-## Task 1: VALUES + CROSS JOIN — Contract Type per Seniority
+## Task 1: Offer Count by Work Type per Platform
 
 **Scenario:**
-The team wants to know how often each contract type (`'B2B'`, `'Permanent'`, `'Mandate contract'`) appears for each seniority level.
+The team wants a breakdown of how each platform distributes offers across work types (Hybrid, Remote, Stationary etc.).
 
-For each seniority + contract type combination show:
-- `seniority` — nazwa from seniority
-- `contract_type` — the contract type keyword
-- `offer_count` — number of offers where `umowa ILIKE '%keyword%'` for that seniority
+For each platform + work type combination show:
+- `platform` — nazwa from platforma
+- `typ` — work type
+- `offer_count`
 
-Use a `VALUES` clause for the contract type list and `CROSS JOIN` to `oferty`. Exclude NULL seniority_id.
+Exclude NULL platforma_id and NULL typ. Order by `platform ASC`, `offer_count DESC`.
 
-**Tables:** `job_db.oferty`, `job_db.seniority`
-
-**Order by:** `seniority ASC`, `offer_count DESC`
+**Tables:** `job_db.oferty`, `job_db.platforma`
 
 **Difficulty Rating:** 3/5
 
-WITH keywords AS (
-SELECT keyword
-FROM ( 
-	VALUES ('B2B'), ('Permanent'), ('Mandate') 
-) AS t(keyword)
-)
-SELECT 
-	o.seniority_id,
-	k.keyword AS contract_type,
-	COUNT(*) FILTER (WHERE o.umowa ILIKE '%' || k.keyword || '%') AS offer_count
-FROM keywords k
-CROSS JOIN job_db.oferty o
-GROUP BY o.seniority_id, k.keyword
-ORDER BY seniority_id, offer_count DESC
 
+SELECT 
+	p.nazwa AS platform,
+	o.typ,
+	COUNT(*) AS offer_count
+FROM job_db.oferty o
+JOIN job_db.platforma p ON o.platforma_id = p.id
+WHERE o.platforma_id IS NOT NULL AND o.typ IS NOT NULL
+GROUP BY p.nazwa, o.typ
+ORDER BY platform, offer_count DESC
 
 ---
 
-## Task 2: Salary Parsing — Average Salary Floor by Seniority
+## Task 2: VALUES + CROSS JOIN — Work Type Prevalence by Seniority
 
 **Scenario:**
-The `zarobki` field is messy text, but rows containing `'PLN/month'` follow a pattern like `'14 400 - 17 600 PLN/month'`. The team wants to extract the lower bound of the salary range and average it per seniority.
+The team wants to know how often each work type (`'Hybrid'`, `'Remote'`, `'Stationary'`) appears for each seniority level.
 
-For each seniority show:
+For each seniority + work type combination show:
 - `seniority` — nazwa from seniority
-- `avg_salary_floor` — average of the lower bound salary, rounded to 0 decimals
+- `work_type` — the work type keyword
+- `offer_count` — number of offers where `typ ILIKE '%keyword%'` for that seniority
 
-**To extract the lower bound:**
-1. Filter to rows where `zarobki ILIKE '%PLN/month%'`
-2. Use `SPLIT_PART(zarobki, ' - ', 1)` to get the part before ` - `
-3. Use `REGEXP_REPLACE(..., '[^0-9]', '', 'g')` to strip non-numeric characters
-4. Cast to integer
+Use a `VALUES` clause for the work type list, `CROSS JOIN` to `oferty`, and JOIN to `seniority` for the name. Exclude NULL seniority_id. Order by `seniority ASC`, `offer_count DESC`.
 
 **Tables:** `job_db.oferty`, `job_db.seniority`
 
-**Requirements:**
-- Exclude NULL seniority_id
-- Order by `avg_salary_floor DESC`
-
 **Difficulty Rating:** 4/5
 
+
+WITH keywords AS (
+SELECT keyword FROM (
+	VALUES ('Hybrid'), ('Remote'), ('Statoniary')
+) AS t(keyword)
+)
 SELECT 
-	seniority_id,
-	round(AVG(REPLACE((REGEXP_MATCH(zarobki, '(\d[\d\s]+)'))[1], ' ', '')::NUMERIC), 2) AS avg_salary_floor
-FROM job_db.oferty o
-WHERE seniority_id IS NOT null
-GROUP BY seniority_id
-ORDER BY avg_salary_floor DESC
+	k.keyword,
+	s.nazwa AS seniority,
+	COUNT(*) FILTER (WHERE o.typ ILIKE '%' || k.keyword || '%') AS offer_count
+FROM keywords k
+CROSS JOIN job_db.oferty o
+JOIN job_db.seniority s ON s.id = o.seniority_id
+GROUP BY k.keyword, s.nazwa
+ORDER BY seniority, offer_count DESC
+
 
 
 ---
 
-## Task 3: Platform Share — Dominance per Seniority
+## Task 3: Cumulative Offers Over Time per Platform
 
 **Scenario:**
-For each seniority level, which platform has the highest share of offers? Show all platform/seniority combinations with their percentage share.
+The team wants to see how offers accumulated over time for each platform — a running total of offers by listing date.
 
-For each combination show:
-- `seniority` — nazwa from seniority
+For each platform + date combination show:
 - `platform` — nazwa from platforma
-- `offer_count`
-- `total_for_seniority` — total offers for that seniority across all platforms
-- `share_pct` — `offer_count / total_for_seniority * 100`, rounded to 1 decimal
+- `data_wystawienia`
+- `daily_offers` — number of offers listed on that date for that platform
+- `cumulative_offers` — running total of offers from the earliest date up to and including this date, per platform
 
-Exclude NULL seniority_id and NULL platforma_id. Order by `seniority ASC`, `share_pct DESC`.
+Exclude NULL `data_wystawienia` and NULL `platforma_id`. Order by `platform ASC`, `data_wystawienia ASC`.
 
-**Tables:** `job_db.oferty`, `job_db.platforma`, `job_db.seniority`
+**Tables:** `job_db.oferty`, `job_db.platforma`
 
 **Requirements:**
-- Use `SUM(offer_count) OVER (PARTITION BY seniority)` to get `total_for_seniority`
+- Use `SUM(daily_offers) OVER (PARTITION BY platform ORDER BY data_wystawienia ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`
 
 **Difficulty Rating:** 5/5
 
-WITH seniorities_platforms_counts AS (
+WITH platform_counts AS (
 SELECT 
-	o.seniority_id,
-	o.platforma_id,
-	COUNT(*) AS offer_count
+	p.nazwa AS platform,
+	o.data_wystawienia,
+	COUNT(*) AS daily_offers
 FROM job_db.oferty o
-WHERE o.seniority_id IS NOT NULL
-GROUP BY o.seniority_id , o.platforma_id
-),
-seniorities_counts AS (
-SELECT 
-	*,
-	SUM(offer_count) OVER (PARTITION BY seniority_id) AS total_for_seniority
-FROM seniorities_platforms_counts 
+JOIN job_db.platforma p ON o.platforma_id = p.id
+WHERE o.data_wystawienia IS NOT NULL AND o.platforma_id IS NOT NULL
+GROUP BY p.nazwa, o.data_wystawienia
+ORDER BY data_wystawienia
 )
 SELECT 
-	p.nazwa AS seniority,
-	s.nazwa AS platform,
-	offer_count,
-	total_for_seniority,
-	ROUND((offer_count / total_for_seniority)::NUMERIC * 100, 1) AS share_pct
-FROM seniorities_counts sc
-JOIN job_db.platforma p ON p.id = sc.platforma_id
-JOIN job_db.seniority s ON s.id = sc.seniority_id
-ORDER BY seniority_id, share_pct DESC
-
+	*,
+	SUM(daily_offers) OVER (PARTITION BY platform ORDER BY data_wystawienia ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_offers
+FROM platform_counts pc
+ORDER BY platform, data_wystawienia
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — VALUES + CROSS JOIN contract types per seniority (3/5)
-2. Task 2 — Salary floor extraction + average per seniority (4/5)
-3. Task 3 — Platform share % per seniority with window SUM (5/5)
+1. Task 1 — Work type breakdown per platform (3/5)
+2. Task 2 — VALUES + CROSS JOIN work types per seniority (4/5)
+3. Task 3 — Cumulative offers over time per platform (5/5)

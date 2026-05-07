@@ -1,116 +1,138 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-05-06
-**Week 21, Day 3 Focus:** GROUP BY multi-dimension + VALUES CROSS JOIN 3rd rep + cumulative SUM on job data
+**Generated:** 2026-05-07
+**Week 21, Day 4 Focus:** NOT EXISTS on job_db + YoY offer count LAG(12) + dominant work type per platform via RANK
 
 ---
 
-## Task 1: Offer Count by Work Type per Platform
+## Task 1: Anti-Join — Seniority Levels With No Salary Data
 
 **Scenario:**
-The team wants a breakdown of how each platform distributes offers across work types (Hybrid, Remote, Stationary etc.).
+The team wants to know which seniority levels have zero offers with any salary information — i.e. every offer for that seniority either has NULL in `zarobki` or doesn't contain `'PLN'` at all.
 
-For each platform + work type combination show:
-- `platform` — nazwa from platforma
-- `typ` — work type
-- `offer_count`
+Show:
+- `seniority_id`
+- `seniority` — nazwa from seniority
 
-Exclude NULL platforma_id and NULL typ. Order by `platform ASC`, `offer_count DESC`.
+Use `NOT EXISTS` starting from `job_db.seniority`, checking against `job_db.oferty`.
 
-**Tables:** `job_db.oferty`, `job_db.platforma`
+**Tables:** `job_db.seniority`, `job_db.oferty`
+
+**Order by:** `seniority_id ASC`
 
 **Difficulty Rating:** 3/5
 
+SELECT
+distinct
+	S.id AS seniority_id,
+	s.nazwa AS seniority
+FROM job_db.oferty o
+JOIN job_db.seniority s ON o.seniority_id = s.id
+WHERE NOT EXISTS (SELECT s2.id  FROM job_db.seniority s2
+					WHERE s2.id = o.seniority_id 
+					AND o.zarobki IS NULL AND o.zarobki LIKE '%PLN%')
+ORDER BY seniority_id
 
+---
+
+## Task 2: YoY — Monthly Offer Count 2024 vs 2025
+
+**Scenario:**
+The team wants to compare how many offers were listed each month in 2025 versus the same month in 2024.
+
+For each month show:
+- `month` — DATE_TRUNC to month
+- `offer_count` — number of offers listed that month
+- `prev_year_count` — offer count for the same month one year prior via `LAG(offer_count, 12)`
+- `yoy_diff` — `offer_count - prev_year_count` (NULL if no prior year data)
+
+**Tables:** `job_db.oferty`
+
+**Requirements:**
+- Exclude NULL `data_wystawienia`
+- Order by `month ASC`
+
+**Difficulty Rating:** 4/5
+
+WITH offers_months AS (
+SELECT 
+	*,
+	DATE_TRUNC('Month', data_wystawienia) AS month_
+FROM job_db.oferty o
+),
+monthly_counts AS (
+SELECT 
+	month_,
+	COUNT(*) AS offer_count
+FROM offers_months
+WHERE month_ IS NOT null
+GROUP BY month_
+),
+monthly_counts_prev_year AS (
+SELECT 
+	*,
+	lag(offer_count, 12) OVER (ORDER BY month_) AS prev_year_count
+FROM monthly_counts
+)
+SELECT 
+	*,
+	offer_count - prev_year_count  AS yoy_diff
+FROM monthly_counts_prev_year
+
+
+---
+
+## Task 3: Dominant Work Type per Platform
+
+**Scenario:**
+For each platform, find the work type (`typ`) that appears most often — the dominant work type.
+
+Show:
+- `platform` — nazwa from platforma
+- `dominant_typ`
+- `offer_count` — count of offers with that work type for that platform
+
+**Tables:** `job_db.oferty`, `job_db.platforma`
+
+**Requirements:**
+- CTE 1: GROUP BY platforma_id + typ to get counts
+- CTE 2: RANK() OVER (PARTITION BY platforma_id ORDER BY offer_count DESC) to rank types per platform
+- Final SELECT: filter to rank = 1, JOIN to platforma for the name
+- Exclude NULL platforma_id and NULL typ
+- Order by `platform ASC`
+
+**Difficulty Rating:** 5/5
+
+
+WITH platform_types_cnts AS (
 SELECT 
 	p.nazwa AS platform,
 	o.typ,
 	COUNT(*) AS offer_count
 FROM job_db.oferty o
 JOIN job_db.platforma p ON o.platforma_id = p.id
-WHERE o.platforma_id IS NOT NULL AND o.typ IS NOT NULL
+WHERE P.nazwa IS NOT NULL AND O.typ IS NOT NULL
 GROUP BY p.nazwa, o.typ
-ORDER BY platform, offer_count DESC
-
----
-
-## Task 2: VALUES + CROSS JOIN — Work Type Prevalence by Seniority
-
-**Scenario:**
-The team wants to know how often each work type (`'Hybrid'`, `'Remote'`, `'Stationary'`) appears for each seniority level.
-
-For each seniority + work type combination show:
-- `seniority` — nazwa from seniority
-- `work_type` — the work type keyword
-- `offer_count` — number of offers where `typ ILIKE '%keyword%'` for that seniority
-
-Use a `VALUES` clause for the work type list, `CROSS JOIN` to `oferty`, and JOIN to `seniority` for the name. Exclude NULL seniority_id. Order by `seniority ASC`, `offer_count DESC`.
-
-**Tables:** `job_db.oferty`, `job_db.seniority`
-
-**Difficulty Rating:** 4/5
-
-
-WITH keywords AS (
-SELECT keyword FROM (
-	VALUES ('Hybrid'), ('Remote'), ('Statoniary')
-) AS t(keyword)
-)
-SELECT 
-	k.keyword,
-	s.nazwa AS seniority,
-	COUNT(*) FILTER (WHERE o.typ ILIKE '%' || k.keyword || '%') AS offer_count
-FROM keywords k
-CROSS JOIN job_db.oferty o
-JOIN job_db.seniority s ON s.id = o.seniority_id
-GROUP BY k.keyword, s.nazwa
-ORDER BY seniority, offer_count DESC
-
-
-
----
-
-## Task 3: Cumulative Offers Over Time per Platform
-
-**Scenario:**
-The team wants to see how offers accumulated over time for each platform — a running total of offers by listing date.
-
-For each platform + date combination show:
-- `platform` — nazwa from platforma
-- `data_wystawienia`
-- `daily_offers` — number of offers listed on that date for that platform
-- `cumulative_offers` — running total of offers from the earliest date up to and including this date, per platform
-
-Exclude NULL `data_wystawienia` and NULL `platforma_id`. Order by `platform ASC`, `data_wystawienia ASC`.
-
-**Tables:** `job_db.oferty`, `job_db.platforma`
-
-**Requirements:**
-- Use `SUM(daily_offers) OVER (PARTITION BY platform ORDER BY data_wystawienia ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`
-
-**Difficulty Rating:** 5/5
-
-WITH platform_counts AS (
-SELECT 
-	p.nazwa AS platform,
-	o.data_wystawienia,
-	COUNT(*) AS daily_offers
-FROM job_db.oferty o
-JOIN job_db.platforma p ON o.platforma_id = p.id
-WHERE o.data_wystawienia IS NOT NULL AND o.platforma_id IS NOT NULL
-GROUP BY p.nazwa, o.data_wystawienia
-ORDER BY data_wystawienia
-)
+),
+platform_type_ranks AS (
 SELECT 
 	*,
-	SUM(daily_offers) OVER (PARTITION BY platform ORDER BY data_wystawienia ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_offers
-FROM platform_counts pc
-ORDER BY platform, data_wystawienia
+	rank() OVER (PARTITION BY platform ORDER BY offer_count DESC) AS rank
+FROM platform_types_cnts
+)
+SELECT 
+	platform,
+	typ AS dominant_type,
+	offer_count
+FROM platform_type_ranks
+WHERE RANK = 1
+ORDER BY platform
+
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Work type breakdown per platform (3/5)
-2. Task 2 — VALUES + CROSS JOIN work types per seniority (4/5)
-3. Task 3 — Cumulative offers over time per platform (5/5)
+1. Task 1 — NOT EXISTS: seniority levels with no salary data (3/5)
+2. Task 2 — YoY monthly offer count with LAG(12) (4/5)
+3. Task 3 — Dominant work type per platform via RANK (5/5)

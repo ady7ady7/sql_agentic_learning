@@ -13980,3 +13980,14 @@ GROUP BY user_id
 **Task 2 (Salary parsing):** REGEXP_MATCH needed scaffolding — genuinely complex. Aggregation structure around it correct. REGEXP not expected to be independent yet. 8/10.
 
 **Task 3 (Platform share):** Window SUM correct, percentage calculation correct. Column aliases swapped — platforma labelled as seniority and vice versa. 8/10.
+
+### Task Archive: 2026-05-06 (Week 21, Day 3)
+
+**Focus:** GROUP BY multi-dimension + VALUES CROSS JOIN 3rd rep + cumulative SUM on job data
+**Day Score: 29/30**
+
+**Task 1 (Work type per platform):** Clean JOIN, correct GROUP BY, NULLs filtered properly. 10/10.
+
+**Task 2 (VALUES + CROSS JOIN):** Independent this time, seniority JOIN included correctly. Typo 'Statoniary' won't match data but not a logic error. 9/10.
+
+**Task 3 (Cumulative offers):** CTE for daily counts, window SUM with explicit UNBOUNDED PRECEDING frame correct. 10/10.

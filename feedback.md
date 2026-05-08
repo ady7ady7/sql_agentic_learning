@@ -1,48 +1,48 @@
-## Weekly Summary — Week 20 (2026-04-27 to 2026-05-01)
+## Weekly Summary — Week 21 (2026-05-04 to 2026-05-08)
 
 ### Scores
 | Day | Focus | Score |
 |-----|-------|-------|
-| Day 1 | Type A CTE drill + NTILE + EXPLAIN ANALYZE | 30/30 |
-| Days 2+3 | FIRST_VALUE + rolling SUM + anti-join + LAG offset + YoY + NULLIF | 51/60 |
-| Day 4 | NOT EXISTS anti-join + YoY NULLIF + window frame comparison | 29/30 |
-| Day 5 | PERCENT_RANK + cohort retention | 18/20 |
+| Day 1 | job_db exploration: platform/seniority + city dominance + VALUES CROSS JOIN | 28/30 |
+| Day 2 | VALUES CROSS JOIN repeat + salary parsing + platform share | 25/30 |
+| Day 3 | Work type breakdown + VALUES CROSS JOIN 3rd rep + cumulative offers | 29/30 |
+| Day 4 | NOT EXISTS + YoY LAG(12) + dominant work type | 24/30 |
+| Day 5 | NOT EXISTS drill + NTILE + self-join co-occurrence | 29/30 |
 
-**Week total: ~128/140. Strong week with one double session to catch up.**
+**Week total: 135/150. Strongest week yet in terms of consistency.**
 
 ---
 
 ### Key Wins
 
-- **Type A CTE finally natural** — Day 1 was clean, no recursion, no self-join. Pattern is locked.
-- **NULLIF in division** — properly applied `NULLIF(lag(revenue,12), 0)` in YoY denominator on Day 4 after missing it on Days 2+3. Learned from the correction.
-- **Window frame specs** — `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`, `ROWS BETWEEN 2 PRECEDING AND CURRENT ROW`, `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING` all in one query. Solid understanding.
-- **NTILE** — new function, applied cleanly first time.
-- **NOT EXISTS direction** — correct FROM/WHERE direction on Day 4 after the inversion on Days 2+3.
-- **Creative solutions** — second-order ROW_NUMBER approach for cohort retention, boolean expressions instead of CASE WHEN. Good instincts.
+- **VALUES + CROSS JOIN pattern locked in** — three reps across Days 1-3, fully independent by Day 3. `COUNT FILTER (WHERE ILIKE '%' || keyword || '%')` is now natural.
+- **Dominant type pattern solid** — GROUP BY → RANK → filter rank=1, applied independently on job_db data.
+- **NOT EXISTS finally correct** — Day 5 clean execution after persistent direction errors. Root cause identified: drilling three anti-join variants at once created confusion. One pattern, one rep going forward.
+- **Cumulative SUM with UNBOUNDED PRECEDING** — applied correctly on new data independently.
+- **YoY LAG(12)** — clean on job_db data, NULL propagation correct.
+- **job_db integrated** — comfortable exploring a new schema, adapting to text fields, NULLs, and Polish naming.
 
 ---
 
 ### Focus Areas
 
-- **Anti-join direction** — inverted on Days 2+3 (queried from orders_products instead of products). Corrected on Day 4. Worth one more drill early next week.
-- **NULLIF in YoY** — missed on Day 5 task, caught on Day 4 retry. Now solid.
-- **Interval precision** — cohort task used `INTERVAL '1 MONTH'` instead of `'4 months'` for a 3-month window. Read the spec carefully on time ranges.
+- **NOT EXISTS direction** — failed on Day 4 (inverted + impossible condition), fixed on Day 5. Needs one more rep next week to fully cement.
+- **Salary parsing (REGEXP_MATCH)** — needed scaffolding, genuinely complex. Not a priority to drill — data modeling problem more than SQL skill gap.
+- **Self-join deduplication** — used `>` in WHERE instead of `<` in JOIN ON. Minor efficiency point worth remembering.
 
 ---
 
 ### Agent Notes
 
-- Proposed Type B recursive CTE tasks twice with fake schema — saved to memory, will not repeat until real self-referencing table exists.
-- Student requested settling on NOT EXISTS as the default anti-join pattern going forward.
-- Schema expansion planned for next week — student has premium course datasets to choose from, including a large smartphone sales dataset.
+- Drilling three anti-join variants simultaneously caused confusion — confirmed by student. Going forward: NOT EXISTS only.
+- REGEXP tasks should be avoided unless student specifically requests them — too complex for the learning return.
 
 ---
 
-### Week 21 Plan
+### Week 22 Plan
 
-- **Schema expansion** — add new dataset (student to choose and share CREATE TABLE + INSERT)
-- **Anti-join one more drill** — correct direction, NOT EXISTS only
-- **Cohort LEFT JOIN pattern** — the spec version with explicit date range, not yet done cleanly
-- **STDDEV + window functions in new schema** — apply learned patterns to fresh data
-- **Query optimization** — EXPLAIN ANALYZE on more complex queries, index scan vs seq scan discussion
+- **NOT EXISTS one more rep** — cement the direction permanently
+- **Type B recursive CTE** — still pending a self-referencing table; discuss adding one or move on
+- **PERCENT_RANK + STDDEV** on job_db — apply window functions to new schema
+- **Cohort LEFT JOIN pattern** — proper date range version, still not done cleanly
+- **Consider second dataset** — job_db is ~1300 rows, limited for scale-based analysis

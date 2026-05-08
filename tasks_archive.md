@@ -13991,3 +13991,27 @@ GROUP BY user_id
 **Task 2 (VALUES + CROSS JOIN):** Independent this time, seniority JOIN included correctly. Typo 'Statoniary' won't match data but not a logic error. 9/10.
 
 **Task 3 (Cumulative offers):** CTE for daily counts, window SUM with explicit UNBOUNDED PRECEDING frame correct. 10/10.
+
+### Task Archive: 2026-05-07 (Week 21, Day 4)
+
+**Focus:** NOT EXISTS anti-join + YoY offer count LAG(12) + dominant work type per platform
+**Day Score: 24/30**
+
+**Task 1 (NOT EXISTS):** Direction inverted again — FROM oferty instead of FROM seniority. Condition `zarobki IS NULL AND zarobki LIKE '%PLN%'` can never be true simultaneously. Anti-join direction keeps failing: must start FROM the table being checked, NOT EXISTS against the excluding table. 4/10.
+
+**Task 2 (YoY LAG(12)):** Three CTEs, LAG(12) correct, yoy_diff NULL propagation works. 10/10.
+
+**Task 3 (Dominant work type):** Pattern fully independent. GROUP BY → RANK → filter rank=1. Joined to platforma in CTE 1 for the name. 10/10.
+
+**Note:** Anti-join confusion traced to drilling three versions at once. Going forward: NOT EXISTS only, one rep at a time.
+
+### Task Archive: 2026-05-08 (Week 21, Day 5)
+
+**Focus:** NOT EXISTS clean drill + NTILE seniority tiers + self-join platform co-occurrence
+**Day Score: 29/30**
+
+**Task 1 (NOT EXISTS):** Correct direction — FROM platforma WHERE NOT EXISTS (oferty). Pattern finally clicked. 10/10.
+
+**Task 2 (NTILE):** Two CTEs, NTILE(4) correct, CASE labels right. 10/10.
+
+**Task 3 (Self-join):** Works. Used > in WHERE instead of < in JOIN ON — same result, slightly less efficient. 9/10.

@@ -1,138 +1,118 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-05-07
-**Week 21, Day 4 Focus:** NOT EXISTS on job_db + YoY offer count LAG(12) + dominant work type per platform via RANK
+**Generated:** 2026-05-08
+**Week 21, Day 5 Focus:** NOT EXISTS clean drill + NTILE on offer counts + self-join platform co-occurrence
 
 ---
 
-## Task 1: Anti-Join — Seniority Levels With No Salary Data
+## Task 1: NOT EXISTS — Platforms With No Hybrid Offers
 
 **Scenario:**
-The team wants to know which seniority levels have zero offers with any salary information — i.e. every offer for that seniority either has NULL in `zarobki` or doesn't contain `'PLN'` at all.
+The team wants to know which platforms have no Hybrid offers at all.
 
-Show:
-- `seniority_id`
-- `seniority` — nazwa from seniority
+Use `NOT EXISTS`. Start from `job_db.platforma`, check against `job_db.oferty`.
 
-Use `NOT EXISTS` starting from `job_db.seniority`, checking against `job_db.oferty`.
+**Expected Output Columns:** `platform_id`, `platform`
 
-**Tables:** `job_db.seniority`, `job_db.oferty`
+**Tables:** `job_db.platforma`, `job_db.oferty`
 
-**Order by:** `seniority_id ASC`
+**Order by:** `platform_id ASC`
 
 **Difficulty Rating:** 3/5
 
-SELECT
-distinct
-	S.id AS seniority_id,
-	s.nazwa AS seniority
-FROM job_db.oferty o
-JOIN job_db.seniority s ON o.seniority_id = s.id
-WHERE NOT EXISTS (SELECT s2.id  FROM job_db.seniority s2
-					WHERE s2.id = o.seniority_id 
-					AND o.zarobki IS NULL AND o.zarobki LIKE '%PLN%')
-ORDER BY seniority_id
+
+SELECT * 
+FROM job_db.platforma p
+WHERE NOT EXISTS
+(SELECT
+o.platforma_id FROM job_db.oferty o
+WHERE o.platforma_id = p.id AND o.typ ILIKE '%Hybrid%' 
+)
 
 ---
 
-## Task 2: YoY — Monthly Offer Count 2024 vs 2025
+## Task 2: NTILE — Seniority Tiers by Offer Volume
 
 **Scenario:**
-The team wants to compare how many offers were listed each month in 2025 versus the same month in 2024.
+The team wants to rank seniority levels into 4 tiers based on how many offers exist for each level — from least to most in-demand.
 
-For each month show:
-- `month` — DATE_TRUNC to month
-- `offer_count` — number of offers listed that month
-- `prev_year_count` — offer count for the same month one year prior via `LAG(offer_count, 12)`
-- `yoy_diff` — `offer_count - prev_year_count` (NULL if no prior year data)
+For each seniority level show:
+- `seniority` — nazwa from seniority
+- `offer_count`
+- `tier` — 1 (lowest volume) to 4 (highest volume) using `NTILE(4)`
+- `tier_label` — `'low'` for tier 1, `'mid-low'` for tier 2, `'mid-high'` for tier 3, `'high'` for tier 4
 
-**Tables:** `job_db.oferty`
+Exclude NULL seniority_id. Order by `offer_count DESC`.
 
-**Requirements:**
-- Exclude NULL `data_wystawienia`
-- Order by `month ASC`
+**Tables:** `job_db.oferty`, `job_db.seniority`
 
 **Difficulty Rating:** 4/5
 
-WITH offers_months AS (
+WITH seniorities_counts AS (
 SELECT 
-	*,
-	DATE_TRUNC('Month', data_wystawienia) AS month_
-FROM job_db.oferty o
-),
-monthly_counts AS (
-SELECT 
-	month_,
+	s.nazwa,
 	COUNT(*) AS offer_count
-FROM offers_months
-WHERE month_ IS NOT null
-GROUP BY month_
+FROM job_db.oferty o
+JOIN job_db.seniority s ON o.seniority_id = s.id
+WHERE s.id IS NOT NULL
+GROUP BY s.nazwa
 ),
-monthly_counts_prev_year AS (
+seniorities_tiers AS (
 SELECT 
 	*,
-	lag(offer_count, 12) OVER (ORDER BY month_) AS prev_year_count
-FROM monthly_counts
+	NTILE(4) OVER (ORDER BY offer_count) AS TIER
+FROM seniorities_counts
 )
 SELECT 
 	*,
-	offer_count - prev_year_count  AS yoy_diff
-FROM monthly_counts_prev_year
+	CASE 
+		WHEN tier = 1 THEN 'low'
+		WHEN tier = 2 THEN 'mid-low'
+		WHEN tier = 3 THEN 'mid-high' ELSE 'high'
+	END AS tier_label
+FROM seniorities_tiers
+ORDER BY offer_count DESC
 
 
 ---
 
-## Task 3: Dominant Work Type per Platform
+## Task 3: Self-Join — Same Position on Multiple Platforms
 
 **Scenario:**
-For each platform, find the work type (`typ`) that appears most often — the dominant work type.
+The team wants to find job positions that appear on more than one platform — to identify roles with broad cross-platform demand.
 
-Show:
-- `platform` — nazwa from platforma
-- `dominant_typ`
-- `offer_count` — count of offers with that work type for that platform
+For each pair of offers with the same `pozycja` but different `platforma_id`, show:
+- `pozycja`
+- `platform_1` — nazwa of the first platform
+- `platform_2` — nazwa of the second platform
+
+Use a self-join on `oferty`. To avoid duplicates, enforce `o1.platforma_id < o2.platforma_id`. Exclude NULL pozycja and NULL platforma_id.
+
+Order by `pozycja ASC`, `platform_1 ASC`.
 
 **Tables:** `job_db.oferty`, `job_db.platforma`
 
-**Requirements:**
-- CTE 1: GROUP BY platforma_id + typ to get counts
-- CTE 2: RANK() OVER (PARTITION BY platforma_id ORDER BY offer_count DESC) to rank types per platform
-- Final SELECT: filter to rank = 1, JOIN to platforma for the name
-- Exclude NULL platforma_id and NULL typ
-- Order by `platform ASC`
-
 **Difficulty Rating:** 5/5
 
+SELECT
+	o1.pozycja,
+	p1.nazwa AS platform_1,
+	p2.nazwa AS platform_2
+FROM job_db.oferty o1
+JOIN job_db.oferty o2 ON o1.pozycja = o2.pozycja AND o1.platforma_id != o2.platforma_id
+JOIN job_db.platforma p1 ON o1.platforma_id = p1.id
+JOIN job_db.platforma p2 ON o2.platforma_id = p2.id
+WHERE o1.platforma_id > o2.platforma_id
+AND O1.platforma_id IS NOT NULL AND O2.platforma_id IS NOT NULL AND o1.pozycja IS NOT NULL
+ORDER BY pozycja, platform_1
 
-WITH platform_types_cnts AS (
-SELECT 
-	p.nazwa AS platform,
-	o.typ,
-	COUNT(*) AS offer_count
-FROM job_db.oferty o
-JOIN job_db.platforma p ON o.platforma_id = p.id
-WHERE P.nazwa IS NOT NULL AND O.typ IS NOT NULL
-GROUP BY p.nazwa, o.typ
-),
-platform_type_ranks AS (
-SELECT 
-	*,
-	rank() OVER (PARTITION BY platform ORDER BY offer_count DESC) AS rank
-FROM platform_types_cnts
-)
-SELECT 
-	platform,
-	typ AS dominant_type,
-	offer_count
-FROM platform_type_ranks
-WHERE RANK = 1
-ORDER BY platform
+Not that difficult honestly, but a useful thing to remember
 
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — NOT EXISTS: seniority levels with no salary data (3/5)
-2. Task 2 — YoY monthly offer count with LAG(12) (4/5)
-3. Task 3 — Dominant work type per platform via RANK (5/5)
+1. Task 1 — NOT EXISTS: platforms with no Hybrid offers (3/5)
+2. Task 2 — NTILE seniority tiers by offer volume (4/5)
+3. Task 3 — Self-join same position on multiple platforms (5/5)

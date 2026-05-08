@@ -3342,3 +3342,36 @@ Week total: ~128/140.
 - Cohort LEFT JOIN pattern — explicit date range version
 - Apply learned patterns to new schema
 - Query optimization — EXPLAIN ANALYZE on complex queries
+
+---
+
+## Weekly Summary — Week 21 (2026-05-04 to 2026-05-08)
+
+### Scores
+| Day | Focus | Score |
+|-----|-------|-------|
+| Day 1 | job_db exploration: platform/seniority + city dominance + VALUES CROSS JOIN | 28/30 |
+| Day 2 | VALUES CROSS JOIN repeat + salary parsing + platform share | 25/30 |
+| Day 3 | Work type breakdown + VALUES CROSS JOIN 3rd rep + cumulative offers | 29/30 |
+| Day 4 | NOT EXISTS + YoY LAG(12) + dominant work type | 24/30 |
+| Day 5 | NOT EXISTS drill + NTILE + self-join co-occurrence | 29/30 |
+
+Week total: 135/150.
+
+### Key Wins
+- VALUES + CROSS JOIN locked in — three reps, fully independent by Day 3
+- Dominant type pattern solid — GROUP BY → RANK → filter rank=1
+- NOT EXISTS correct on Day 5 after persistent direction errors — root cause was drilling 3 variants at once
+- Cumulative SUM with UNBOUNDED PRECEDING applied independently on new data
+- job_db integrated — comfortable with new schema, text fields, NULLs
+
+### Focus Areas
+- NOT EXISTS direction — one more rep next week to cement
+- Self-join deduplication — > in WHERE vs < in JOIN ON efficiency point
+- REGEXP_MATCH — too complex for learning return, avoid unless requested
+
+### Week 22 Plan
+- NOT EXISTS one more rep
+- PERCENT_RANK + STDDEV on job_db
+- Cohort LEFT JOIN pattern — proper date range version
+- Consider second dataset for scale

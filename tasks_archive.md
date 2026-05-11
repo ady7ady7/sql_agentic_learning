@@ -14015,3 +14015,5 @@ GROUP BY user_id
 **Task 2 (NTILE):** Two CTEs, NTILE(4) correct, CASE labels right. 10/10.
 
 **Task 3 (Self-join):** Works. Used > in WHERE instead of < in JOIN ON — same result, slightly less efficient. 9/10.
+
+### Task Archive: 2026-05-08 (Week 21, Day 5) - already archived above, see Week 21 recap

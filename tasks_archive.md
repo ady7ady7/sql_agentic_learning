@@ -14017,3 +14017,14 @@ GROUP BY user_id
 **Task 3 (Self-join):** Works. Used > in WHERE instead of < in JOIN ON — same result, slightly less efficient. 9/10.
 
 ### Task Archive: 2026-05-08 (Week 21, Day 5) - already archived above, see Week 21 recap
+
+### Task Archive: 2026-05-11 (Week 22, Day 1)
+
+**Focus:** crappy_data_db warm-up — GROUP BY + RANK within country + NOT EXISTS
+**Day Score: 29/30**
+
+**Task 1 (Country order stats):** CTE aggregation, all columns correct. COUNT(DISTINCT u.id) correct. 10/10.
+
+**Task 2 (RANK within country):** CTE for spend, RANK() PARTITION BY country correct. Missing alias on RANK() column — cosmetic. 9/10.
+
+**Task 3 (NOT EXISTS):** Correct direction — FROM users WHERE NOT EXISTS (chat_tickets). Pattern cemented. 10/10.

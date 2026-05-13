@@ -14028,3 +14028,14 @@ GROUP BY user_id
 **Task 2 (RANK within country):** CTE for spend, RANK() PARTITION BY country correct. Missing alias on RANK() column — cosmetic. 9/10.
 
 **Task 3 (NOT EXISTS):** Correct direction — FROM users WHERE NOT EXISTS (chat_tickets). Pattern cemented. 10/10.
+
+### Task Archive: 2026-05-12 (Week 22, Day 2)
+
+**Focus:** EPOCH ticket resolution + cohort LEFT JOIN + STDDEV cross-table
+**Day Score: 23/30**
+
+**Task 1 (EPOCH resolution):** AVG(interval) then EXTRACT EPOCH — cleaner than per-row EPOCH then AVG. 10/10.
+
+**Task 2 (Cohort LEFT JOIN):** LEFT JOIN pattern correct. Interval <= 3 months instead of < 4 months — misses boundary. GROUP BY in second CTE redundant with DISTINCT in final SELECT. 8/10.
+
+**Task 3 (STDDEV cross-table):** STDDEV computed on orders instead of transactions (misread). Window function + GROUP BY conflict — should use STDDEV(amount) as GROUP BY aggregation, not OVER. Duplicate column alias. 5/10.

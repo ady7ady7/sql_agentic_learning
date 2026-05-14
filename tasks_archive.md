@@ -14039,3 +14039,14 @@ GROUP BY user_id
 **Task 2 (Cohort LEFT JOIN):** LEFT JOIN pattern correct. Interval <= 3 months instead of < 4 months — misses boundary. GROUP BY in second CTE redundant with DISTINCT in final SELECT. 8/10.
 
 **Task 3 (STDDEV cross-table):** STDDEV computed on orders instead of transactions (misread). Window function + GROUP BY conflict — should use STDDEV(amount) as GROUP BY aggregation, not OVER. Duplicate column alias. 5/10.
+
+### Task Archive: 2026-05-13 (Week 22, Day 3)
+
+**Focus:** STDDEV GROUP BY drill + PERCENT_RANK job_db + cross-schema city JOIN
+**Day Score: 29/30**
+
+**Task 1 (STDDEV GROUP BY):** Clean — plain STDDEV(amount) aggregation, no window. tx_count >= 2 filter in outer query correct. 10/10.
+
+**Task 2 (PERCENT_RANK):** CTE for counts, PERCENT_RANK() OVER correct. NULL filter on platform name instead of platforma_id — same effect. 10/10.
+
+**Task 3 (Cross-schema JOIN):** COUNT(DISTINCT data_wystawienia) as proxy for distinct offers — reasonable given no PK on oferty. Student correctly identified no perfect deduplication option exists without a surrogate key. 9/10.

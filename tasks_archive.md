@@ -14050,3 +14050,25 @@ GROUP BY user_id
 **Task 2 (PERCENT_RANK):** CTE for counts, PERCENT_RANK() OVER correct. NULL filter on platform name instead of platforma_id — same effect. 10/10.
 
 **Task 3 (Cross-schema JOIN):** COUNT(DISTINCT data_wystawienia) as proxy for distinct offers — reasonable given no PK on oferty. Student correctly identified no perfect deduplication option exists without a surrogate key. 9/10.
+
+### Task Archive: 2026-05-14 (Week 22, Day 4)
+
+**Focus:** MoM LAG job_db + NTILE spend tiers cross-table + gaps-and-islands posting gaps
+**Day Score: 29/30**
+
+**Task 1 (LAG MoM):** Three CTEs, LAG(1) correct. ABS on mom_diff valid choice. 10/10.
+
+**Task 2 (NTILE cross-table):** Skipped unnecessary CTE, joined directly to orders — cleaner. AVG per-order amount valid interpretation. 10/10.
+
+**Task 3 (Gaps-and-islands):** Independently solved on new schema. EPOCH with average month seconds correct approach. Platform shown as ID not nazwa — missing JOIN to platforma. Only one qualifying gap in data. 9/10.
+
+### Task Archive: 2026-05-15 (Week 22, Day 5)
+
+**Focus:** Light Friday — GROUP BY + LAG + NOT EXISTS refresh
+**Day Score: 30/30**
+
+**Task 1 (Offer count by seniority + work type):** Clean JOIN, GROUP BY correct, NULLs filtered. 10/10.
+
+**Task 2 (LAG prev amount):** LAG(amount) OVER PARTITION BY user_id correct. No NULL filter needed — verified no NULLs in transactions.amount. 10/10.
+
+**Task 3 (NOT EXISTS 2025):** Correct direction — FROM seniority WHERE NOT EXISTS (oferty). Year filter correct. 10/10.

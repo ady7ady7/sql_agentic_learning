@@ -3375,3 +3375,38 @@ Week total: 135/150.
 - PERCENT_RANK + STDDEV on job_db
 - Cohort LEFT JOIN pattern — proper date range version
 - Consider second dataset for scale
+
+---
+
+## Weekly Summary — Week 22 (2026-05-11 to 2026-05-15)
+
+### Scores
+| Day | Focus | Score |
+|-----|-------|-------|
+| Day 1 | Country order stats + RANK within country + NOT EXISTS | 29/30 |
+| Day 2 | EPOCH ticket resolution + cohort LEFT JOIN + STDDEV cross-table | 23/30 |
+| Day 3 | STDDEV GROUP BY + PERCENT_RANK job_db + cross-schema JOIN | 29/30 |
+| Day 4 | MoM LAG job_db + NTILE spend tiers + gaps-and-islands posting gaps | 29/30 |
+| Day 5 | Light Friday — GROUP BY + LAG + NOT EXISTS refresh | 30/30 |
+
+Week total: 140/150.
+
+### Key Wins
+- NOT EXISTS cemented — correct direction all week
+- STDDEV GROUP BY clean after Day 2 correction
+- Gaps-and-islands independently on job_db with month granularity
+- First cross-schema JOIN between crappy_data_db and job_db
+- NTILE cross-table — skipped unnecessary CTE, efficient approach
+- 30/30 Friday closer
+
+### Focus Areas
+- STDDEV window vs GROUP BY — mixing OVER with GROUP BY breaks
+- Cohort LEFT JOIN interval boundary — <= 3 months vs < 4 months
+- Reading task specs carefully — wrong table used on Day 2
+
+### Week 23 Plan
+- Cross-schema tasks — mix job_db and crappy_data_db
+- Type A CTE one more drill
+- Cohort analysis proper LEFT JOIN date range
+- Window functions on job_db
+- Consider adding PK to job_db.oferty

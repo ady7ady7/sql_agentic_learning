@@ -3410,3 +3410,14 @@ Week total: 140/150.
 - Cohort analysis proper LEFT JOIN date range
 - Window functions on job_db
 - Consider adding PK to job_db.oferty
+
+
+### Feedback Archive: 2026-05-18 (Week 23, Day 1)
+
+**Score: 20/20**
+
+**Task 1 (GROUP BY + HAVING):** JOIN to platforma, NULL filters in WHERE, HAVING on COUNT(*) >= 100. Clean execution. 10/10.
+
+**Task 2 (LAG MoM):** Clean 3-CTE chain. DATE_TRUNC to month, SUM per user+month, LAG(1) partitioned by user, mom_diff at final SELECT. 10/10.
+
+**Student feedback:** Easy session.

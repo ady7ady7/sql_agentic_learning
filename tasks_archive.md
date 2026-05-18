@@ -14072,3 +14072,12 @@ GROUP BY user_id
 **Task 2 (LAG prev amount):** LAG(amount) OVER PARTITION BY user_id correct. No NULL filter needed — verified no NULLs in transactions.amount. 10/10.
 
 **Task 3 (NOT EXISTS 2025):** Correct direction — FROM seniority WHERE NOT EXISTS (oferty). Year filter correct. 10/10.
+
+### Task Archive: 2026-05-18 (Week 23, Day 1)
+
+**Focus:** GROUP BY + HAVING on job_db + MoM LAG per user
+**Day Score: 20/20**
+
+**Task 1 (GROUP BY + HAVING — high-volume platforms by contract type):** JOIN to platforma correct, WHERE filters NULLs, HAVING COUNT(*) >= 100 (spec said > 100, minor boundary, data-justified). GROUP BY and ORDER BY clean. 10/10.
+
+**Task 2 (LAG MoM revenue per user):** Clean 3-CTE chain — DATE_TRUNC for month, SUM per user+month, LAG(1) partitioned by user, mom_diff at final SELECT. 10/10.

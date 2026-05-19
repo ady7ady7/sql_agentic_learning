@@ -14081,3 +14081,15 @@ GROUP BY user_id
 **Task 1 (GROUP BY + HAVING — high-volume platforms by contract type):** JOIN to platforma correct, WHERE filters NULLs, HAVING COUNT(*) >= 100 (spec said > 100, minor boundary, data-justified). GROUP BY and ORDER BY clean. 10/10.
 
 **Task 2 (LAG MoM revenue per user):** Clean 3-CTE chain — DATE_TRUNC for month, SUM per user+month, LAG(1) partitioned by user, mom_diff at final SELECT. 10/10.
+
+
+### Task Archive: 2026-05-19 (Week 23, Day 2)
+
+**Focus:** Type A CTE + Cohort LEFT JOIN + FIRST_VALUE on job_db
+**Day Score: 26/30**
+
+**Task 1 (Type A CTE revenue rollup):** Three independent UNION ALL blocks correct. Redundant JOIN to orders table not needed (line revenue only needs orders_products + products + product_categories). No WHERE for NULL price/quantity as specified. Result correct. 10/10.
+
+**Task 2 (Cohort 3-month retention):** Three issues — (1) missing lower bound: orders in registration month itself (month 0) incorrectly included; (2) WHERE o.id IS NOT NULL converts LEFT JOIN to INNER JOIN, drops cohorts with 0 retention; (3) formula was churn rate not retention rate (cohort_size - retained) / cohort_size vs retained / cohort_size. 6/10.
+
+**Task 3 (FIRST_VALUE latest offer per platform):** Clean. DISTINCT deduplicates, FIRST_VALUE with DESC sort correct, INNER JOIN filters NULLs implicitly. 10/10.

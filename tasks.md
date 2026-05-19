@@ -1,88 +1,91 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-05-18
-**Week 23, Day 1 Focus:** GROUP BY + HAVING on job_db + MoM LAG per user
+**Generated:** 2026-05-20
+**Week 23, Day 3 Focus:** Cohort retention retry + window functions depth + cross-schema
 
 ---
 
-## Task 1: GROUP BY + HAVING — High-Volume Platforms by Contract Type
+## Task 1: Cohort LEFT JOIN — 3-Month Retention (Retry)
 
 **Scenario:**
-The team wants to see contract type distribution, but only for platforms that have more than 100 offers total.
+For each registration cohort (month), find how many users placed at least one order during months 1–3 after registration (not including the registration month itself).
 
-For each qualifying platform + contract type combination show:
-- `platform` — nazwa from platforma
-- `umowa` — contract type
-- `offer_count`
+Show per cohort:
+- `cohort_month` — DATE_TRUNC of users.created_at to month
+- `cohort_size` — total users registered that month
+- `retained_users` — distinct users who ordered in months 1, 2, or 3 after registration
+- `retention_rate` — `retained_users / cohort_size` as decimal, rounded to 2
 
-Exclude NULL platforma_id and NULL umowa. Only include platforms where total offer count > 100. Order by `platform ASC`, `offer_count DESC`.
+Order by `cohort_month ASC`.
 
-**Tables:** `job_db.oferty`, `job_db.platforma`
+**Tables:** `crappy_data_db.users`, `crappy_data_db.orders`
 
-**Difficulty Rating:** 3/5
+**Scaffolding — read carefully before writing:**
 
-SELECT 
-	p.nazwa AS platform,
-	o.umowa,
-	COUNT(*) AS offer_count
-FROM job_db.oferty o
-JOIN job_db.seniority s ON o.seniority_id = s.id
-JOIN job_db.platforma p ON p.id = o.platforma_id
-WHERE P.NAZWA IS NOT NULL AND umowa IS NOT null
-GROUP BY p.nazwa, o.umowa
-HAVING COUNT(*) >= 100
-ORDER BY platform, offer_count DESC
+**Boundary logic (draw this on paper if needed):**
+- Cohort month start = `DATE_TRUNC('month', users.created_at)` — call it `cohort_month`
+- Month 0 = the registration month itself → **exclude**
+- Month 1 starts at: `cohort_month + INTERVAL '1 month'`
+- Month 3 ends at (exclusive): `cohort_month + INTERVAL '4 months'`
+- So the JOIN condition is: `o.created_at >= cohort_month + INTERVAL '1 month' AND o.created_at < cohort_month + INTERVAL '4 months'`
+
+**LEFT JOIN vs WHERE trap:**
+- Put the date range condition in the JOIN ON clause, NOT in WHERE
+- If you filter `WHERE o.id IS NOT NULL`, you've turned the LEFT JOIN into an INNER JOIN — cohorts with 0 retained users will disappear from results
+- To keep all cohorts: use `COUNT(DISTINCT o.user_id)` — it naturally returns 0 when no orders match (NULLs are ignored by COUNT)
+
+**Retention rate:**
+- Retention = how many stayed → `retained_users / cohort_size`
+- Churn = how many left → `(cohort_size - retained_users) / cohort_size`
+- Make sure you're dividing retained, not the difference
+
+**Difficulty Rating:** 5/5
 
 ---
 
-## Task 2: LAG — Month-over-Month Order Revenue per User
+## Task 2: Cumulative SUM with Frame — Running Revenue per User
 
 **Scenario:**
-For each user, show their monthly order revenue alongside the previous month's revenue — to spot individual growth or decline.
+For each order, show the running total revenue for that user up to and including that order.
 
-For each user + month show:
+Show:
 - `user_id`
-- `month` — DATE_TRUNC to month
-- `monthly_revenue` — total order amount for that user that month
-- `prev_month_revenue` — previous month's revenue for that user via LAG(1)
-- `mom_diff` — `monthly_revenue - prev_month_revenue` (NULL if no prior month)
+- `order_id`
+- `created_at`
+- `amount`
+- `running_total` — cumulative SUM of amount for that user, ordered by created_at ASC, using an explicit window frame
+
+Use an explicit frame: `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
+
+Exclude NULL amounts. Order by `user_id ASC`, `created_at ASC`.
 
 **Tables:** `crappy_data_db.orders`
 
-**Requirements:**
-- Exclude NULL amounts
-- Order by `user_id ASC`, `month ASC`
-
 **Difficulty Rating:** 3/5
 
-WITH ORDERS_MONTHS AS (
-SELECT
-	*,
-	DATE_TRUNC('Month', created_at) AS month
-FROM crappy_data_db.orders o
-),
-users_monthly_revs AS (
-SELECT 
-	USER_ID,
-	MONTH,
-	SUM(amount) AS monthly_revenue
-FROM orders_months
-GROUP BY user_id, MONTH
-),
-users_pmonth_revs AS (
-SELECT 
-	*,
-	LAG(monthly_revenue) OVER (PARTITION BY user_id ORDER BY MONTH) AS prev_month_revenue
-FROM users_monthly_revs
-)
-SELECT 
-	*,
-	monthly_revenue - prev_month_revenue AS mom_diff
-FROM users_pmonth_revs
+---
+
+## Task 3: Cross-Schema — Top Seniority Levels by Polish City Users
+
+**Scenario:**
+Which seniority levels are most commonly listed for job offers in cities where we also have registered users?
+
+Join `crappy_data_db.users` (city) to `job_db.oferty` (miasto) to find offers in cities that appear in our user base. Then aggregate by seniority level.
+
+Show:
+- `seniority` — nazwa from job_db.seniority
+- `offer_count` — number of offers for that seniority in matched cities
+
+Exclude NULL seniority_id, NULL miasto, NULL city. Only include cities that appear in both tables (INNER JOIN on city = miasto). Order by `offer_count DESC`.
+
+**Tables:** `crappy_data_db.users`, `job_db.oferty`, `job_db.seniority`
+
+**Difficulty Rating:** 4/5
 
 ---
 
 ## Submission Instructions
 
-1. Task 1 — High-volume platforms by contract type (3/5)
-2. Task 2 — MoM order revenue per user with LAG(1) (3/5)
+1. Task 1 — Cohort 3-month retention retry (5/5)
+2. Task 2 — Running cumulative SUM with explicit frame (3/5)
+3. Task 3 — Cross-schema seniority by shared cities (4/5)

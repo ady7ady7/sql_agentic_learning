@@ -41,6 +41,42 @@ Order by `cohort_month ASC`.
 
 **Difficulty Rating:** 5/5
 
+
+
+WITH users_cohorts AS (
+SELECT
+	*,
+	DATE_TRUNC('Month', u.created_at) AS cohort_month
+FROM crappy_data_db.users u
+),
+cohort_sizes AS (
+SELECT 
+	cohort_month,
+	COUNT(id) AS cohort_size
+FROM users_cohorts
+GROUP BY cohort_month
+),
+retained_cohorts AS (
+SELECT 
+	cohort_month,
+	COUNT(DISTINCT(o.user_id)) AS retained_users
+FROM users_cohorts uc
+LEFT JOIN crappy_data_db.orders o ON uc.id = o.user_id AND DATE_TRUNC('Month', o.created_at) > uc.cohort_month AND DATE_TRUNC('Month', o.created_at) < cohort_month + INTERVAL '4 Months'
+GROUP BY cohort_month
+)
+SELECT 
+	cs.cohort_month,
+	cs.cohort_size,
+	rc.retained_users,
+	round(rc.retained_users / cs.cohort_size::NUMERIC, 2) AS retention_rate
+FROM cohort_sizes cs
+LEFT JOIN retained_cohorts rc ON cs.cohort_month = rc.cohort_month
+
+
+
+
+
+
 ---
 
 ## Task 2: Cumulative SUM with Frame — Running Revenue per User
@@ -63,6 +99,18 @@ Exclude NULL amounts. Order by `user_id ASC`, `created_at ASC`.
 
 **Difficulty Rating:** 3/5
 
+SELECT
+	user_id,
+	id AS order_id,
+	created_at,
+	amount,
+	SUM(amount) OVER (PARTITION BY user_id ORDER BY created_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total
+FROM crappy_data_db.ORDERS o
+WHERE amount IS NOT NULL 
+
+
+Easy
+
 ---
 
 ## Task 3: Cross-Schema — Top Seniority Levels by Polish City Users
@@ -81,6 +129,20 @@ Exclude NULL seniority_id, NULL miasto, NULL city. Only include cities that appe
 **Tables:** `crappy_data_db.users`, `job_db.oferty`, `job_db.seniority`
 
 **Difficulty Rating:** 4/5
+
+
+SELECT 
+	s.nazwa,
+	COUNT(DISTINCT(o.pozycja)) AS offer_count
+FROM job_db.oferty o
+JOIN crappy_data_db.users u ON o.miasto = u.city
+JOIN job_db.seniority s ON o.seniority_id = s.id
+WHERE s.nazwa IS NOT NULL AND o.miasto IS NOT NULL
+GROUP BY s.nazwa
+ORDER BY offer_count DESC
+
+
+Not difficultat all :)).
 
 ---
 

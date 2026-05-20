@@ -14093,3 +14093,15 @@ GROUP BY user_id
 **Task 2 (Cohort 3-month retention):** Three issues — (1) missing lower bound: orders in registration month itself (month 0) incorrectly included; (2) WHERE o.id IS NOT NULL converts LEFT JOIN to INNER JOIN, drops cohorts with 0 retention; (3) formula was churn rate not retention rate (cohort_size - retained) / cohort_size vs retained / cohort_size. 6/10.
 
 **Task 3 (FIRST_VALUE latest offer per platform):** Clean. DISTINCT deduplicates, FIRST_VALUE with DESC sort correct, INNER JOIN filters NULLs implicitly. 10/10.
+
+
+### Task Archive: 2026-05-20 (Week 23, Day 3)
+
+**Focus:** Cohort retention retry + cumulative SUM frame + cross-schema seniority
+**Day Score: 27/30**
+
+**Task 1 (Cohort 3-month retention retry):** LEFT JOIN structure correct, no WHERE killing it, date bounds correct via DATE_TRUNC comparison. Retention rate formula correct. COUNT(DISTINCT o.user_id) natural 0 for unmatched cohorts. 9/10 — minor: COUNT(DISTINCT(col)) style, DISTINCT is a clause not a function.
+
+**Task 2 (Cumulative SUM with frame):** Perfect. Explicit ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW, PARTITION BY user_id, NULL filter in WHERE. 10/10.
+
+**Task 3 (Cross-schema seniority by shared cities):** JOIN and GROUP BY correct. COUNT(DISTINCT o.pozycja) counts distinct titles not offers — should be COUNT(*) since oferty has no PK. Missing u.city IS NOT NULL filter. 8/10.

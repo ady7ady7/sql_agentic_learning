@@ -1,15 +1,15 @@
-## Week 23, Day 3 — Agent Feedback on Student
+## Week 23, Day 4 — Agent Feedback on Student
 
-**Score: 27/30**
+**Score: 26/30**
 
-**Task 1 (Cohort retry):** Cohort boundary logic correct this time. LEFT JOIN preserved, no WHERE trap, retention rate formula right. DATE_TRUNC comparison for bounds works cleanly. Minor: COUNT(DISTINCT(col)) — DISTINCT is a clause, not a function. 9/10.
+**Task 1 (dominant_type):** Two-CTE pattern correct. Used ROW_NUMBER() instead of RANK() — breaks tie-inclusion since ROW_NUMBER arbitrarily picks one winner. NULL filters in second CTE instead of first (minor — should filter before aggregation). 8/10.
 
-**Task 2 (Cumulative SUM):** Clean. Explicit frame, PARTITION BY, NULL filter. 10/10.
+**Task 2 (PERCENT_RANK):** Clean. Correct partition/order, ROUND with NUMERIC cast, NULL filters in WHERE. 10/10.
 
-**Task 3 (Cross-schema):** JOIN and aggregation correct. COUNT(DISTINCT pozycja) counts distinct titles not offers — COUNT(*) is correct proxy on a table without PK. Missing u.city IS NOT NULL filter. 8/10.
+**Task 3 (NULLIF):** NULLIF(amount, 0) applied to data values — treats zeros as invalid, which is wrong. Zeros are valid order amounts. NULLIF belongs only on the denominator: total_revenue / NULLIF(valid_order_count, 0). COUNT and SUM naturally ignore NULLs. 8/10.
 
 ---
 
 ## Student Feedback on Questions
 
-Tasks finished cleanly. Cohort boundary logic landed correctly on retry.
+Session complete.

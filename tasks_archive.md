@@ -14105,3 +14105,15 @@ GROUP BY user_id
 **Task 2 (Cumulative SUM with frame):** Perfect. Explicit ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW, PARTITION BY user_id, NULL filter in WHERE. 10/10.
 
 **Task 3 (Cross-schema seniority by shared cities):** JOIN and GROUP BY correct. COUNT(DISTINCT o.pozycja) counts distinct titles not offers — should be COUNT(*) since oferty has no PK. Missing u.city IS NOT NULL filter. 8/10.
+
+
+### Task Archive: 2026-05-21 (Week 23, Day 4)
+
+**Focus:** dominant_type CTE pattern + PERCENT_RANK on job_db + NULLIF safe division
+**Day Score: 26/30**
+
+**Task 1 (dominant_type via two CTEs):** Pattern correct — aggregate first CTE, RANK second CTE, filter rank=1. Used ROW_NUMBER() instead of RANK() — ROW_NUMBER breaks tie-inclusion requirement. NULL filters placed in second CTE instead of first (after aggregation). 8/10.
+
+**Task 2 (PERCENT_RANK within seniority):** Clean. Correct partition, order, ROUND with NUMERIC cast, NULL filters in WHERE. Extra seniority_id column not penalized. 10/10.
+
+**Task 3 (NULLIF safe avg):** NULLIF applied to data values (NULLIF(amount, 0)) instead of denominator only. This treats zero amounts as invalid — zeros are valid order values. NULLIF belongs only in the division guard: total_revenue / NULLIF(valid_order_count, 0). COUNT/SUM naturally ignore NULLs. 8/10.

@@ -1,153 +1,50 @@
 # Daily SQL Practice Tasks
 
-**Generated:** 2026-05-20
-**Week 23, Day 3 Focus:** Cohort retention retry + window functions depth + cross-schema
+**Generated:** 2026-05-22
+**Week 23, Day 5 Focus:** Light Friday — dominant_type RANK fix + NULLIF denominator + weekly recap
 
 ---
 
-## Task 1: Cohort LEFT JOIN — 3-Month Retention (Retry)
+## Task 1: dominant_type — RANK Tie Fix
 
 **Scenario:**
-For each registration cohort (month), find how many users placed at least one order during months 1–3 after registration (not including the registration month itself).
+Same as yesterday: for each user, find their dominant transaction type. If there's a tie, return all tied types.
 
-Show per cohort:
-- `cohort_month` — DATE_TRUNC of users.created_at to month
-- `cohort_size` — total users registered that month
-- `retained_users` — distinct users who ordered in months 1, 2, or 3 after registration
-- `retention_rate` — `retained_users / cohort_size` as decimal, rounded to 2
-
-Order by `cohort_month ASC`.
-
-**Tables:** `crappy_data_db.users`, `crappy_data_db.orders`
-
-**Scaffolding — read carefully before writing:**
-
-**Boundary logic (draw this on paper if needed):**
-- Cohort month start = `DATE_TRUNC('month', users.created_at)` — call it `cohort_month`
-- Month 0 = the registration month itself → **exclude**
-- Month 1 starts at: `cohort_month + INTERVAL '1 month'`
-- Month 3 ends at (exclusive): `cohort_month + INTERVAL '4 months'`
-- So the JOIN condition is: `o.created_at >= cohort_month + INTERVAL '1 month' AND o.created_at < cohort_month + INTERVAL '4 months'`
-
-**LEFT JOIN vs WHERE trap:**
-- Put the date range condition in the JOIN ON clause, NOT in WHERE
-- If you filter `WHERE o.id IS NOT NULL`, you've turned the LEFT JOIN into an INNER JOIN — cohorts with 0 retained users will disappear from results
-- To keep all cohorts: use `COUNT(DISTINCT o.user_id)` — it naturally returns 0 when no orders match (NULLs are ignored by COUNT)
-
-**Retention rate:**
-- Retention = how many stayed → `retained_users / cohort_size`
-- Churn = how many left → `(cohort_size - retained_users) / cohort_size`
-- Make sure you're dividing retained, not the difference
-
-**Difficulty Rating:** 5/5
-
-
-
-WITH users_cohorts AS (
-SELECT
-	*,
-	DATE_TRUNC('Month', u.created_at) AS cohort_month
-FROM crappy_data_db.users u
-),
-cohort_sizes AS (
-SELECT 
-	cohort_month,
-	COUNT(id) AS cohort_size
-FROM users_cohorts
-GROUP BY cohort_month
-),
-retained_cohorts AS (
-SELECT 
-	cohort_month,
-	COUNT(DISTINCT(o.user_id)) AS retained_users
-FROM users_cohorts uc
-LEFT JOIN crappy_data_db.orders o ON uc.id = o.user_id AND DATE_TRUNC('Month', o.created_at) > uc.cohort_month AND DATE_TRUNC('Month', o.created_at) < cohort_month + INTERVAL '4 Months'
-GROUP BY cohort_month
-)
-SELECT 
-	cs.cohort_month,
-	cs.cohort_size,
-	rc.retained_users,
-	round(rc.retained_users / cs.cohort_size::NUMERIC, 2) AS retention_rate
-FROM cohort_sizes cs
-LEFT JOIN retained_cohorts rc ON cs.cohort_month = rc.cohort_month
-
-
-
-
-
-
----
-
-## Task 2: Cumulative SUM with Frame — Running Revenue per User
-
-**Scenario:**
-For each order, show the running total revenue for that user up to and including that order.
+This time use `RANK()` (not ROW_NUMBER) so ties are preserved. Also put the NULL filters in the first CTE, before aggregation.
 
 Show:
 - `user_id`
-- `order_id`
-- `created_at`
-- `amount`
-- `running_total` — cumulative SUM of amount for that user, ordered by created_at ASC, using an explicit window frame
+- `dominant_type`
+- `type_count`
 
-Use an explicit frame: `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
+Exclude NULL user_id and NULL type. Order by `user_id ASC`, `type_count DESC`.
 
-Exclude NULL amounts. Order by `user_id ASC`, `created_at ASC`.
+**Tables:** `crappy_data_db.transactions`
+
+**Difficulty Rating:** 3/5
+
+---
+
+## Task 2: NULLIF — Safe Avg with Zero-Value Orders
+
+**Scenario:**
+For each user, calculate average order value. Exclude NULL amounts (they are invalid). Keep zero-amount orders (zeros are valid). Guard against division by zero with NULLIF on the denominator only.
+
+Show:
+- `user_id`
+- `valid_order_count` — COUNT of non-NULL amounts
+- `total_revenue` — SUM of non-NULL amounts (NULL if none)
+- `avg_order_value` — `total_revenue / NULLIF(valid_order_count, 0)`, rounded to 2
+
+Order by `user_id ASC`.
 
 **Tables:** `crappy_data_db.orders`
 
 **Difficulty Rating:** 3/5
 
-SELECT
-	user_id,
-	id AS order_id,
-	created_at,
-	amount,
-	SUM(amount) OVER (PARTITION BY user_id ORDER BY created_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total
-FROM crappy_data_db.ORDERS o
-WHERE amount IS NOT NULL 
-
-
-Easy
-
----
-
-## Task 3: Cross-Schema — Top Seniority Levels by Polish City Users
-
-**Scenario:**
-Which seniority levels are most commonly listed for job offers in cities where we also have registered users?
-
-Join `crappy_data_db.users` (city) to `job_db.oferty` (miasto) to find offers in cities that appear in our user base. Then aggregate by seniority level.
-
-Show:
-- `seniority` — nazwa from job_db.seniority
-- `offer_count` — number of offers for that seniority in matched cities
-
-Exclude NULL seniority_id, NULL miasto, NULL city. Only include cities that appear in both tables (INNER JOIN on city = miasto). Order by `offer_count DESC`.
-
-**Tables:** `crappy_data_db.users`, `job_db.oferty`, `job_db.seniority`
-
-**Difficulty Rating:** 4/5
-
-
-SELECT 
-	s.nazwa,
-	COUNT(DISTINCT(o.pozycja)) AS offer_count
-FROM job_db.oferty o
-JOIN crappy_data_db.users u ON o.miasto = u.city
-JOIN job_db.seniority s ON o.seniority_id = s.id
-WHERE s.nazwa IS NOT NULL AND o.miasto IS NOT NULL
-GROUP BY s.nazwa
-ORDER BY offer_count DESC
-
-
-Not difficultat all :)).
-
 ---
 
 ## Submission Instructions
 
-1. Task 1 — Cohort 3-month retention retry (5/5)
-2. Task 2 — Running cumulative SUM with explicit frame (3/5)
-3. Task 3 — Cross-schema seniority by shared cities (4/5)
+1. Task 1 — dominant_type with RANK (3/5)
+2. Task 2 — NULLIF on denominator only (3/5)

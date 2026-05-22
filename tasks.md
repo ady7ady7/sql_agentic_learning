@@ -23,6 +23,33 @@ Exclude NULL user_id and NULL type. Order by `user_id ASC`, `type_count DESC`.
 
 **Difficulty Rating:** 3/5
 
+
+WITH users_type_counts AS (
+SELECT 
+	user_id,
+	TYPE,
+	COUNT(*) AS transaction_count
+FROM crappy_data_db.transactions t
+GROUP BY user_id, TYPE
+),
+users_t_rank AS (
+SELECT 
+	*,
+	RANK() OVER (PARTITION BY user_id ORDER BY TRANSACTIOn_Count DESC) AS RANK
+FROM users_type_counts
+WHERE user_id IS NOT NULL AND TYPE IS NOT null
+)
+SELECT 
+	user_id,
+	TYPE AS dominant_type,
+	transaction_count AS type_count
+FROM users_t_rank
+WHERE RANK = 1
+
+
+But here we sometimes get more than 1 entry, but I get it - as you wanted.
+
+
 ---
 
 ## Task 2: NULLIF — Safe Avg with Zero-Value Orders
@@ -41,6 +68,20 @@ Order by `user_id ASC`.
 **Tables:** `crappy_data_db.orders`
 
 **Difficulty Rating:** 3/5
+
+
+WITH users_valid_orders_revenue AS (
+SELECT
+	user_id,
+	COUNT(amount) AS valid_order_count,
+	SUM(NULLIF(amount, 0)) AS total_revenue
+FROM crappy_data_db.orders o
+GROUP BY user_id
+)
+SELECT 
+	*,
+	ROUND(total_revenue::NUMERIC / NULLIF(valid_order_count, 0)::NUMERIC, 2) AS avg_order_value
+FROM users_valid_orders_revenue
 
 ---
 

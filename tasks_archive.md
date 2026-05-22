@@ -14117,3 +14117,13 @@ GROUP BY user_id
 **Task 2 (PERCENT_RANK within seniority):** Clean. Correct partition, order, ROUND with NUMERIC cast, NULL filters in WHERE. Extra seniority_id column not penalized. 10/10.
 
 **Task 3 (NULLIF safe avg):** NULLIF applied to data values (NULLIF(amount, 0)) instead of denominator only. This treats zero amounts as invalid — zeros are valid order values. NULLIF belongs only in the division guard: total_revenue / NULLIF(valid_order_count, 0). COUNT/SUM naturally ignore NULLs. 8/10.
+
+
+### Task Archive: 2026-05-22 (Week 23, Day 5)
+
+**Focus:** Light Friday — dominant_type RANK fix + NULLIF denominator
+**Day Score: 18/20**
+
+**Task 1 (dominant_type RANK fix):** RANK() correct, ties preserved, two-CTE pattern clean. NULL filters in second CTE (minor style — functionally fine). 10/10.
+
+**Task 2 (NULLIF denominator only):** SUM(NULLIF(amount, 0)) still present — zeros incorrectly excluded. Should be plain SUM(amount). NULLIF on denominator correct. 8/10.

@@ -203,3 +203,32 @@ Columns permit NULLs in all fields, allowing experimental data loading. [file:21
 - Additional index: idx_users_city on users(city)  
 
 [file:21]  
+
+
+---
+
+## Schema: nq_data (NQ Futures Tick Data)
+
+Real NQ (Nasdaq futures) tick data. Single instrument, trade data with aggressor side.
+
+### nq_data.ticks
+
+- `ts_event` (TIMESTAMPTZ NOT NULL) — exchange event timestamp, UTC. Use `AT TIME ZONE 'America/New_York'` for session analysis.
+- `ts_recv` (TIMESTAMPTZ NOT NULL) — system receive timestamp, UTC
+- `price` (NUMERIC(10,2) NOT NULL) — trade price, 0.25 tick increments
+- `size` (INTEGER NOT NULL) — contracts traded
+- `side` (CHAR(1) NOT NULL) — aggressor: A = ask/sell, B = bid/buy, N = unknown (194 rows)
+- `symbol` (TEXT NOT NULL) — NQ.c.0 continuous front month
+- `instrument_id` (BIGINT NOT NULL) — constant across dataset
+
+**Data profile:**
+- ~56M rows total (28M A-side, 28M B-side, 194 N-side)
+- Date range: 2025-09-15 to 2026-05-04 UTC
+- Price range: ~22,961 to ~27,926
+- September 2025 and May 2026 are partial months
+
+**Session hours (ET):**
+- RTH: 09:30-16:00
+- Globex/overnight: 18:00-17:00 ET next day (1hr break 17:00-18:00)
+
+**Indexes:** idx_ticks_ts_event on (ts_event), idx_ticks_symbol_ts on (symbol, ts_event)

@@ -232,3 +232,28 @@ Real NQ (Nasdaq futures) tick data. Single instrument, trade data with aggressor
 - Globex/overnight: 18:00-17:00 ET next day (1hr break 17:00-18:00)
 
 **Indexes:** idx_ticks_ts_event on (ts_event), idx_ticks_symbol_ts on (symbol, ts_event)
+
+
+---
+
+## Materialized Views: nq_data
+
+### nq_data.daily_ohlcv_globex
+Full Globex session daily bars (18:00 ET prev day → 17:00 ET close day). Created 2026-06-02.
+
+Columns:
+- trade_date (date) — ET calendar date of session close, used as bar label
+- weekday (text) — day of week name
+- open (numeric) — first traded price of session
+- high (numeric) — session high
+- low (numeric) — session low
+- close (numeric) — last traded price of session
+- total_volume (bigint) — total contracts traded (excludes N-side)
+- buy_volume (bigint) — contracts traded on B side (buy aggressor)
+- sell_volume (bigint) — contracts traded on A side (sell aggressor)
+- tick_count (bigint) — total ticks in session (excludes N-side)
+
+Notes:
+- N-side ticks (194 rows) excluded entirely
+- Trade date formula: ((ts_event AT TIME ZONE America/New_York) - INTERVAL 18 hours)::date + 1
+- Built with aggregate-then-JOIN pattern for performance (window function approach took 10+ min)

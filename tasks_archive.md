@@ -14127,3 +14127,15 @@ GROUP BY user_id
 **Task 1 (dominant_type RANK fix):** RANK() correct, ties preserved, two-CTE pattern clean. NULL filters in second CTE (minor style — functionally fine). 10/10.
 
 **Task 2 (NULLIF denominator only):** SUM(NULLIF(amount, 0)) still present — zeros incorrectly excluded. Should be plain SUM(amount). NULLIF on denominator correct. 8/10.
+
+
+### Task Archive: 2026-06-02 (Week 24, Day 1 — NQ Project begins)
+
+**Focus:** daily_ohlcv_globex materialized view — Layer 1 foundation
+**Notes:**
+- First attempt used FIRST_VALUE window functions — ran 10 minutes on 56M rows
+- Rewrote using aggregate-then-JOIN approach: MIN/MAX ts_event to find open/close times, join back to ticks for price. Significantly faster.
+- Trade date label: ((ts_event AT TIME ZONE America/New_York) - INTERVAL 18 hours)::date + 1
+- Globex session: 18:00 ET prev day to 17:00 ET close day
+- Created as materialized view: nq_data.daily_ohlcv_globex
+- Includes: trade_date, weekday, open, high, low, close, total_volume, buy_volume, sell_volume, tick_count

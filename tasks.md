@@ -1,91 +1,69 @@
-# Daily SQL Practice Tasks
+# NQ Project — Layer 1, Task 1
 
-**Generated:** 2026-05-22
-**Week 23, Day 5 Focus:** Light Friday — dominant_type RANK fix + NULLIF denominator + weekly recap
+**Generated:** 2026-06-02
+**Week 24, Day 1 Focus:** Daily OHLCV materialized view — foundation for all future analysis
 
 ---
 
-## Task 1: dominant_type — RANK Tie Fix
+## Task 1: Daily OHLCV Bars — Globex Session
 
 **Scenario:**
-Same as yesterday: for each user, find their dominant transaction type. If there's a tie, return all tied types.
+Build the foundational daily bar table for the NQ project. Every future analysis — ranges, session patterns, news day comparisons — will sit on top of this.
 
-This time use `RANK()` (not ROW_NUMBER) so ties are preserved. Also put the NULL filters in the first CTE, before aggregation.
+A "trading day" follows CME Globex convention:
+- Opens: 18:00 ET of the **previous calendar day**
+- Closes: 17:00 ET of the **label date**
+- So Monday's bar = Sunday 18:00 ET → Monday 17:00 ET
+- Label each bar by the **close date**
 
-Show:
-- `user_id`
-- `dominant_type`
-- `type_count`
+**Difficulty Rating:** 5/5
 
-Exclude NULL user_id and NULL type. Order by `user_id ASC`, `type_count DESC`.
+**Solution (aggregate-then-JOIN approach):**
 
-**Tables:** `crappy_data_db.transactions`
-
-**Difficulty Rating:** 3/5
-
-
-WITH users_type_counts AS (
-SELECT 
-	user_id,
-	TYPE,
-	COUNT(*) AS transaction_count
-FROM crappy_data_db.transactions t
-GROUP BY user_id, TYPE
+```sql
+CREATE MATERIALIZED VIEW nq_data.daily_ohlcv_globex AS
+WITH trade_dates AS (
+    SELECT
+        ((ts_event AT TIME ZONE 'America/New_York') - INTERVAL '18 hours')::date + 1 AS trade_date,
+        price,
+        size,
+        side,
+        ts_event
+    FROM nq_data.ticks
+    WHERE side != 'N'
 ),
-users_t_rank AS (
-SELECT 
-	*,
-	RANK() OVER (PARTITION BY user_id ORDER BY TRANSACTIOn_Count DESC) AS RANK
-FROM users_type_counts
-WHERE user_id IS NOT NULL AND TYPE IS NOT null
+agg AS (
+    SELECT
+        trade_date,
+        MIN(ts_event) AS open_time,
+        MAX(ts_event) AS close_time,
+        MAX(price)    AS high,
+        MIN(price)    AS low,
+        SUM(size)     AS total_volume,
+        SUM(size) FILTER (WHERE side = 'B') AS buy_volume,
+        SUM(size) FILTER (WHERE side = 'A') AS sell_volume,
+        COUNT(*)      AS tick_count
+    FROM trade_dates
+    GROUP BY trade_date
 )
-SELECT 
-	user_id,
-	TYPE AS dominant_type,
-	transaction_count AS type_count
-FROM users_t_rank
-WHERE RANK = 1
-
-
-But here we sometimes get more than 1 entry, but I get it - as you wanted.
-
-
----
-
-## Task 2: NULLIF — Safe Avg with Zero-Value Orders
-
-**Scenario:**
-For each user, calculate average order value. Exclude NULL amounts (they are invalid). Keep zero-amount orders (zeros are valid). Guard against division by zero with NULLIF on the denominator only.
-
-Show:
-- `user_id`
-- `valid_order_count` — COUNT of non-NULL amounts
-- `total_revenue` — SUM of non-NULL amounts (NULL if none)
-- `avg_order_value` — `total_revenue / NULLIF(valid_order_count, 0)`, rounded to 2
-
-Order by `user_id ASC`.
-
-**Tables:** `crappy_data_db.orders`
-
-**Difficulty Rating:** 3/5
-
-
-WITH users_valid_orders_revenue AS (
 SELECT
-	user_id,
-	COUNT(amount) AS valid_order_count,
-	SUM(NULLIF(amount, 0)) AS total_revenue
-FROM crappy_data_db.orders o
-GROUP BY user_id
-)
-SELECT 
-	*,
-	ROUND(total_revenue::NUMERIC / NULLIF(valid_order_count, 0)::NUMERIC, 2) AS avg_order_value
-FROM users_valid_orders_revenue
+    a.trade_date,
+    TRIM(TO_CHAR(a.trade_date, 'Day')) AS weekday,
+    t_open.price  AS open,
+    a.high,
+    a.low,
+    t_close.price AS close,
+    a.total_volume,
+    a.buy_volume,
+    a.sell_volume,
+    a.tick_count
+FROM agg a
+JOIN nq_data.ticks t_open  ON t_open.ts_event  = a.open_time
+JOIN nq_data.ticks t_close ON t_close.ts_event = a.close_time
+ORDER BY trade_date;
+```
 
----
-
-## Submission Instructions
-
-1. Task 1 — dominant_type with RANK (3/5)
-2. Task 2 — NULLIF on denominator only (3/5)
+**Notes:**
+- First attempt with FIRST_VALUE window functions ran 10 minutes on 56M rows
+- Aggregate-then-JOIN: one GROUP BY pass to find open_time/close_time, then two point lookups back to ticks for the price — far faster
+- Trade date shift logic: subtract 18h from ET timestamp, take date, add 1 day — maps overnight ticks to the correct next-day label

@@ -1,36 +1,45 @@
-# NQ Project — Layer 1, Task 1
+# NQ Project — Layer 1 completion + first analytical queries
 
-**Generated:** 2026-06-02
-**Week 24, Day 1 Focus:** Daily OHLCV materialized view — foundation for all future analysis
+**Generated:** 2026-06-03
+**Week 24, Day 2 Focus:** RTH materialized view + daily range analysis + buy/sell pressure by weekday
 
 ---
 
-## Task 1: Daily OHLCV Bars — Globex Session
+## Task 1: RTH Materialized View
 
 **Scenario:**
-Build the foundational daily bar table for the NQ project. Every future analysis — ranges, session patterns, news day comparisons — will sit on top of this.
+Build the Regular Trading Hours (RTH) daily bar view. Unlike Globex, RTH is simple — same calendar day, fixed window.
 
-A "trading day" follows CME Globex convention:
-- Opens: 18:00 ET of the **previous calendar day**
-- Closes: 17:00 ET of the **label date**
-- So Monday's bar = Sunday 18:00 ET → Monday 17:00 ET
-- Label each bar by the **close date**
+RTH session: **09:30:00 ET → 15:59:59.999 ET**, same calendar date.
 
-**Difficulty Rating:** 5/5
+Create materialized view `nq_data.daily_ohlcv_rth` with identical columns to `daily_ohlcv_globex`:
+- `trade_date` — ET calendar date (same as tick date for RTH, no overnight shift needed)
+- `weekday`
+- `open`, `high`, `low`, `close`
+- `total_volume`, `buy_volume`, `sell_volume`, `tick_count`
 
-**Solution (aggregate-then-JOIN approach):**
+**Key differences from Globex:**
+- Filter ticks: `EXTRACT(HOUR FROM ts_event AT TIME ZONE 'America/New_York') >= 9` and time >= 09:30 ET
+- No date shift — `(ts_event AT TIME ZONE 'America/New_York')::date` is the trade_date directly
+- Use the same aggregate-then-JOIN pattern for open/close (not window functions)
 
-```sql
-CREATE MATERIALIZED VIEW nq_data.daily_ohlcv_globex AS
-WITH trade_dates AS (
+**Tables:** `nq_data.ticks`
+
+**Difficulty Rating:** 4/5
+
+
+CREATE MATERIALIZED VIEW nq_data.daily_ohlcv_rth AS
+WITH rth_ticks AS (
     SELECT
-        ((ts_event AT TIME ZONE 'America/New_York') - INTERVAL '18 hours')::date + 1 AS trade_date,
+        (ts_event AT TIME ZONE 'America/New_York')::date AS trade_date,
         price,
         size,
         side,
         ts_event
     FROM nq_data.ticks
-    WHERE side != 'N'
+    WHERE (ts_event AT TIME ZONE 'America/New_York')::time >= '09:30'
+      AND (ts_event AT TIME ZONE 'America/New_York')::time < '16:00'
+      AND side != 'N'
 ),
 agg AS (
     SELECT
@@ -43,7 +52,7 @@ agg AS (
         SUM(size) FILTER (WHERE side = 'B') AS buy_volume,
         SUM(size) FILTER (WHERE side = 'A') AS sell_volume,
         COUNT(*)      AS tick_count
-    FROM trade_dates
+    FROM rth_ticks
     GROUP BY trade_date
 )
 SELECT
@@ -61,9 +70,86 @@ FROM agg a
 JOIN nq_data.ticks t_open  ON t_open.ts_event  = a.open_time
 JOIN nq_data.ticks t_close ON t_close.ts_event = a.close_time
 ORDER BY trade_date;
-```
 
-**Notes:**
-- First attempt with FIRST_VALUE window functions ran 10 minutes on 56M rows
-- Aggregate-then-JOIN: one GROUP BY pass to find open_time/close_time, then two point lookups back to ticks for the price — far faster
-- Trade date shift logic: subtract 18h from ET timestamp, take date, add 1 day — maps overnight ticks to the correct next-day label
+---
+
+## Task 2: Daily Range Analysis by Weekday
+
+**Scenario:**
+What is the average daily range for each day of the week? Are some days consistently bigger movers than others?
+
+Using `nq_data.daily_ohlcv_globex`, show for each weekday:
+- `weekday`
+- `avg_range` — average of (high - low), rounded to 2
+- `max_range` — largest single-day range
+- `min_range` — smallest single-day range
+- `day_count` — how many trading days in the sample
+
+Order by `avg_range DESC`.
+
+**Tables:** `nq_data.daily_ohlcv_globex`
+
+**Difficulty Rating:** 3/5
+
+WITH nq_days_daily_ranges AS (
+SELECT 
+	*,
+	high - low AS daily_range
+FROM nq_data.daily_ohlcv_rth
+)
+SELECT 
+	weekday,
+	ROUND(AVG(daily_range), 2) AS avg_range,
+	MAX(daily_range) AS max_range,
+	MIN(daily_range) AS min_range,
+	COUNT(*) AS day_count
+FROM nq_days_daily_ranges
+GROUP BY weekday
+ORDER BY avg_range DESC
+
+
+
+---
+
+## Task 3: Buy/Sell Pressure by Weekday
+
+**Scenario:**
+Which weekdays tend to be buyer-dominated vs seller-dominated? Use buy/sell volume ratio as the pressure metric.
+
+Using `nq_data.daily_ohlcv_globex`, show for each weekday:
+- `weekday`
+- `avg_buy_volume` — average daily buy volume, rounded to 0
+- `avg_sell_volume` — average daily sell volume, rounded to 0
+- `avg_ratio` — `avg_buy_volume / NULLIF(avg_sell_volume, 0)`, rounded to 4 — values above 1.0 = buyer dominated, below 1.0 = seller dominated
+
+Order by `avg_ratio DESC`.
+
+**Tables:** `nq_data.daily_ohlcv_globex`
+
+**Difficulty Rating:** 3/5
+
+WITH weekdays_avg_volumes AS (
+SELECT 
+	weekday,
+	ROUND(AVG(buy_volume), 2) AS avg_buy_volume,
+	ROUND(AVG(sell_volume), 2) AS avg_sell_volume
+FROM nq_data.daily_ohlcv_rth
+GROUP BY weekday
+)
+SELECT 
+	*,
+	avg_buy_volume / NULLIF(avg_sell_volume, 0) AS avg_volume_ratio
+FROM weekdays_avg_volumes
+ORDER BY avg_volume_ratio DESC
+
+
+It's interesting, as it's in a range of 0.0995 - 1.001 at most
+
+
+---
+
+## Submission Instructions
+
+1. Task 1 — daily_ohlcv_rth materialized view (4/5)
+2. Task 2 — daily range by weekday (3/5)
+3. Task 3 — buy/sell pressure by weekday (3/5)

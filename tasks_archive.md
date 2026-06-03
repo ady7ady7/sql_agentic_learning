@@ -14139,3 +14139,15 @@ GROUP BY user_id
 - Globex session: 18:00 ET prev day to 17:00 ET close day
 - Created as materialized view: nq_data.daily_ohlcv_globex
 - Includes: trade_date, weekday, open, high, low, close, total_volume, buy_volume, sell_volume, tick_count
+
+
+### Task Archive: 2026-06-03 (Week 24, Day 2)
+
+**Focus:** RTH materialized view + daily range by weekday + buy/sell pressure by weekday
+**Day Score: 30/30**
+
+**Task 1 (daily_ohlcv_rth):** Clean. ::time cast for RTH filter, ::date for trade_date, aggregate-then-JOIN for open/close, N-side excluded. 10/10.
+
+**Task 2 (daily range by weekday):** Used daily_ohlcv_rth instead of globex — better choice for trader analysis. Clean CTE, correct aggregation. Results: Fri/Thu highest avg range (~370pts), Mon lowest (~298pts). 10/10.
+
+**Task 3 (buy/sell pressure by weekday):** Clean, NULLIF on denominator. Key finding: ratio 0.995-1.001 across all weekdays — near-perfect buy/sell symmetry at daily aggregate level. 10/10.

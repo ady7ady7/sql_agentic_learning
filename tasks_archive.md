@@ -14151,3 +14151,15 @@ GROUP BY user_id
 **Task 2 (daily range by weekday):** Used daily_ohlcv_rth instead of globex — better choice for trader analysis. Clean CTE, correct aggregation. Results: Fri/Thu highest avg range (~370pts), Mon lowest (~298pts). 10/10.
 
 **Task 3 (buy/sell pressure by weekday):** Clean, NULLIF on denominator. Key finding: ratio 0.995-1.001 across all weekdays — near-perfect buy/sell symmetry at daily aggregate level. 10/10.
+
+
+### Task Archive: 2026-06-04 (Week 24, Day 3)
+
+**Focus:** First hour range vs full day + volume by hour + gap analysis
+**Day Score: 27/30**
+
+**Task 1 (RTH-RANGE-002 — first hour range vs full day):** Extended beyond spec to include rest-of-session OHLC and fh_pct_of_day. Correct aggregate-then-JOIN pattern. Duplicate rows from timestamp ties in point-lookup JOINs — needs DISTINCT ON fix. Key lesson: never JOIN raw ticks on range condition, always filter with ::time directly. 8/10.
+
+**Task 2 (RTH-VOL-002 — volume by hour):** Clean two-pass aggregation. Two-step approach (per day then average) correct. Window function for pct correct. 10/10.
+
+**Task 3 (RTH-GAP-001 — overnight gap):** LAG pattern correct, FILTER aggregation clean. avg_gap not rounded (minor). 9/10.

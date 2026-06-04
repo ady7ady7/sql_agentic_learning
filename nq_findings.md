@@ -8,8 +8,28 @@
 
 ## Volume & Aggressor Pressure
 
+### RTH-VOL-002 — Volume by Hour of Day (RTH)
+**Query ID:** RTH-VOL-002 | Task date: 2026-06-04
+
+| Hour ET | Avg Volume | Avg Ticks | % of Day |
+|---------|------------|-----------|----------|
+| 9       | 64,217     | 45,221    | 16.3%    |
+| 10      | 83,335     | 56,723    | 21.1%    |
+| 11      | 61,648     | 40,985    | 15.6%    |
+| 12      | 46,516     | 30,690    | 11.8%    |
+| 13      | 42,228     | 27,702    | 10.7%    |
+| 14      | 40,036     | 26,224    | 10.2%    |
+| 15      | 56,342     | 35,471    | 14.3%    |
+
+**Findings:**
+- Hour 10 (10:00–10:59 ET) is the most active by volume (21.1% of day) — post-open continuation/reversal drive
+- Hours 12–14 are the dead zone (lowest volume, ~10–12% each) — typical midday lull
+- Hour 15 (15:00–15:59 ET) spikes back up to 14.3% — closing hour drive
+- Hour 9 (09:30–09:59 ET, partial) at 16.3% is high relative to its 30-minute window — opening is extremely dense
+- Volume distribution is U-shaped with a dominant morning peak: open > close > midday
+
 ### RTH-VOL-001 — Buy/Sell Volume Ratio by Weekday (RTH)
-**Query:** Task 2026-06-03, daily_ohlcv_rth aggregated by weekday
+**Query ID:** RTH-VOL-001 | Task date: 2026-06-03
 **Finding:** Buy/sell volume ratio is nearly perfectly balanced across all weekdays (range: 0.995–1.001). No weekday shows persistent directional aggressor bias at the aggregate level.
 **Implication:** Daily-level buy/sell symmetry — aggressor imbalance, if it exists, operates at intraday or tick-by-tick level, not at the weekday aggregate.
 
@@ -17,8 +37,13 @@
 
 ## Daily Ranges
 
+### RTH-RANGE-002 — First Hour Range vs Full RTH Day Range
+**Query ID:** RTH-RANGE-002 | Task date: 2026-06-04
+**Finding:** First hour (09:30–10:30 ET) accounts for a significant but variable portion of the full RTH day range. Query extended to include full OHLC for both first hour and rest of session (10:30–16:00), enabling future analysis of whether first hour high/low/close predicts rest-of-session behavior.
+**Note:** Duplicate rows present in output due to timestamp ties in point-lookup JOINs — needs DISTINCT ON fix before using for aggregate analysis.
+
 ### RTH-RANGE-001 — Average Daily Range by Weekday (RTH)
-**Query:** Task 2026-06-03, daily_ohlcv_rth aggregated by weekday
+**Query ID:** RTH-RANGE-001 | Task date: 2026-06-03
 **Period:** Sep 2025 – May 2026, Mon–Fri only
 
 | Weekday   | Avg Range | Max Range | Min Range | Days |
@@ -44,6 +69,25 @@
 *(findings to be added)*
 
 ---
+
+## Gap Analysis
+
+### RTH-GAP-001 — Overnight Gap Analysis (RTH close → next RTH open)
+**Query ID:** RTH-GAP-001 | Task date: 2026-06-04
+
+| Metric | Value |
+|--------|-------|
+| Gap up days | 98 |
+| Gap down days | 88 |
+| Avg gap (all) | +5.35 pts |
+| Avg gap up | +145.01 pts |
+| Avg gap down | -150.24 pts |
+
+**Findings:**
+- Slight upward bias: 98 gap-up vs 88 gap-down days over the sample period
+- Average gap magnitude is symmetric: +145 up vs -150 down — gaps are roughly equal in size regardless of direction
+- Average gap of +5.35 across all days reflects the overall bullish drift in NQ during this period
+- Large average gap sizes (±145–150 pts) relative to typical RTH ranges (~300–370 pts) — overnight gaps represent ~40–50% of a typical day's range
 
 ## Session Patterns
 

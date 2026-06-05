@@ -56,3 +56,13 @@
 ## Student Feedback on Questions
 
 Week complete.
+
+---
+
+## Week 24, Day 4 — Agent Feedback on Student
+
+**Score: 18/20**
+
+**Task 1 (RTH-RANGE-002 DISTINCT ON fix + weekday summary):** DISTINCT ON placement is correct — on the outer SELECT wrapping the pre-aggregated CTEs, not inside one of them. Structure is clean: two aggregate CTEs (first_hour_agg, rest_agg), DISTINCT ON in the middle CTE (trade_dates_agg), then a plain GROUP BY weekday on top. NULLIF on the denominator of fh_pct_of_day is correct usage. Minor: ORDER BY at weekday summary level wasn't specified but omitting it is fine for exploration. 9/10.
+
+**Task 2 (RTH-CLOSE-001):** LAG(close) OVER (ORDER BY trade_date) is clean and correct. FILTER (WHERE ...) syntax for conditional counts is good. NULLIF on prev_close denominator is correct. Minor: close_gap >= 0 for up_days includes flat days (change = 0); using > 0 would be a more precise "up" definition — same for down_days. Not penalized but worth noting for precision. 9/10.

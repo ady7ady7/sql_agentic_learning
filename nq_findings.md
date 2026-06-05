@@ -38,9 +38,22 @@
 ## Daily Ranges
 
 ### RTH-RANGE-002 — First Hour Range vs Full RTH Day Range
-**Query ID:** RTH-RANGE-002 | Task date: 2026-06-04
-**Finding:** First hour (09:30–10:30 ET) accounts for a significant but variable portion of the full RTH day range. Query extended to include full OHLC for both first hour and rest of session (10:30–16:00), enabling future analysis of whether first hour high/low/close predicts rest-of-session behavior.
-**Note:** Duplicate rows present in output due to timestamp ties in point-lookup JOINs — needs DISTINCT ON fix before using for aggregate analysis.
+**Query ID:** RTH-RANGE-002 | Task date: 2026-06-04 (fixed 2026-06-05)
+
+| Weekday   | Avg FH Range | Avg Rest Range | Avg Full Day Range | Avg FH % of Day |
+|-----------|-------------|----------------|-------------------|-----------------|
+| Thursday  | 217.22      | 308.97         | 380.97            | 65.6%           |
+| Friday    | 214.85      | 294.59         | 373.70            | 63.7%           |
+| Tuesday   | 195.18      | 260.05         | 311.41            | 64.2%           |
+| Wednesday | 192.25      | 255.80         | 334.70            | 57.9%           |
+| Monday    | 189.27      | 211.73         | 298.58            | 66.8%           |
+
+**Findings:**
+- The first hour (09:30–10:30 ET) captures 58–67% of the full day's range on average — a substantial portion
+- Monday has the highest first-hour capture rate (66.8%) despite having the smallest absolute FH range (189 pts) — the rest of Monday is comparatively quiet (211 pts rest range)
+- Wednesday has the lowest first-hour capture rate (57.9%) — the afternoon session on Wednesdays contributes relatively more range (likely FOMC-related)
+- Thursday and Friday have the largest absolute first-hour ranges (217 and 215 pts respectively) — consistent with their higher full-day volatility (RTH-RANGE-001)
+- Rest-of-session range consistently exceeds first-hour range across all days — but the FH is a meaningful predictor of daily activity level
 
 ### RTH-RANGE-001 — Average Daily Range by Weekday (RTH)
 **Query ID:** RTH-RANGE-001 | Task date: 2026-06-03
@@ -88,6 +101,27 @@
 - Average gap magnitude is symmetric: +145 up vs -150 down — gaps are roughly equal in size regardless of direction
 - Average gap of +5.35 across all days reflects the overall bullish drift in NQ during this period
 - Large average gap sizes (±145–150 pts) relative to typical RTH ranges (~300–370 pts) — overnight gaps represent ~40–50% of a typical day's range
+
+## Close-to-Close Change
+
+### RTH-CLOSE-001 — Day-over-Day Close Change by Weekday (RTH)
+**Query ID:** RTH-CLOSE-001 | Task date: 2026-06-05
+
+| Weekday   | Days | Avg Close Change | Up Days | Down Days | Up % |
+|-----------|------|-----------------|---------|-----------|------|
+| Monday    | 39   | +114.28         | 27      | 13        | 69.2% |
+| Wednesday | 34   | +80.22          | 23      | 11        | 67.6% |
+| Friday    | 35   | +5.55           | 21      | 15        | 60.0% |
+| Tuesday   | 39   | -5.42           | 20      | 24        | 51.3% |
+| Thursday  | 39   | -90.44          | 19      | 26        | 48.7% |
+
+**Findings:**
+- Monday closes up 69% of the time with avg +114 pts — strongest bullish close-to-close day by both frequency and magnitude
+- Wednesday also skews bullish (67.6%, avg +80 pts) — notable given it also hosts FOMC days; positive drift may reflect post-FOMC relief rallies
+- Thursday is the weakest day: only 48.7% up, avg -90 pts — consistent profit-taking or position squaring before Friday
+- Friday is nearly flat (+5.55 avg) but still closes up 60% — slight upward bias but muted in magnitude
+- Tuesday is the only other negative day on average (-5.42) but nearly coinflip in frequency (51.3%)
+- Strong Mon/Wed vs weak Thu pattern is consistent with RTH-RANGE-001 (Thu has high range but negative drift)
 
 ## Session Patterns
 

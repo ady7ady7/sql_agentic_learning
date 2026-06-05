@@ -1,4 +1,11 @@
 
+### Task Archive: 2026-06-05 (Week 24, Day 4) — Score: 18/20
+
+**Task 1 (RTH-RANGE-002):** DISTINCT ON fix + weekday summary. 9/10 — correct pattern, NULLIF denominator clean.
+**Task 2 (RTH-CLOSE-001):** Day-over-day close change by weekday. 9/10 — LAG correct, FILTER syntax clean, minor: >= 0 includes flat days.
+
+---
+
 ### Task Archive: 2025-12-07 (Week 1, Day 4)
 
 # Daily SQL Practice Tasks
@@ -14163,3 +14170,8 @@ GROUP BY user_id
 **Task 2 (RTH-VOL-002 — volume by hour):** Clean two-pass aggregation. Two-step approach (per day then average) correct. Window function for pct correct. 10/10.
 
 **Task 3 (RTH-GAP-001 — overnight gap):** LAG pattern correct, FILTER aggregation clean. avg_gap not rounded (minor). 9/10.
+
+
+### Task Archive: 2026-06-05 (Week 24, Day 4)
+
+[Solutions to be added after session]

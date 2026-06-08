@@ -257,3 +257,22 @@ Notes:
 - N-side ticks (194 rows) excluded entirely
 - Trade date formula: ((ts_event AT TIME ZONE America/New_York) - INTERVAL 18 hours)::date + 1
 - Built with aggregate-then-JOIN pattern for performance (window function approach took 10+ min)
+
+### nq_data.rth_firsthour_rest_ohlc_ranges
+Per-day OHLC for first hour (09:30–10:30 ET) and rest of session (10:30–16:00 ET). Created 2026-06-08.
+
+Columns:
+- trade_date (date)
+- fh_open (numeric) — first traded price of first hour
+- fh_high (numeric) — first hour high
+- fh_low (numeric) — first hour low
+- fh_close (numeric) — last traded price of first hour
+- r_open (numeric) — first traded price of rest of session
+- r_high (numeric) — rest of session high
+- r_low (numeric) — rest of session low
+- r_close (numeric) — last traded price of rest of session
+
+Notes:
+- Built with DISTINCT ON inside CTEs to resolve timestamp fan-out from point-lookup JOINs
+- Does NOT include weekday — JOIN to daily_ohlcv_rth on trade_date to get weekday
+- Does NOT include full-day high/low — JOIN to daily_ohlcv_rth for that

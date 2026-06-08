@@ -1,4 +1,10 @@
 
+### Task Archive: 2026-06-08 (Week 25, Day 1) — Score: pending
+
+*(tasks generated, not yet submitted)*
+
+---
+
 ### Task Archive: 2026-06-05 (Week 24, Day 4) — Score: 18/20
 
 **Task 1 (RTH-RANGE-002):** DISTINCT ON fix + weekday summary. 9/10 — correct pattern, NULLIF denominator clean.

@@ -59,6 +59,18 @@ Week complete.
 
 ---
 
+## Week 25, Day 1 — Agent Feedback on Student
+
+**Score: 16/20**
+
+**Task 1 (RTH-FH-001):** Creating the materialized view first was smart — right professional call on a 56M-row table. DISTINCT ON inside the view handles timestamp fan-out. Main query clean: CASE + SUM/COUNT pattern solid. Minor: flat first-hour days (fh_close = fh_open) silently fall into 'bearish' via the ELSE branch — harmless in practice but imprecise. 9/10.
+
+**Task 2 (RTH-GAP-002):** Fill condition logic correct (low <= prev_close for gap-up, high >= prev_close for gap-down). Bug: CASE uses ELSE 'gap_up' so flat opens (open = prev_close) get absorbed into gap_up instead of excluded. Task spec said to filter flat opens. Flat open days trivially satisfy the fill condition, slightly inflating gap_up fill rate. Fix: add `AND open != prev_close` to the WHERE in rth_gaps. 7/10.
+
+**Task 3 (RTH-CLOSE-002):** Cancelled by student — session was long enough.
+
+---
+
 ## Week 24, Day 4 — Agent Feedback on Student
 
 **Score: 18/20**

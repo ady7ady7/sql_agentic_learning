@@ -123,6 +123,41 @@
 - Tuesday is the only other negative day on average (-5.42) but nearly coinflip in frequency (51.3%)
 - Strong Mon/Wed vs weak Thu pattern is consistent with RTH-RANGE-001 (Thu has high range but negative drift)
 
+## First Hour Analysis
+
+### RTH-FH-001 — First Hour Direction Bias
+**Query ID:** RTH-FH-001 | Task date: 2026-06-08
+
+| First Hour Direction | Days | Rest Same Direction | Same Dir % |
+|----------------------|------|---------------------|------------|
+| Bullish              | 87   | 49                  | 56.3%      |
+| Bearish              | 72   | 30                  | 41.7%      |
+
+**Findings:**
+- Bullish first hours (09:30–10:30) continue bullish into the rest of session 56.3% of the time — slight positive continuation bias
+- Bearish first hours reverse more often than they continue: only 41.7% same-direction follow-through, meaning 58.3% of bearish opens see a rest-of-session bounce
+- Practical implication: a bearish first hour is a weak signal for a bearish full day — the market fades early selling more often than not
+- Note: materialized view `nq_data.rth_firsthour_rest_ohlc_ranges` created this session for performance — stores per-day FH and rest OHLC, eliminating repeated 56M-row scans
+
+---
+
+## Gap Analysis
+
+### RTH-GAP-002 — Gap Fill Rate (RTH open vs prior RTH close)
+**Query ID:** RTH-GAP-002 | Task date: 2026-06-08
+**Note:** Gap-up count includes flat opens (open = prev_close) due to ELSE branch in CASE — fill rate for gap_up slightly overstated
+
+| Gap Direction | Days | Filled Days | Fill % | Avg Gap Size |
+|---------------|------|-------------|--------|--------------|
+| Gap down      | 87   | 57          | 65.5%  | 151.97 pts   |
+| Gap up        | 98   | 57          | 58.2%  | 145.01 pts   |
+
+**Findings:**
+- Gaps fill at a high rate in both directions: 65.5% for gap-down, 58.2% for gap-up
+- Gap-down days fill more reliably than gap-up days — downside gaps are faded more aggressively
+- Average gap size is large (±145–152 pts) relative to typical RTH first-hour range (~195–217 pts) — many gaps require significant intraday reversal to fill
+- This connects to RTH-GAP-001: average overnight gaps of ±145–150 pts, consistent with these fill-day averages
+
 ## Session Patterns
 
 *(findings to be added)*

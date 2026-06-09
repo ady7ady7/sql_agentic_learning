@@ -123,6 +123,27 @@
 - Tuesday is the only other negative day on average (-5.42) but nearly coinflip in frequency (51.3%)
 - Strong Mon/Wed vs weak Thu pattern is consistent with RTH-RANGE-001 (Thu has high range but negative drift)
 
+## Close Location in Range
+
+### RTH-CLOSE-002 — Close Location in Day's Range by Weekday
+**Query ID:** RTH-CLOSE-002 | Task date: 2026-06-09
+
+| Weekday   | Days | Avg Close Location | % Closed Upper Half |
+|-----------|------|--------------------|---------------------|
+| Monday    | 39   | 62.02%             | 66.67%              |
+| Wednesday | 34   | 58.79%             | 61.76%              |
+| Tuesday   | 39   | 57.45%             | 56.41%              |
+| Friday    | 35   | 54.84%             | 57.14%              |
+| Thursday  | 39   | 52.49%             | 53.85%              |
+
+**Findings:**
+- Monday closes in the upper half of its range 66.7% of the time (avg 62%) — consistent with RTH-CLOSE-001 showing Monday as the strongest close-to-close day
+- Thursday avg close location is 52.5% despite being the worst close-to-close weekday (-90 avg change) — when Thursday sells off, it sells off hard, but it doesn't consistently close near its own low
+- All weekdays close above the midpoint of their range on average — NQ has a general upward close bias within the day's range across the sample period
+- Wednesday and Tuesday sit mid-table (58-57%) — moderate close strength
+
+---
+
 ## First Hour Analysis
 
 ### RTH-FH-001 — First Hour Direction Bias
@@ -139,9 +160,33 @@
 - Practical implication: a bearish first hour is a weak signal for a bearish full day — the market fades early selling more often than not
 - Note: materialized view `nq_data.rth_firsthour_rest_ohlc_ranges` created this session for performance — stores per-day FH and rest OHLC, eliminating repeated 56M-row scans
 
----
+### RTH-FH-002 — First Hour High/Low as Day's Extreme
+**Query ID:** RTH-FH-002 | Task date: 2026-06-09
 
-## Gap Analysis
+**Overall (159 trading days):**
+
+| Metric | Days | % |
+|--------|------|---|
+| FH sets day high | 66 | 41.5% |
+| FH sets day low  | 72 | 45.3% |
+| Full day inside FH range | 5 | 3.1% |
+
+**By weekday:**
+
+| Weekday   | Days | FH Sets High % | FH Sets Low % | Inside FH % |
+|-----------|------|----------------|---------------|-------------|
+| Thursday  | 31   | 54.84%         | 35.48%        | 6.45%       |
+| Wednesday | 33   | 45.45%         | 48.48%        | 3.03%       |
+| Friday    | 29   | 37.93%         | 51.72%        | 3.45%       |
+| Monday    | 33   | 36.36%         | 54.55%        | 3.03%       |
+| Tuesday   | 33   | 33.33%         | 36.36%        | 0.00%       |
+
+**Findings:**
+- FH sets the day's low more often than the high (45.3% vs 41.5%) — opening weakness more likely to be the day's extreme than opening strength
+- Inside-FH days are rare (3.1%) — the rest of session almost always extends beyond the first-hour range
+- Thursday is the standout: FH sets the day HIGH 54.8% of the time — the first hour is the high of the day more often than not on Thursdays. Consistent with RTH-CLOSE-001 (Thu avg close -90 pts) — market opens strong and reverses
+- Monday is the mirror: FH sets the day LOW 54.6% — Monday opens weak, then rallies through the session, consistent with RTH-CLOSE-001 (+114 avg close change)
+- Tuesday shows no skew — FH sets neither extreme particularly often (33%/36%), suggesting Tuesdays are more symmetric intraday
 
 ### RTH-GAP-002 — Gap Fill Rate (RTH open vs prior RTH close)
 **Query ID:** RTH-GAP-002 | Task date: 2026-06-08

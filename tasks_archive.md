@@ -1,7 +1,15 @@
 
-### Task Archive: 2026-06-08 (Week 25, Day 1) — Score: pending
+### Task Archive: 2026-06-09 (Week 25, Day 2) — Score: pending
 
 *(tasks generated, not yet submitted)*
+
+---
+
+### Task Archive: 2026-06-08 (Week 25, Day 1) — Score: 16/20
+
+**Task 1 (RTH-FH-001):** First hour direction bias + materialized view rth_firsthour_rest_ohlc_ranges. 9/10
+**Task 2 (RTH-GAP-002):** Gap fill rate by direction. 7/10 — flat-open bug in ELSE branch.
+**Task 3 (RTH-CLOSE-002):** Cancelled.
 
 ---
 

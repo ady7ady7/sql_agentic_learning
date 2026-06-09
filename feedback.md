@@ -59,6 +59,16 @@ Week complete.
 
 ---
 
+## Week 25, Day 2 — Agent Feedback on Student
+
+**Score: 18/20**
+
+**Task 1 (RTH-CLOSE-002):** Extra metric and 2-decimal rounding — not penalized, better output. One latent bug: missing NULLIF on `(high - low)` denominator — didn't crash because no zero-range days exist in the data, but should be `/ NULLIF(high - low, 0)`. 9/10.
+
+**Task 2 (RTH-FH-002):** Clean CTE reuse for both summary and weekday breakdown. DISTINCT ON on the 1-to-1 join is harmless but unnecessary — both views have one row per trade_date. Findings are strong and cross-reference well with prior results. 9/10.
+
+---
+
 ## Week 25, Day 1 — Agent Feedback on Student
 
 **Score: 16/20**

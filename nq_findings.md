@@ -160,6 +160,23 @@
 - Practical implication: a bearish first hour is a weak signal for a bearish full day — the market fades early selling more often than not
 - Note: materialized view `nq_data.rth_firsthour_rest_ohlc_ranges` created this session for performance — stores per-day FH and rest OHLC, eliminating repeated 56M-row scans
 
+### RTH-FH-003 — First Hour Direction by Weekday
+**Query ID:** RTH-FH-003 | Task date: 2026-06-10
+
+| Weekday   | Days | Bullish FH % | Bearish FH % | Avg FH Range |
+|-----------|------|-------------|-------------|--------------|
+| Monday    | 39   | 64.1%       | 35.9%       | 189.72       |
+| Tuesday   | 39   | 61.5%       | 38.5%       | 189.72       |
+| Friday    | 35   | 60.0%       | 40.0%       | 215.59       |
+| Wednesday | 34   | 52.9%       | 47.1%       | 189.69       |
+| Thursday  | 39   | 41.0%       | 59.0%       | 213.84       |
+
+**Findings:**
+- Thursday is the only weekday with a majority bearish first hour (59%) — aligns with RTH-FH-002 (FH sets the day high most often on Thursdays) and RTH-CLOSE-001 (weakest close-to-close day)
+- Monday and Tuesday have the most bullish first hours (64%/62%) — Monday's bullish open is consistent with its strong close-to-close drift (+114 avg)
+- Friday and Thursday have the highest avg FH ranges (~215 pts) — more volatile openings, consistent with being the highest full-day range weekdays (RTH-RANGE-001)
+- Monday/Tuesday/Wednesday have nearly identical avg FH ranges (~190 pts) — similar opening volatility despite different directional biases
+
 ### RTH-FH-002 — First Hour High/Low as Day's Extreme
 **Query ID:** RTH-FH-002 | Task date: 2026-06-09
 
@@ -205,7 +222,22 @@
 
 ## Session Patterns
 
-*(findings to be added)*
+### RTH-SESS-001 — Gap Direction × First Hour Direction Interaction
+**Query ID:** RTH-SESS-001 | Task date: 2026-06-10
+
+| Gap Direction | FH Direction | Days | Avg Full Day Range | Avg Close Location | Rest Continues % |
+|---------------|-------------|------|-------------------|-------------------|-----------------|
+| gap_down      | bearish     | 36   | 383.03            | 55.5%             | 33.3%           |
+| gap_down      | bullish     | 51   | 352.34            | 67.1%             | 70.6%           |
+| gap_up        | bearish     | 46   | 297.61            | 45.0%             | 47.8%           |
+| gap_up        | bullish     | 51   | 331.91            | 58.6%             | 45.1%           |
+
+**Findings:**
+- **Strongest signal: gap_down + bullish FH** — 70.6% rest-of-session continuation, avg close location 67%. Market gaps down overnight, first hour recovers bullishly, and the afternoon continues higher 70% of the time. High-conviction reversal setup.
+- **Gap_down + bearish FH** — only 33% rest continuation, meaning 67% of the time the session reverses back up after a gap-down + bearish open. Exhaustion/capitulation pattern — both overnight and opening weakness get faded.
+- **Gap_up days**: both FH directions produce ~45-48% rest continuation — essentially no predictive edge from first-hour direction on gap-up days. The opening gap direction matters more than FH direction here.
+- **Gap-down days are more volatile** (avg range 352-383 pts) vs gap-up days (298-332 pts) — overnight downside gaps lead to bigger intraday swings regardless of outcome
+- **Close location confirms direction**: gap_down+bullish closes at 67% of range (strong close), gap_up+bearish closes at 45% (weak close within range)
 
 ---
 

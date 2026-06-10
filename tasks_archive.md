@@ -1,7 +1,14 @@
 
-### Task Archive: 2026-06-09 (Week 25, Day 2) — Score: pending
+### Task Archive: 2026-06-10 (Week 25, Day 3) — Score: pending
 
 *(tasks generated, not yet submitted)*
+
+---
+
+### Task Archive: 2026-06-09 (Week 25, Day 2) — Score: 18/20
+
+**Task 1 (RTH-CLOSE-002):** Close location in day's range by weekday. 9/10 — missing NULLIF on denominator.
+**Task 2 (RTH-FH-002):** First hour high/low as day's extreme, overall + weekday breakdown. 9/10 — unnecessary DISTINCT ON on 1-to-1 join.
 
 ---
 

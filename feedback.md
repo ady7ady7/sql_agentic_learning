@@ -59,6 +59,16 @@ Week complete.
 
 ---
 
+## Week 25, Day 3 — Agent Feedback on Student
+
+**Score: 18/20**
+
+**Task 1 (RTH-FH-003):** FILTER syntax for conditional counts clean and concise. Flat FH exclusion correct. Added bearish columns beyond spec — not penalized. Minor: avg_fh_range covers all days for the weekday, not split by direction — correct per spec but worth knowing. 9/10.
+
+**Task 2 (RTH-SESS-001):** Three clean CTEs, each doing one job. Using fh_open as gap reference is valid. no_gap label + WHERE filter cleaner than ELSE branch. NULLIF missing on close_location denominator again — same recurring miss as Day 2. Findings are the richest of the project so far. 9/10.
+
+---
+
 ## Week 25, Day 2 — Agent Feedback on Student
 
 **Score: 18/20**

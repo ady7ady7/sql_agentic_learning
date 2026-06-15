@@ -1,7 +1,14 @@
 
-### Task Archive: 2026-06-10 (Week 25, Day 3) — Score: pending
+### Task Archive: 2026-06-15 (Week 26, Day 1) — Score: pending
 
 *(tasks generated, not yet submitted)*
+
+---
+
+### Task Archive: 2026-06-10 (Week 25, Day 3) — Score: 18/20
+
+**Task 1 (RTH-FH-003):** First hour direction breakdown by weekday. 9/10 — FILTER syntax clean, flat FH excluded correctly.
+**Task 2 (RTH-SESS-001):** Gap direction x first-hour direction interaction. 9/10 — missing NULLIF on close_location denominator.
 
 ---
 

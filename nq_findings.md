@@ -28,6 +28,42 @@
 - Hour 9 (09:30–09:59 ET, partial) at 16.3% is high relative to its 30-minute window — opening is extremely dense
 - Volume distribution is U-shaped with a dominant morning peak: open > close > midday
 
+### RTH-VOL-004 — First Hour Cumulative Delta vs Rest-of-Session Direction
+**Query ID:** RTH-VOL-004 | Task date: 2026-06-15
+**Note:** Query measured rest-of-session direction (not full-day close vs open as specified). Also: rest_direction label was inverted in code (r_open - r_close > 0 is bearish, not bullish) — results below reflect actual rest-of-session bearish/bullish with corrected interpretation.
+
+| FH Delta Direction | Days | Avg FH Delta | Bullish Rest Days | Bullish Rest % |
+|--------------------|------|-------------|-------------------|----------------|
+| Positive           | 73   | +1,601.82   | 44                | 60.3%          |
+| Negative           | 86   | -1,561.69   | 47                | 54.7%          |
+
+**Findings:**
+- Positive first-hour delta (net buy pressure) leads to bullish rest-of-session 60.3% vs 54.7% for negative delta — modest ~6pp edge
+- Delta magnitude is symmetric: avg +1,602 vs -1,562 contracts — buy and sell pressure roughly equal in size when present
+- The edge is real but weak as a standalone signal — most useful when combined with gap direction (RTH-GAP-001/002) or FH price direction (RTH-FH-001)
+- Measuring rest-of-session (10:30–16:00) is the correct actionable scope — first-hour delta is known at 10:30, predicting what comes after
+
+### RTH-VOL-003 — Buy/Sell Volume Imbalance by Hour (Full Day incl. Globex)
+**Query ID:** RTH-VOL-003 | Task date: 2026-06-15
+**Note:** Query included all hours (0–23), not RTH-only as specified. RTH hours (9–15) extracted below.
+
+| Hour ET | Buy Volume | Sell Volume | Total Volume | Buy % | Delta | Delta % |
+|---------|------------|-------------|--------------|-------|-------|---------|
+| 9       | 5,983,060  | 6,001,275   | 11,984,335   | 49.92%| -18,215 | -0.15% |
+| 10      | 6,628,334  | 6,622,008   | 13,250,342   | 50.02%| +6,326  | +0.05% |
+| 11      | 4,897,516  | 4,904,542   | 9,802,058    | 49.96%| -7,026  | -0.07% |
+| 12      | 3,698,342  | 3,697,781   | 7,396,123    | 50.00%| +561    | +0.01% |
+| 13      | 3,288,285  | 3,299,291   | 6,587,576    | 49.92%| -11,006 | -0.17% |
+| 14      | 3,080,125  | 3,085,468   | 6,165,593    | 49.96%| -5,343  | -0.09% |
+| 15      | 4,320,973  | 4,355,740   | 8,676,713    | 49.80%| -34,767 | -0.40% |
+
+**Findings:**
+- Volume-level buy/sell symmetry confirmed across RTH hours — delta never exceeds 0.40% of total volume in any hour
+- Hour 15 (closing hour) shows the largest net sell imbalance (-34,767 contracts, -0.40%) — consistent with institutional end-of-day position hedging/rebalancing
+- Hour 10 is the only hour with meaningful net buy bias (+6,326, +0.05%) — post-open buyers slightly more aggressive in the first full hour
+- Hours 9, 11, 13, 14, 15 all show mild net sell bias — RTH has a slight structural sell skew outside the post-open window
+- Despite large absolute volumes (13M+ contracts in hour 10), imbalances are tiny — confirms RTH-VOL-001: aggregate-level symmetry holds at the contract level too
+
 ### RTH-VOL-001 — Buy/Sell Volume Ratio by Weekday (RTH)
 **Query ID:** RTH-VOL-001 | Task date: 2026-06-03
 **Finding:** Buy/sell volume ratio is nearly perfectly balanced across all weekdays (range: 0.995–1.001). No weekday shows persistent directional aggressor bias at the aggregate level.

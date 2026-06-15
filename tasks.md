@@ -1,149 +1,178 @@
-# NQ Project — Week 25 Day 3
+# NQ Project — Week 26 Day 1
 
-**Generated:** 2026-06-10
-**Focus:** First hour direction by weekday + gap × first-hour interaction
+**Generated:** 2026-06-15
+**Focus:** Tick volume — buy/sell imbalance by hour + first-hour cumulative delta vs day outcome
 
 ---
 
-## Task 1: First Hour Direction by Weekday
+## Task 1: Buy/Sell Volume Imbalance by Hour
 
 **Scenario:**
-We know the overall first-hour direction bias (RTH-FH-001). Now break it down by weekday: which days have the most bullish first hours? Which the most bearish? **(ID: RTH-FH-003)**
+RTH-VOL-001 showed that buy/sell *tick counts* are nearly perfectly balanced by weekday. But tick count ≠ volume — a single institutional print of 50 contracts on the buy side outweighs 10 retail prints of 1 contract each. Does the same symmetry hold when measured in actual contracts traded? **(ID: RTH-VOL-003)**
 
-Using `nq_data.rth_firsthour_rest_ohlc_ranges`, classify each day's first hour as bullish (fh_close > fh_open) or bearish (fh_close < fh_open). Exclude flat days (fh_close = fh_open).
+Using `nq_data.ticks`, filter to RTH session and exclude N-side. Group by hour of day (ET).
 
-Join to `nq_data.daily_ohlcv_rth` on `trade_date` to get `weekday`.
+**Output columns:**
+- `hour_et` — integer hour (9 through 15)
+- `buy_volume` — `SUM(size) FILTER (WHERE side = 'B')`
+- `sell_volume` — `SUM(size) FILTER (WHERE side = 'A')`
+- `total_volume`
+- `buy_pct` — buy_volume / total_volume * 100, rounded to 2
+- `delta` — buy_volume - sell_volume (signed, positive = buy dominance)
+- `delta_pct` — delta / total_volume * 100, rounded to 2
 
-**Output — grouped by weekday:**
-- `weekday`
-- `total_days`
-- `bullish_fh_days`
-- `bullish_fh_pct` — rounded to 1
-- `avg_fh_range` — average `fh_high - fh_low` across all days for that weekday, rounded to 2
+Order by `hour_et`.
 
-Order by `bullish_fh_pct DESC`.
-
-**Tables:** `nq_data.rth_firsthour_rest_ohlc_ranges`, `nq_data.daily_ohlcv_rth`
+**Tables:** `nq_data.ticks`
 
 **Difficulty Rating:** 3/5
 
-
-WITH dates_fh_direction AS (
-SELECT
-	rf.trade_date,
-	dor.weekday,
-	fh_high,
-	fh_low,
-	CASE WHEN fh_open < fh_close THEN 'bullish' ELSE 'bearish' END AS fh_direction
-FROM nq_data.rth_firsthour_rest_ohlc_ranges rf
-JOIN nq_data.daily_ohlcv_rth dor ON rf.trade_date = dor.trade_date
-WHERE fh_open != fh_close
-)
+WITH ticks_hours AS (
 SELECT 
-	weekday,
-	count(*) AS total_days,
-	count(*) FILTER (WHERE fh_direction = 'bullish') AS bullish_fh_days,
-	ROUND(count(*) FILTER (WHERE fh_direction = 'bullish') / COUNT(*) ::NUMERIC * 100, 2) AS bullish_fh_days_pct,
-	count(*) FILTER (WHERE fh_direction = 'bearish') AS bearish_fh_days,
-	ROUND(count(*) FILTER (WHERE fh_direction = 'bearish') / COUNT(*) ::NUMERIC * 100, 2) AS bearish_fh_days_pct,
-	ROUND(AVG(fh_high - fh_low), 2) AS avg_fh_range
-FROM dates_fh_direction
-GROUP BY weekday
-ORDER BY bullish_fh_days_pct DESC
+	*,
+	ts_recv AT TIME ZONE 'America/New_York' AS time_et,
+	EXTRACT(HOUR FROM ts_event AT TIME ZONE 'America/New_York')::int AS hour_et
+FROM nq_data.ticks t
+WHERE side != 'N'
+)
+SELECT
+	hour_et,
+	SUM(size) FILTER (WHERE side = 'B') AS buy_volume,
+	SUM(size) FILTER (WHERE side = 'A') AS sell_volume,
+	SUM(size) AS total_volume,
+	ROUND(SUM(size) FILTER (WHERE side = 'B') / SUM(size)::NUMERIC * 100, 2) AS buy_pct,
+	SUM(size) FILTER (WHERE side = 'B') - SUM(size) FILTER (WHERE side = 'A') AS buy_sell_delta,
+	ROUND((SUM(size) FILTER (WHERE side = 'B') - SUM(size) FILTER (WHERE side = 'A')) / SUM(size)::NUMERIC * 100, 2) AS delta_pct
+FROM ticks_hours
+GROUP BY hour_et
+ORDER BY hour_et
 
 
-Interesting, findings:
 
-weekday	total_days	bullish_fh_days	bullish_fh_days_pct	bearish_fh_days	bearish_fh_days_pct	avg_fh_range
-Monday	39	25	64.1	14	35.9	189.72
-Tuesday	39	24	61.54	15	38.46	189.72
-Friday	35	21	60	14	40	215.59
-Wednesday	34	18	52.94	16	47.06	189.69
-Thursday	39	16	41.03	23	58.97	213.84
+buy_volume	sell_volume	total_volume	buy_pct	buy_sell_delta	hour_et	delta_pct
+293,333	295,939	589,272	49.78	-2,606	0	-0.44
+353,772	349,806	703,578	50.28	3,966	1	0.56
+408,325	405,725	814,050	50.16	2,600	2	0.32
+596,494	595,255	1,191,749	50.05	1,239	3	0.1
+599,881	595,251	1,195,132	50.19	4,630	4	0.39
+487,932	485,161	973,093	50.14	2,771	5	0.28
+519,752	517,904	1,037,656	50.09	1,848	6	0.18
+766,885	760,541	1,527,426	50.21	6,344	7	0.42
+1,177,866	1,166,046	2,343,912	50.25	11,820	8	0.5
+5,983,060	6,001,275	11,984,335	49.92	-18,215	9	-0.15
+6,628,334	6,622,008	13,250,342	50.02	6,326	10	0.05
+4,897,516	4,904,542	9,802,058	49.96	-7,026	11	-0.07
+3,698,342	3,697,781	7,396,123	50	561	12	0.01
+3,288,285	3,299,291	6,587,576	49.92	-11,006	13	-0.17
+3,080,125	3,085,468	6,165,593	49.96	-5,343	14	-0.09
+4,320,973	4,355,740	8,676,713	49.8	-34,767	15	-0.4
+1,351,240	1,351,996	2,703,236	49.99	-756	16	-0.03
+563,393	558,874	1,122,267	50.2	4,519	18	0.4
+470,385	468,953	939,338	50.08	1,432	19	0.15
+585,978	569,812	1,155,790	50.7	16,166	20	1.4
+439,182	434,800	873,982	50.25	4,382	21	0.5
+353,745	357,132	710,877	49.76	-3,387	22	-0.48
+287,434	285,661	573,095	50.15	1,773	23	0.31
+
 
 
 
 ---
 
-## Task 2: Gap Direction × First Hour Direction Interaction
+## Task 2: First Hour Cumulative Delta vs Day Outcome
 
 **Scenario:**
-When the market gaps up AND the first hour is also bullish — does the rest of session continue? What about gap up + bearish first hour (fade)? This cross-analysis combines overnight context with intraday opening behavior. **(ID: RTH-SESS-001)**
+Cumulative delta = running sum of (buy_volume - sell_volume) tick by tick. The *total* first-hour delta tells you whether buyers or sellers were more aggressive in contracts during 09:30–10:30. Does a positive first-hour delta (net buying pressure) predict a bullish full-day close? **(ID: RTH-VOL-004)**
 
-Build a single query that joins `nq_data.daily_ohlcv_rth` with `nq_data.rth_firsthour_rest_ohlc_ranges` and computes four buckets: the combination of gap direction (gap_up / gap_down — exclude flat opens where `open = prev_close`) and first-hour direction (bullish / bearish — exclude flat FH where `fh_close = fh_open`).
+Using `nq_data.ticks`, compute the net first-hour delta per day: `SUM(size) FILTER (WHERE side='B') - SUM(size) FILTER (WHERE side='A')` for ticks between 09:30 and 10:30 ET.
 
-**Output — one row per bucket:**
-- `gap_direction` — 'gap_up' or 'gap_down'
-- `fh_direction` — 'bullish' or 'bearish'
+Then join to `nq_data.daily_ohlcv_rth` to get the full-day close direction (`close > open` = bullish day).
+
+Classify each day's first-hour delta as:
+- `'positive'` — net buying (delta > 0)
+- `'negative'` — net selling (delta < 0)
+- `'flat'` — delta = 0 (exclude from summary)
+
+**Output — summary by delta direction:**
+- `fh_delta_direction` — 'positive' or 'negative'
 - `days`
-- `avg_full_day_range` — rounded to 2
-- `avg_close_location` — `(close - low) / NULLIF(high - low, 0) * 100`, rounded to 1
-- `rest_continues_pct` — % of days where rest-of-session direction matches fh_direction (r_close > fh_close for bullish, r_close < fh_close for bearish), rounded to 1
+- `avg_fh_delta` — average net delta in contracts, rounded to 0
+- `bullish_day_days` — days where daily close > daily open
+- `bullish_day_pct` — rounded to 1
 
-Order by `gap_direction`, `fh_direction`.
+Order by `fh_delta_direction`.
 
-**Tables:** `nq_data.daily_ohlcv_rth`, `nq_data.rth_firsthour_rest_ohlc_ranges`
+**Tables:** `nq_data.ticks`, `nq_data.daily_ohlcv_rth`
 
 **Difficulty Rating:** 5/5
 
 
-WITH first_daily_range_agg AS (
-SELECT 
-	rf.trade_date,
-	dor.weekday,
-	dor.high AS daily_high,
-	dor.low AS daily_low,
-	LAG(dor.CLOSE) OVER (ORDER BY rf.trade_date) AS pd_close,
-	fh_open,
-	fh_high,
-	fh_low,
-	fh_close,
-	r_open,
-	r_close,
-	CASE WHEN fh_open < fh_close THEN 'bullish' ELSE 'bearish' END AS fh_direction
-FROM nq_data.rth_firsthour_rest_ohlc_ranges rf
-JOIN nq_data.daily_ohlcv_rth dor ON rf.trade_date = dor.trade_date
-WHERE fh_open != fh_close
-),
-gap_agg AS (
+WITH ticks_dates_first_hour AS (
 SELECT 
 	*,
-	CASE 
-		WHEN fh_open > pd_close THEN 'gap_up'
-		WHEN fh_open < pd_close THEN 'gap_down' ELSE 'no_gap'
-	END AS gap_direction
-FROM first_daily_range_agg
-WHERE pd_close IS NOT NULL
+	(ts_event AT TIME ZONE 'America/New_York')::date AS trade_date,
+	ts_recv AT TIME ZONE 'America/New_York' AS time_et
+FROM nq_data.ticks t
+WHERE (ts_event AT TIME ZONE 'America/New_York')::TIME >= '9:30' AND (ts_event AT TIME ZONE 'America/New_York')::TIME <= '10:30'
+AND side != 'N'
 ),
-gap_rest_continues_agg AS (
+fh_vol_agg AS (
+SELECT
+	 trade_date,
+	 SUM(size) FILTER (WHERE side = 'A') AS first_hour_sell_vol,
+	 SUM(size) FILTER (WHERE side = 'B') AS first_hour_buy_vol,
+	 SUM(size) FILTER (WHERE side = 'B') - SUM(size) FILTER (WHERE side = 'A') AS fh_delta_vol
+FROM ticks_dates_first_hour
+GROUP BY trade_date
+),
+fh_vol_delta_agg AS (
 SELECT 
 	*,
-	CASE WHEN (fh_direction = 'bearish' AND r_close < fh_close) OR (fh_direction = 'bullish' AND r_close  > fh_close) THEN 1 ELSE 0 END AS rest_continues
-FROM gap_agg
+	CASE WHEN fh_delta_vol = 0 THEN 'flat' WHEN fh_delta_vol > 0 THEN 'positive' ELSE 'negative' END AS fh_delta_direction
+FROM fh_vol_agg
+),
+fh_rest_agg AS (
+SELECT 
+	f.trade_date,
+	f.fh_delta_direction,
+	f.fh_delta_vol,
+	r.fh_open,
+	r.fh_close,
+	r.r_open,
+	r.r_close,
+	r.r_open - r.r_close AS rest_range,
+	CASE WHEN r.r_close - r.r_open > 0 THEN 'bullish' ELSE 'bearish' END AS rest_direction
+FROM fh_vol_delta_agg f
+JOIN nq_data.rth_firsthour_rest_ohlc_ranges r ON f.trade_date = r.trade_date
+WHERE fh_delta_direction != 'flat'
 )
 SELECT 
-	gap_direction,
-	fh_direction,
+	fh_delta_direction,
 	COUNT(*) AS days,
-	ROUND(AVG(daily_high - daily_low), 2) AS avg_full_day_range,
-	ROUND(AVG((r_close - daily_low) / (daily_high - daily_low) * 100), 2) AS avg_close_location,
-	ROUND(sum(rest_continues) / COUNT(*)::NUMERIC * 100, 2) AS rest_continues_pct
-FROM gap_rest_continues_agg
-WHERE gap_direction != 'no_gap'
-GROUP BY gap_direction, fh_direction
-ORDER BY gap_direction, fh_direction
+	ROUND(AVG(fh_delta_vol), 2) AS avg_fh_delta,
+	COUNT(*) FILTER (WHERE rest_direction = 'bullish') AS bullish_day_days,
+	ROUND(COUNT(*) FILTER (WHERE rest_direction = 'bullish') / COUNT(*)::NUMERIC * 100, 2) AS bullish_day_pct
+FROM fh_rest_agg
+GROUP BY fh_delta_direction
 
-As for the findings:
 
-gap_direction	fh_direction	days	avg_full_day_range	avg_close_location	rest_continues_pct
-gap_down	bearish	36	383.03	55.5	33.33
-gap_down	bullish	51	352.34	67.11	70.59
-gap_up	bearish	46	297.61	44.96	47.83
-gap_up	bullish	51	331.91	58.58	45.1
+
+Not sure if I've done 100% right here, but it seems like it. I've done my way of aggregation that's perfectly logical and working :)).
+
+As for the results:
+
+fh_delta_direction	days	avg_fh_delta	bullish_day_days	bullish_day_pct
+negative	86	-1,561.69	47	54.65
+positive	73	1,601.82	44	60.27
+
+
+It's interesting to see how the delta affects the bullish/bearish day pcts :)).
+I'd love to somehow explore if there's any correlation for ORB and volume deltas etc.
+Not sure how to approach this, but it could be interesting - how do pros do that?
 
 
 ---
 
 ## Submission Instructions
 
-Paste your query and results for each task. Log query IDs: RTH-FH-003, RTH-SESS-001.
+Paste your query and results for each task. Log query IDs: RTH-VOL-003, RTH-VOL-004.

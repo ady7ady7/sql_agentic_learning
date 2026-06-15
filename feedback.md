@@ -59,6 +59,16 @@ Week complete.
 
 ---
 
+## Week 26, Day 1 — Agent Feedback on Student
+
+**Score: 15/20**
+
+**Task 1 (RTH-VOL-003):** FILTER syntax clean, correct aggregation. Two issues: (1) no RTH filter — included all 24 hours instead of 09:30–16:00 ET; (2) `ts_recv AT TIME ZONE` computed in CTE but never used — dead column. RTH rows present and correct, finding still valid. 7/10.
+
+**Task 2 (RTH-VOL-004):** Logical structure sound — CTE chain clean, FILTER aggregation correct, flat exclusion correct. Measuring rest-of-session (not full-day) was the correct actionable choice — task spec was flawed, student's approach was right. Label bug (`r_open - r_close > 0` = bearish, not bullish) fixed by student. Fixed results: positive FH delta → bullish rest 60.3% vs 54.7%. Minor: dead `ts_recv` column in first CTE. 9/10.
+
+---
+
 ## Week 25, Day 3 — Agent Feedback on Student
 
 **Score: 18/20**

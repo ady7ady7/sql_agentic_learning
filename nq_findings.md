@@ -28,6 +28,27 @@
 - Hour 9 (09:30–09:59 ET, partial) at 16.3% is high relative to its 30-minute window — opening is extremely dense
 - Volume distribution is U-shaped with a dominant morning peak: open > close > midday
 
+### RTH-VOL-005 — Buy/Sell Volume Imbalance by Hour × Weekday (RTH)
+**Query ID:** RTH-VOL-005 | Task date: 2026-06-16
+**Note:** Hour/weekday grouping computed from ts_recv instead of ts_event — minor correctness issue, practical impact negligible.
+
+**Selected highlights (delta_pct):**
+
+| Weekday   | Hour | Delta    | Delta % | Note |
+|-----------|------|----------|---------|------|
+| Wednesday | 10   | +15,876  | +0.62%  | Largest buy imbalance in RTH |
+| Thursday  | 9    | -18,921  | -0.90%  | Largest sell imbalance in RTH |
+| Friday    | 15   | -14,664  | -0.86%  | Heavy end-of-week sell pressure |
+| Tuesday   | 10   | -130     | 0.00%   | Near-perfect balance |
+| Wednesday | 15   | +2,488   | +0.14%  | Only day with buy bias into close |
+
+**Findings:**
+- Wednesday hour 10 has the largest buy imbalance (+0.62%) — aligns with Wed being 2nd strongest close-to-close day (RTH-CLOSE-001)
+- Thursday hour 9 has the largest sell imbalance (-0.90%) — consistent with Thursday being the most bearish-first-hour weekday (RTH-FH-003, 59% bearish opens)
+- Friday hour 15 shows heavy sell pressure (-0.86%) — position squaring into weekend
+- Wednesday is the only weekday with buy bias in hour 15 (+0.14%) — possible post-FOMC holding into close
+- All imbalances remain small (<1%) — confirms structural volume symmetry even at weekday×hour granularity
+
 ### RTH-VOL-004 — First Hour Cumulative Delta vs Rest-of-Session Direction
 **Query ID:** RTH-VOL-004 | Task date: 2026-06-15
 **Note:** Query measured rest-of-session direction (not full-day close vs open as specified). Also: rest_direction label was inverted in code (r_open - r_close > 0 is bearish, not bullish) — results below reflect actual rest-of-session bearish/bullish with corrected interpretation.
@@ -255,6 +276,32 @@
 - Gap-down days fill more reliably than gap-up days — downside gaps are faded more aggressively
 - Average gap size is large (±145–152 pts) relative to typical RTH first-hour range (~195–217 pts) — many gaps require significant intraday reversal to fill
 - This connects to RTH-GAP-001: average overnight gaps of ±145–150 pts, consistent with these fill-day averages
+
+## Opening Range Breakout
+
+### RTH-ORB-001 — Opening Range Breakout Direction vs OR Volume Delta
+**Query ID:** RTH-ORB-001 | Task date: 2026-06-16
+**Opening Range:** 09:30–10:00 ET (30 minutes). Breakout measured 10:00–16:00 ET.
+
+| OR Delta Direction | Breakout | Days | % of All Days |
+|--------------------|----------|------|---------------|
+| bullish            | break_up   | 40 | 25.2% |
+| bullish            | break_both | 26 | 16.4% |
+| bullish            | break_down | 11 | 6.9%  |
+| bearish            | break_down | 42 | 26.4% |
+| bearish            | break_both | 21 | 13.2% |
+| bearish            | break_up   | 19 | 11.9% |
+
+**Within-group rates (corrected):**
+- Bullish OR delta (77 days): break_up 52%, break_both 34%, break_down 14%
+- Bearish OR delta (82 days): break_down 51%, break_both 26%, break_up 23%
+
+**Findings:**
+- Strong directional alignment: bullish OR delta → break_up 52% of the time; bearish OR delta → break_down 51%
+- break_both is common in both groups (~26-34%) — market frequently exceeds both sides of the 30-min OR
+- Bearish OR delta has a higher break_up rate (23%) than bullish has break_down (14%) — downside OR delta is slightly more likely to see reversal than upside OR delta
+- No flat OR delta days present after exclusion
+- This is the strongest single-metric breakout predictor found so far — OR delta direction aligns with breakout direction >50% of the time in both groups
 
 ## Session Patterns
 

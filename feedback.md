@@ -59,6 +59,16 @@ Week complete.
 
 ---
 
+## Week 26, Day 2 — Agent Feedback on Student
+
+**Score: 17/20**
+
+**Task 1 (RTH-VOL-005):** RTH filter correct this time. FILTER syntax clean. Two issues: (1) hour/weekday grouping computed from ts_recv instead of ts_event — always use ts_event for session analysis; (2) global pct would be more useful as within-group pct. 8/10.
+
+**Task 2 (RTH-ORB-001):** Excellent structure — four clean CTEs, break_both handled first in CASE (correct priority). Dead ts_recv columns carried from Task 1 but unused. Pct is global (% of all 159 days) rather than within or_delta_direction — within-group rates: bullish→break_up 52%, bearish→break_down 51%. Strongest directional signal found so far. 9/10.
+
+---
+
 ## Week 26, Day 1 — Agent Feedback on Student
 
 **Score: 15/20**

@@ -1,7 +1,14 @@
 
-### Task Archive: 2026-06-15 (Week 26, Day 1) — Score: pending
+### Task Archive: 2026-06-16 (Week 26, Day 2) — Score: pending
 
 *(tasks generated, not yet submitted)*
+
+---
+
+### Task Archive: 2026-06-15 (Week 26, Day 1) — Score: 16/20
+
+**Task 1 (RTH-VOL-003):** Buy/sell volume imbalance by hour (all hours, RTH extractable). 7/10 — no RTH filter, dead ts_recv column.
+**Task 2 (RTH-VOL-004):** First hour cumulative delta vs rest-of-session direction. 9/10 — approach correct (rest-of-session is the right target), label bug fixed by student.
 
 ---
 

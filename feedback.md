@@ -59,6 +59,18 @@ Week complete.
 
 ---
 
+## Week 26, Day 3 — Agent Feedback on Student
+
+**Score: 18/20**
+
+**Task 1 (RTH-SESS-003):** Clean CTE chain, LAG correct, good call not filtering to Mon/Thu only. Two label inversions: (1) fh_direction CASE has `fh_open > fh_close` = 'bullish' — backwards, should be `fh_close > fh_open`; (2) avg_close_location uses `daily_high - r_close` in numerator instead of `r_close - daily_low` — gives inverse of close location. Results directionally interesting but labels flipped. 7/10.
+
+**Task 2 (RTH-ORB-001b):** `SUM(COUNT(*)) OVER (PARTITION BY or_delta_direction)` as denominator is exactly right. Clean fix. Dead ts_recv columns still present but harmless. 9/10.
+
+**Task 3 (RTH-VOL-006):** Materialized view build was complex and correct. Main query clean — LAG partitioned by trade_day, FILTER for conditional count. Finding (no aggregate edge) is the honest answer. Instinct to drill by hour_min is correct next step. 10/10.
+
+---
+
 ## Week 26, Day 2 — Agent Feedback on Student
 
 **Score: 17/20**

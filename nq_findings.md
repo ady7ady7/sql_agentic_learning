@@ -277,6 +277,43 @@
 - Average gap size is large (±145–152 pts) relative to typical RTH first-hour range (~195–217 pts) — many gaps require significant intraday reversal to fill
 - This connects to RTH-GAP-001: average overnight gaps of ±145–150 pts, consistent with these fill-day averages
 
+## Stacked Edges
+
+### RTH-SESS-003 — Weekday × Gap Direction × First Hour Direction
+**Query ID:** RTH-SESS-003 | Task date: 2026-06-16
+**Note:** fh_direction labels are inverted in the query (`fh_open > fh_close` labeled 'bullish' — should be 'bearish'). Results below use corrected labels. avg_close_location formula also inverted (distance from high, not from low) — treat as approximate.
+
+| Weekday   | Gap       | FH Dir  | Days | Rest Bullish % |
+|-----------|-----------|---------|------|----------------|
+| Tuesday   | gap_down  | bearish | 9    | 100%           |
+| Monday    | gap_down  | bearish | 5    | 80%            |
+| Thursday  | gap_down  | bullish | 10   | 80%            |
+| Monday    | gap_down  | bullish | 13   | 69.2%          |
+| Monday    | gap_up    | bearish | 9    | 66.7%          |
+| Thursday  | gap_up    | bearish | 12   | 66.7%          |
+| Thursday  | gap_up    | bullish | 5    | 0%             |
+
+**Findings:**
+- **Tuesday gap_down + bearish FH: 100% rest bullish** (9 days) — small sample but striking. Gap down, first hour sells off, afternoon fully reverses every time in the dataset
+- **Monday gap_down in either FH direction: 69-80% rest bullish** — Monday absorbs gap-down weakness regardless of first-hour direction, consistent with Mon being the strongest close-to-close day
+- **Thursday gap_up + bullish FH: 0% rest bullish** (5 days) — Thursday that gaps up AND has a bullish first hour always fades in the afternoon. Pure fade setup
+- **Thursday gap_down + bullish FH: 80% rest bullish** (10 days) — gap down recovery on Thursday is the exception to the bearish Thursday pattern
+- Sample sizes are small (5-13 days per bucket) — directional but not statistically robust without more data
+
+### RTH-VOL-006 — 15-Minute Rolling Delta Windows
+**Query ID:** RTH-VOL-006 | Task date: 2026-06-16
+**Materialized view created:** `nq_data.rth_15min_buckets_agg` — per-bucket OHLC + delta for all RTH 15-min windows
+
+| Prev Delta Direction | Next Bucket Up | Total | Next Up % |
+|----------------------|----------------|-------|-----------|
+| Negative             | 1,026          | 2,010 | 51.0%     |
+| Positive             | 961            | 1,907 | 50.4%     |
+
+**Findings:**
+- No edge at aggregate level: prior 15-min delta direction has essentially zero predictive power for next 15-min direction (51% vs 50.4%)
+- This is expected — aggregating across all hours and days kills any time-specific patterns
+- Next step: break down by `hour_min` — specific windows (e.g. 09:30, 15:45) may show edge while midday does not
+
 ## Opening Range Breakout
 
 ### RTH-ORB-001 — Opening Range Breakout Direction vs OR Volume Delta

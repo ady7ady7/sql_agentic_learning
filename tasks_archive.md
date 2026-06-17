@@ -1,7 +1,14 @@
 
-### Task Archive: 2026-06-16 (Week 26, Day 2) — Score: pending
+### Task Archive: 2026-06-16 (Week 26, Day 3) — Score: pending
 
 *(tasks generated, not yet submitted)*
+
+---
+
+### Task Archive: 2026-06-16 (Week 26, Day 2) — Score: 17/20
+
+**Task 1 (RTH-VOL-005):** Volume imbalance by hour x weekday. 8/10 — ts_recv used instead of ts_event for grouping columns.
+**Task 2 (RTH-ORB-001):** ORB breakout direction vs OR volume delta. 9/10 — global pct instead of within-group pct.
 
 ---
 

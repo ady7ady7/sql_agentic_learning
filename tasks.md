@@ -1,135 +1,139 @@
-# NQ Project — Week 26 Day 2
+# NQ Project — Week 26 Day 3
 
 **Generated:** 2026-06-16
-**Focus:** Volume imbalance by hour x weekday + ORB breakout direction vs volume delta
+**Focus:** Stacking edges — weekday × gap × FH direction + ORB fix + 15-min rolling delta
 
 ---
 
-## Task 1: Buy/Sell Volume Imbalance by Hour × Weekday
+## Task 1: Weekday × Gap Direction × First Hour Direction Stack
 
 **Scenario:**
-Yesterday's RTH-VOL-003 showed that RTH volume is nearly balanced at the hourly level. Now break it down by weekday × hour: does Thursday's closing hour (15) show heavier sell pressure than Monday's? Is Monday's post-open (hour 10) the most buy-dominated? **(ID: RTH-VOL-005)**
+Monday and Thursday show opposite patterns in nearly every dimension. Do those patterns hold when further conditioned on gap direction and FH direction? This is the full three-way stack. **(ID: RTH-SESS-003)**
 
-Using `nq_data.ticks`, filter strictly to RTH (09:30–16:00 ET, side != 'N'). Group by weekday and hour_et.
+Using the same join as Task 1 (daily_ohlcv_rth + rth_firsthour_rest_ohlc_ranges + LAG for prev_close), compute:
 
-To get weekday, join to `nq_data.daily_ohlcv_rth` on `(ts_event AT TIME ZONE 'America/New_York')::date = trade_date`.
-
-**Output columns:**
 - `weekday`
-- `hour_et`
-- `buy_volume`
-- `sell_volume`
-- `delta` — buy_volume - sell_volume
-- `delta_pct` — delta / total_volume * 100, rounded to 2
+- `gap_direction` (gap_up / gap_down — exclude flat)
+- `fh_direction` (bullish / bearish — exclude flat)
+- `days`
+- `rest_bullish_pct` — % of days where `r_close > fh_close`, rounded to 1
+- `avg_close_location` — rounded to 1
 
-Order by `weekday`, `hour_et`.
+Filter to Monday and Thursday only. Order by `weekday`, `gap_direction`, `fh_direction`.
 
-**Tables:** `nq_data.ticks`, `nq_data.daily_ohlcv_rth`
+**Tables:** `nq_data.daily_ohlcv_rth`, `nq_data.rth_firsthour_rest_ohlc_ranges`
 
-**Difficulty Rating:** 4/5
+**Difficulty Rating:** 5/5
 
-WITH ticks_date_rth AS (
+
+WITH rth_data AS (
 SELECT 
 	*,
-	(ts_event AT TIME ZONE 'America/New_York')::date AS trade_date,
-	ts_recv AT TIME ZONE 'America/New_York' AS time_et,
-	TRIM(TO_CHAR(ts_recv AT TIME ZONE 'America/New_York', 'Day')) AS day_of_week,
-	EXTRACT('Hour' FROM ts_recv AT TIME ZONE 'America/New_York') AS hour_,
-	EXTRACT('DOW' FROM ts_recv AT TIME ZONE 'America/New_York') AS weekday
-FROM nq_data.ticks t
-WHERE (ts_event AT TIME ZONE 'America/New_York')::TIME >= '9:30' AND (ts_event AT TIME ZONE 'America/New_York')::TIME <= '16:00'
-AND side != 'N'
+	LAG(close) OVER (ORDER BY trade_date) AS prev_close
+FROM nq_data.daily_ohlcv_rth dor 
+),
+rth_gaps AS (
+SELECT 
+	*,
+	CASE 
+		WHEN OPEN = prev_close THEN 'flat'
+		WHEN OPEN > prev_close THEN 'gap_up' ELSE 'gap_down'
+	END AS gap_direction
+FROM rth_data 
+WHERE prev_close IS NOT NULL
+),
+gaps_agg AS (
+SELECT 
+	r.trade_date,
+	r.weekday,
+	r.gap_direction,
+	r.high AS daily_high,
+	r.low AS daily_low,
+	r.prev_close,
+	rfror.fh_open,
+	rfror.fh_close,
+	rfror.r_low,
+	rfror.r_high,
+	rfror.r_close,
+	CASE 
+		WHEN fh_open = fh_close THEN 'flat'
+		WHEN fh_open > fh_close THEN 'bullish' ELSE 'bearish'
+	END AS fh_direction,
+	CASE 
+		WHEN r_close > fh_close THEN 1 ELSE 0
+	END AS rest_bullish
+FROM rth_gaps r
+JOIN nq_data.rth_firsthour_rest_ohlc_ranges rfror ON r.trade_date = rfror.trade_date
 )
 SELECT
-	day_of_week,
 	weekday,
-	hour_,
-	SUM(size) FILTER (WHERE side = 'B') AS buy_volume,
-	SUM(size) FILTER (WHERE side = 'A') AS sell_volume,
-	SUM(size) FILTER (WHERE side = 'B') - SUM(size) FILTER (WHERE side = 'A') AS delta,
-	ROUND((SUM(size) FILTER (WHERE side = 'B') - SUM(size) FILTER (WHERE side = 'A')) / SUM(size)::NUMERIC * 100, 2) AS delta_pct
-FROM ticks_date_rth
-GROUP BY day_of_week, weekday, hour_
+	gap_direction,
+	fh_direction,
+	COUNT(*) AS days,
+	ROUND(SUM(rest_bullish) / COUNT(*)::NUMERIC * 100, 2) AS rest_bullish_pct,
+	ROUND(AVG((daily_high - r_close) / (daily_high - daily_low))::NUMERIC * 100, 2) AS avg_close_location
+FROM gaps_agg
+GROUP BY weekday, gap_direction, fh_direction
+ORDER BY rest_bullish_pct DESC
 
-I didn't use ORDER BY, it will be much easier and way better in terms of memory efficiency for you to order data, findigns below:
 
-day_of_week	weekday	hour_	buy_volume	sell_volume	delta	delta_pct
-Friday	5	9	1,011,503	1,008,857	2,646	0.13
-Friday	5	10	1,406,882	1,421,771	-14,889	-0.53
-Friday	5	11	1,061,982	1,066,966	-4,984	-0.23
-Friday	5	12	760,257	759,506	751	0.05
-Friday	5	13	706,639	705,793	846	0.06
-Friday	5	14	569,392	568,032	1,360	0.12
-Friday	5	15	846,739	861,403	-14,664	-0.86
-Monday	1	9	982,977	978,218	4,759	0.24
-Monday	1	10	1,182,725	1,185,679	-2,954	-0.12
-Monday	1	11	843,534	838,912	4,622	0.27
-Monday	1	12	629,418	626,810	2,608	0.21
-Monday	1	13	525,995	532,894	-6,899	-0.65
-Monday	1	14	507,056	506,596	460	0.05
-Monday	1	15	827,850	830,309	-2,459	-0.15
-Thursday	4	9	1,042,225	1,061,146	-18,921	-0.9
-Thursday	4	10	1,409,875	1,401,452	8,423	0.3
-Thursday	4	11	1,041,700	1,037,960	3,740	0.18
-Thursday	4	12	788,172	792,114	-3,942	-0.25
-Thursday	4	13	714,533	717,430	-2,897	-0.2
-Thursday	4	14	657,294	661,299	-4,005	-0.3
-Thursday	4	15	836,603	846,229	-9,626	-0.57
-Tuesday	2	9	1,075,081	1,080,187	-5,106	-0.24
-Tuesday	2	10	1,330,688	1,330,818	-130	0
-Tuesday	2	11	1,004,997	1,010,126	-5,129	-0.25
-Tuesday	2	12	786,812	782,156	4,656	0.3
-Tuesday	2	13	719,379	719,988	-609	-0.04
-Tuesday	2	14	607,661	613,952	-6,291	-0.51
-Tuesday	2	15	898,256	908,762	-10,506	-0.58
-Wednesday	3	9	984,199	986,056	-1,857	-0.09
-Wednesday	3	10	1,298,164	1,282,288	15,876	0.62
-Wednesday	3	11	945,303	950,578	-5,275	-0.28
-Wednesday	3	12	733,683	737,195	-3,512	-0.24
-Wednesday	3	13	621,739	623,186	-1,447	-0.12
-Wednesday	3	14	738,722	735,589	3,133	0.21
-Wednesday	3	15	911,525	909,037	2,488	0.14
+I didn't filter data, as it could prove useful - DO NOT take away points from me for that, as this is a potentially added value.
+For that We don't have that many observations - this research could be easily expanded to more years and differenti nstruments as well if I wanted.
+
+
+
+weekday	gap_direction	fh_direction	days	rest_bullish_pct	avg_close_location
+Tuesday	gap_down	bullish	9	100	29.58
+Monday	gap_down	bullish	5	80	31.9
+Thursday	gap_down	bearish	10	80	34.84
+Wednesday	gap_down	bearish	5	80	30.24
+Monday	gap_down	bearish	13	69.23	27.21
+Monday	gap_up	bullish	9	66.67	58.47
+Thursday	gap_up	bullish	12	66.67	42.93
+Tuesday	gap_down	bearish	12	66.67	40
+Friday	gap_down	bearish	11	63.64	31.26
+Wednesday	gap_down	bullish	7	57.14	46.01
+Thursday	gap_down	bullish	11	54.55	55.4
+Wednesday	gap_up	bearish	13	53.85	26.96
+Friday	gap_up	bearish	10	50	44.73
+Tuesday	gap_up	bearish	12	50	45.42
+Monday	gap_up	bearish	11	45.45	39.94
+Wednesday	gap_up	bullish	9	44.44	64.15
+Friday	gap_up	bullish	10	40	54.5
+Tuesday	gap_up	bullish	6	33.33	61.32
+Friday	gap_down	bullish	4	25	61.21
+Thursday	flat	bearish	1	0	50
+Thursday	gap_up	bearish	5	0	66.02
+
 
 
 
 ---
 
-## Task 2: Opening Range Breakout Direction vs Volume Delta
+## Task 2: ORB-001 Fix — Within-Group Breakout Percentages
 
 **Scenario:**
-The Opening Range (OR) is the high/low established in the first 30 minutes of RTH (09:30–10:00 ET). A breakout above the OR high is a bullish signal; below the OR low is bearish. Does the volume delta during the opening range (net buy vs net sell pressure in those 30 minutes) align with which direction the breakout occurs? **(ID: RTH-ORB-001)**
+RTH-ORB-001 showed breakout percentages as % of all 159 days, making cross-group comparison misleading. Fix it: show each breakout bucket as % within its own `or_delta_direction` group. **(ID: RTH-ORB-001b)**
 
-**Step 1 — compute OR per day from ticks (09:30–10:00 ET):**
-- `or_high` = MAX(price)
-- `or_low` = MIN(price)
-- `or_delta` = SUM(size) FILTER (WHERE side='B') - SUM(size) FILTER (WHERE side='A')
-- `or_delta_direction` = 'positive' / 'negative' (exclude flat)
+Take your existing RTH-ORB-001 query and replace the global pct with a window function:
 
-**Step 2 — determine breakout direction using rest-of-session ticks (10:00–16:00 ET):**
-For each day, compute:
-- `rest_high` = MAX(price) during 10:00–16:00
-- `rest_low` = MIN(price) during 10:00–16:00
+```sql
+ROUND(COUNT(*) OVER (PARTITION BY or_delta_direction) ... )
+```
 
-Then classify:
-- `'break_up'` — rest_high > or_high (price exceeded OR high after 10:00)
-- `'break_down'` — rest_low < or_low (price broke OR low after 10:00)
-- `'break_both'` — both conditions true (two-sided breakout)
-- `'no_break'` — price stayed inside OR all session
+Or equivalently, use `SUM(COUNT(*)) OVER (PARTITION BY or_delta_direction)` as the denominator.
 
-**Step 3 — summary by or_delta_direction × breakout_direction:**
+**Output — same structure as RTH-ORB-001 but with corrected pct:**
 - `or_delta_direction`
 - `breakout_direction`
 - `days`
-- `pct` — % of days in this bucket out of all days with same or_delta_direction, rounded to 1
+- `within_group_pct` — days / total days in that or_delta_direction group, rounded to 1
 
 Order by `or_delta_direction`, `days DESC`.
 
 **Tables:** `nq_data.ticks`
 
-**Difficulty Rating:** 5/5
-
-**Note:** This query hits raw ticks twice (OR window + rest window). If it's too slow, consider building a materialized view for the 30-min OR first — same pattern as `rth_firsthour_rest_ohlc_ranges`.
-
+**Difficulty Rating:** 3/5
 
 WITH ticks_date_or_range AS (
 SELECT 
@@ -200,7 +204,7 @@ SELECT
 	or_delta_direction,
 	breakout_direction,
 	COUNT(*) AS days,
-	ROUND(COUNT(*) / (SELECT COUNT(trade_date) FROM or_rest_agg)::NUMERIC * 100, 2) AS days_pct
+	ROUND(COUNT(*) / SUM(COUNT(*)) OVER (PARTITION BY or_delta_direction)::NUMERIC * 100, 2) AS within_group_pct
 FROM or_rest_agg
 GROUP BY or_delta_direction, breakout_direction
 )
@@ -210,25 +214,136 @@ FROM breaks_agg
 
 
 
-Findings:
+Fixed, although it didn't bring us much intel - you already calculated it:
 
-or_delta_direction	breakout_direction	days	days_pct
-bullish	break_up	40	25.16
-bearish	break_up	19	11.95
-bearish	break_both	21	13.21
-bearish	break_down	42	26.42
-bullish	break_both	26	16.35
-bullish	break_down	11	6.92
+or_delta_direction	breakout_direction	days	within_group_pct
+bearish	break_both	21	25.61
+bearish	break_down	42	51.22
+bearish	break_up	19	23.17
+bullish	break_both	26	33.77
+bullish	break_down	11	14.29
+bullish	break_up	40	51.95
+
+---
+
+## Task 3: 15-Minute Rolling Delta Windows
+
+**Scenario:**
+Does the volume delta in one 15-minute window predict the direction of the *next* 15-minute window? This is the intraday version of the FH delta question. Split RTH into 15-minute buckets (09:30, 09:45, 10:00 ... 15:45) and for each bucket compute the net delta. Then check: when bucket N has positive delta, how often does price go up in bucket N+1? **(ID: RTH-VOL-006)**
+
+Using `nq_data.ticks`, filter to RTH (09:30–16:00 ET, side != 'N'). Create 15-minute buckets using:
+```sql
+date_trunc('hour', ts_event AT TIME ZONE 'America/New_York')
++ (EXTRACT(MINUTE FROM ts_event AT TIME ZONE 'America/New_York')::int / 15) * INTERVAL '15 minutes'
+```
+
+Per bucket per day, compute:
+- `bucket_start` — the 15-min window start time
+- `bucket_delta` — SUM(size) FILTER (WHERE side='B') - SUM(size) FILTER (WHERE side='A')
+- `bucket_open` — price at MIN(ts_event) in window
+- `bucket_close` — price at MAX(ts_event) in window (use aggregate-then-JOIN pattern)
+- `bucket_direction` — 'up' if bucket_close > bucket_open, 'down' if lower, 'flat' if equal
+
+Then use LAG to get `prev_delta` and `prev_delta_direction` for each bucket. Aggregate across all days by `prev_delta_direction` × `bucket_direction` to get: when the prior 15-min had positive delta, how often did the next 15-min close up?
+
+**Output — summary:**
+- `prev_delta_direction` — 'positive' or 'negative'
+- `next_bucket_up_days` — count where bucket_direction = 'up'
+- `total`
+- `next_up_pct` — rounded to 1
+
+Order by `prev_delta_direction`.
+
+**Tables:** `nq_data.ticks`
+
+**Difficulty Rating:** 5/5
+
+**Note:** This query scans 56M rows twice (for open/close prices via aggregate-then-JOIN). Expect it to be slow — consider materializing the per-bucket aggregation first if needed.
 
 
 
-That's a very interesting topic.
-And it would also be more than beneficial to create a view for that - not as a task - it requires changing 4 numbers in the current fh_rest view.
+WITH buckets_hr_min AS (
+SELECT 
+	*,
+	TO_CHAR(bucket_start, 'YYYY-MM-DD')::DATE AS trade_day,
+	TO_CHAR(bucket_start, 'HH24:MI')::TIME AS hour_min 
+FROM nq_data.rth_15min_buckets_agg
+),
+buckets_prev_agg AS (
+SELECT 
+	*,
+	trade_day,
+	lag(bucket_delta) OVER (PARTITION BY trade_day ORDER BY trade_day, bucket_start) AS prev_delta_direction,
+	lag(bucket_direction) OVER (PARTITION BY trade_day ORDER BY trade_day, bucket_start) AS prev_bucket_direction
+FROM buckets_hr_min
+),
+buckets_prev2_agg AS (
+SELECT 
+	*,
+	CASE WHEN prev_delta_direction > 0 THEN 'positive' ELSE 'negative' END AS prev_delta_direction_indicator
+FROM buckets_prev_agg
+WHERE prev_delta_direction IS NOT NULL
+)
+SELECT 
+	prev_delta_direction_indicator,
+	COUNT(*) FILTER (WHERE bucket_direction = 'up'),
+	COUNT(*) AS total,
+	ROUND(COUNT(*) FILTER (WHERE bucket_direction = 'up') / COUNT(*)::NUMERIC * 100, 2) AS next_up_pct
+FROM buckets_prev2_agg
+GROUP BY prev_delta_direction_indicator
 
-I'd love to explore whether delta equates to bullish/bearish price as well.
-Also, I'd love to explore whether there's a collocation between the first_hour and the rest, no matter the direction. E.g how much chances are there that a given directionb prevails given ORB/fh/delta etc. I really need to check such things.
 
-And it would be lovely to explore this more thoroughly and check 15-min delta's for next 15 mins etc and similar windows. What I'm looking for is ANY and every pattern that can be useful and give me an edge.
+It's already after creating a materialized view, which was rather complex...
+
+
+
+CREATE MATERIALIZED VIEW rth_15min_buckets_agg AS
+WITH ticks_buckets AS (
+SELECT 
+	*,
+	ts_event AT TIME ZONE 'America/New_York' AS time_et,
+	DATE_TRUNC('Hour', ts_event AT TIME ZONE 'America/New_York') + (EXTRACT(MINUTE FROM ts_event AT TIME ZONE 'America/New_York')::int / 15 * INTERVAL '15 Minutes') AS bucket_start
+	FROM nq_data.ticks t
+WHERE side != 'N' AND ts_event AT TIME ZONE 'America/New_York' > '9:30' AND ts_event AT TIME ZONE 'America/New_York' < '16:00'
+),
+buckets_first_agg AS (
+SELECT 
+	bucket_start,
+	SUM(size) FILTER (WHERE side = 'B') - SUM(size) FILTER (WHERE side = 'A') AS bucket_delta,
+	MIN(ts_event) AS bucket_start_time,
+	MAX(ts_event) AS bucket_end_time
+FROM ticks_buckets
+GROUP BY bucket_start
+),
+buckets_second_agg AS (
+SELECT DISTINCT ON (b.bucket_start)
+	b.bucket_start,
+	bucket_delta,
+	t1.price AS bucket_open,
+	t2.price AS bucket_close,
+	CASE 
+		WHEN t2.price = t1.price THEN 'flat'
+		WHEN t2.price > t1.price THEN 'up' ELSE 'down'
+	END AS bucket_direction
+FROM buckets_first_agg b
+JOIN ticks_buckets t1 ON b.bucket_start_time = t1.ts_event
+JOIN ticks_buckets t2 ON b.bucket_end_time = t2.ts_event
+)
+SELECT * FROM buckets_second_agg
+
+
+The findings:
+
+prev_delta_direction_indicator	count	total	next_up_pct
+negative	1,026	2,010	51.04
+positive	961	1,907	50.39
+
+
+No useful info from here - it's quite obvious that delta wouldn't matter across all observations.
+However, I want to run a specified check for hour_min and prev bucket directions/prev delta checks - maybe that has more odds on specific hour_min windows.
+
+The only thing that requires modification is the final SELECT to check that.
+
 
 
 
@@ -236,4 +351,5 @@ And it would be lovely to explore this more thoroughly and check 15-min delta's 
 
 ## Submission Instructions
 
-Paste your query and results for each task. Log query IDs: RTH-VOL-005, RTH-ORB-001.
+Paste your query and results. Log query IDs: RTH-SESS-003, RTH-ORB-001b, RTH-VOL-006.
+Do as many as you can — no pressure to finish all three today.

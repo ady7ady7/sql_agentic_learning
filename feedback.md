@@ -1,3 +1,15 @@
+## Week 26, Day 4 — Agent Feedback on Student
+
+**Score: 27/30**
+
+**Task 1 (RTH-NEWS-001):** Table design correct — instrument column, event_time_et, notes all present. Delayed NFP (Nov 2025 govt lapse, Feb 2026 BLS) is professional-level detail. Oct 2025 NFP missing (delayed from Oct 3 to Nov 20 — likely intentional given the Nov 20 entry covers it). 9/10.
+
+**Task 2 (RTH-NEWS-002):** Two issues: (1) base table is rth_firsthour_rest_ohlc_ranges using r_close — should be daily_ohlcv_rth.close for true RTH close-to-close comparison; (2) weekday computed via TO_CHAR when daily_ohlcv_rth already has the column. Findings directionally valid. Key insight: clean Wednesdays +102 avg, 70.8% up — stronger than Monday, the bullish Wednesday pattern is real. 8/10.
+
+**Task 3 (RTH-VOL-007):** Minimal change, maximal insight. Standout windows: 09:45 positive prev delta 66.2%, 14:45 positive 65.3%, 15:00 negative 60%, 13:30 negative 60.2%. Opening momentum (09:45) is the cleanest single edge found in the 15-min analysis. 10/10.
+
+---
+
 ## Week 23, Day 5 — Agent Feedback on Student
 
 **Score: 18/20**

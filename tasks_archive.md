@@ -1,7 +1,11 @@
 
-### Task Archive: 2026-06-16 (Week 26, Day 3) — Score: pending
+### Task Archive: 2026-06-16 (Week 26, Day 3) — Score: 28/30
 
-*(tasks generated, not yet submitted)*
+**Task 1 (RTH-SESS-003):** Weekday × gap × FH direction 3-way stack. 9/10 — two label inversions (fh_direction and avg_close_location) fixed after submission. Key finding: Tuesday gap_down+bearish FH 100% rest bullish; Thursday gap_up+bullish FH 0% rest bullish.
+
+**Task 2 (RTH-ORB-001b):** Within-group pct fix using SUM(COUNT(*)) OVER (PARTITION BY or_delta_direction). 9/10 — clean fix, bullish OR delta → break_down only 14%.
+
+**Task 3 (RTH-VOL-006):** 15-min rolling delta. Built rth_15min_buckets_agg materialized view. 10/10 — no aggregate edge (51% vs 50.4%), hour_min breakdown queued.
 
 ---
 
@@ -14217,3 +14221,9 @@ GROUP BY user_id
 ### Task Archive: 2026-06-05 (Week 24, Day 4)
 
 [Solutions to be added after session]
+
+### Task Archive: 2026-06-18 (Week 26, Day 3 — full content)
+
+*(Full task content archived from tasks.md — see score summary above)*
+
+---

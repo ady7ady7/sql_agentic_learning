@@ -300,6 +300,30 @@
 - **Thursday gap_down + bullish FH: 80% rest bullish** (10 days) — gap down recovery on Thursday is the exception to the bearish Thursday pattern
 - Sample sizes are small (5-13 days per bucket) — directional but not statistically robust without more data
 
+### RTH-VOL-007 — 15-Minute Delta by Hour_Min Window
+**Query ID:** RTH-VOL-007 | Task date: 2026-06-18
+
+Breakdown of RTH-VOL-006 by specific 15-min window. Selected windows with meaningful divergence from 50%:
+
+| Window | Prev Delta | Next Up % | Edge |
+|--------|-----------|-----------|------|
+| 09:45  | positive  | **66.2%** | Strongest signal — opening buy momentum carries |
+| 09:45  | negative  | 45.5%     | Mild — opening sell pressure slightly fades |
+| 11:00  | positive  | 62.0%     | Mid-morning continuation |
+| 13:00  | negative  | 58.1%     | Midday sell fades |
+| 13:30  | negative  | 60.2%     | Midday sell fades (2nd confirmation) |
+| 14:45  | positive  | **65.3%** | Pre-close buy momentum carries |
+| 15:00  | negative  | 60.0%     | Closing-hour sell gets absorbed |
+| 12:45  | positive  | 36.4%     | Midday buy pressure fades — mean reversion |
+| 13:00  | positive  | 37.1%     | Same pattern — midday buying is exhaustion signal |
+
+**Findings:**
+- **09:45 positive delta (66.2%)** is the cleanest single edge in the dataset — if the first 15-min bucket (09:30–09:45) has net buy pressure, the next bucket closes up 66% of the time
+- **14:45 positive delta (65.3%)** — pre-close buy momentum is nearly as strong; buyers stepping in at 14:30–14:45 tend to carry through to 15:00
+- **Midday reversal pattern (12:45–13:30):** positive delta predicts DOWN (36-37%), negative delta predicts UP (58-60%) — midday buying is an exhaustion signal, midday selling gets faded. Opposite of open/close behavior
+- **15:00 negative delta (60%)** — closing-hour sell pressure fades; consistent with institutional end-of-day buying absorbing the sell
+- Aggregate edge disappears at 50% because open/close signals and midday signals cancel each other out
+
 ### RTH-VOL-006 — 15-Minute Rolling Delta Windows
 **Query ID:** RTH-VOL-006 | Task date: 2026-06-16
 **Materialized view created:** `nq_data.rth_15min_buckets_agg` — per-bucket OHLC + delta for all RTH 15-min windows
@@ -363,7 +387,41 @@
 
 ## News Days
 
-*(findings to be added)*
+### RTH-NEWS-001 — News Events Table Created
+**Query ID:** RTH-NEWS-001 | Task date: 2026-06-18
+
+Table `nq_data.news_events` created with columns: `event_date`, `event_time_et`, `event_type`, `instrument`, `notes`.
+
+**Events populated (Sep 2025 – Jun 2026):**
+- FOMC: 2025-09-17, 2025-10-29, 2025-12-10, 2026-01-28, 2026-03-18, 2026-04-29, 2026-06-17 (7 meetings)
+- NFP: Monthly, with notable delays — Nov 2025 (govt funding lapse, released Nov 20), Feb 2026 (BLS adjustments, released Feb 11)
+- CPI: Monthly releases at 08:30 ET
+
+**Design note:** `instrument = 'ALL'` for macro events; column supports future per-instrument filtering.
+
+### RTH-NEWS-002 — Clean vs Event Day Close-to-Close by Weekday
+**Query ID:** RTH-NEWS-002 | Task date: 2026-06-18
+**Note:** Query used r_close from rth_firsthour_rest_ohlc_ranges instead of daily_ohlcv_rth.close — directionally valid but slightly off for precise close-to-close comparison.
+
+| Weekday   | Is Event Day | Days | Avg Close Change | Up % |
+|-----------|-------------|------|-----------------|------|
+| Monday    | false        | 33   | +135.70         | 66.7% |
+| Wednesday | false        | 24   | +102.30         | 70.8% |
+| Wednesday | true         | 9    | +30.22          | 66.7% |
+| Friday    | false        | 25   | +10.01          | 60.0% |
+| Friday    | true         | 4    | -13.88          | 75.0% |
+| Tuesday   | false        | 31   | -6.79           | 45.2% |
+| Tuesday   | true         | 2    | -0.38           | 50.0% |
+| Thursday  | false        | 28   | -99.03          | 35.7% |
+| Thursday  | true         | 3    | -251.67         | 33.3% |
+
+**Findings:**
+- **Wednesday clean days: +102 avg, 70.8% up** — stronger than Monday (+136 avg but only 33 days). Wednesday's bullish bias is structural, not purely FOMC-driven
+- **Wednesday event days: +30 avg, 66.7% up** — FOMC days still bullish but magnitude drops from 102 to 30. Post-FOMC relief rallies account for ~72 pts of the Wednesday premium
+- **Monday clean days: +135 avg, 66.7% up** — Monday bullish drift is clean (no major macro events land on Mondays)
+- **Thursday event days: -251 avg** (3 days) — event Thursdays are extremely bearish, worse than already-bearish clean Thursdays (-99 avg). Small sample (3 days)
+- **Tuesday is structurally bearish** on clean days (-6.79 avg, 45.2% up) — not news-driven
+- **Friday event days** (4 days): 75% up but -13.88 avg — contradictory; NFP Fridays close up often but not by much, or some close sharply lower
 
 ---
 

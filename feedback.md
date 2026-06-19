@@ -1,3 +1,13 @@
+## Week 26, Day 5 — Agent Feedback on Student
+
+**Score: 18/20**
+
+**Task 1 (RTH-NEWS-003a):** Query skeleton correct — pre-event price via aggregate-then-JOIN, reaction range, spike direction via timestamp comparison, all clean. Stopped before adding reversal logic after correctly identifying the flaw: reversal check is meaningless without first anchoring to the spike extreme (price could have already returned to pre-event level mid-spike). Stopping at the right moment is professional judgment. Future improvement: event_time-driven window instead of hardcoded 14:00. 8/10.
+
+**Task 2 (RTH-VOL-008):** Clean extension, good initiative running full unfiltered version too. Key finding: 09:45 positive prior delta is the ONLY window with both strong direction (66.2%) AND strong magnitude (+20 pts avg_move_all). Other "edges" from RTH-VOL-007 don't survive the magnitude check — 14:45 and 15:00 show only +5 pts avg move, which is marginal after spread. 10/10.
+
+---
+
 ## Week 26, Day 4 — Agent Feedback on Student
 
 **Score: 27/30**

@@ -300,41 +300,70 @@
 - **Thursday gap_down + bullish FH: 80% rest bullish** (10 days) — gap down recovery on Thursday is the exception to the bearish Thursday pattern
 - Sample sizes are small (5-13 days per bucket) — directional but not statistically robust without more data
 
-### RTH-VOL-007 — 15-Minute Delta by Hour_Min Window
-**Query ID:** RTH-VOL-007 | Task date: 2026-06-18
+### RTH-VOL-008 — 15-Minute Bucket Magnitude by Prior Bucket Delta
+**Query ID:** RTH-VOL-008 | Task date: 2026-06-19
 
-Breakdown of RTH-VOL-006 by specific 15-min window. Selected windows with meaningful divergence from 50%:
+Extension of RTH-VOL-007 adding avg price move (bucket_close - bucket_open) split by direction outcome. `avg_move_all` is the net expected value per trade across all days in that group.
 
-| Window | Prev Delta | Next Up % | Edge |
-|--------|-----------|-----------|------|
-| 09:45  | positive  | **66.2%** | Strongest signal — opening buy momentum carries |
-| 09:45  | negative  | 45.5%     | Mild — opening sell pressure slightly fades |
-| 11:00  | positive  | 62.0%     | Mid-morning continuation |
-| 13:00  | negative  | 58.1%     | Midday sell fades |
-| 13:30  | negative  | 60.2%     | Midday sell fades (2nd confirmation) |
-| 14:45  | positive  | **65.3%** | Pre-close buy momentum carries |
-| 15:00  | negative  | 60.0%     | Closing-hour sell gets absorbed |
-| 12:45  | positive  | 36.4%     | Midday buy pressure fades — mean reversion |
-| 13:00  | positive  | 37.1%     | Same pattern — midday buying is exhaustion signal |
+**Key windows (filtered + full dataset):**
+
+| Current Bucket | Prior Delta | Up % | Avg Up Move | Avg Down Move | Avg Move All | Verdict |
+|---|---|---|---|---|---|---|
+| 09:45–10:00 | positive | 66.2% | +58.1 | -54.5 | **+20.0** | Strong — direction AND magnitude confirmed |
+| 09:45–10:00 | negative | 45.5% | +59.2 | -50.5 | -0.7 | No edge |
+| 11:00–11:15 | positive | 62.0% | +32.2 | -38.5 | +5.3 | Weak magnitude |
+| 14:45–15:00 | positive | 65.3% | +18.7 | -19.5 | +5.4 | Weak magnitude |
+| 15:00–15:15 | negative | 60.0% | +21.0 | -18.5 | +5.2 | Weak magnitude |
+| 15:00–15:15 | positive | 48.8% | +25.2 | -25.5 | -0.8 | Direction signal was a mirage |
 
 **Findings:**
-- **09:45 positive delta (66.2%)** is the cleanest single edge in the dataset — if the first 15-min bucket (09:30–09:45) has net buy pressure, the next bucket closes up 66% of the time
-- **14:45 positive delta (65.3%)** — pre-close buy momentum is nearly as strong; buyers stepping in at 14:30–14:45 tend to carry through to 15:00
-- **Midday reversal pattern (12:45–13:30):** positive delta predicts DOWN (36-37%), negative delta predicts UP (58-60%) — midday buying is an exhaustion signal, midday selling gets faded. Opposite of open/close behavior
-- **15:00 negative delta (60%)** — closing-hour sell pressure fades; consistent with institutional end-of-day buying absorbing the sell
-- Aggregate edge disappears at 50% because open/close signals and midday signals cancel each other out
+- **09:45–10:00, positive prior delta is the only window with both strong direction (66.2%) AND strong magnitude (+20 pts avg_move_all)** — this is the only setup that survives a real expected value test
+- All other "edges" from RTH-VOL-007 have avg_move_all of ±5 pts or less — marginal after spread, not reliably tradeable standalone
+- The 09:45 positive setup has symmetric avg win/loss magnitude (~+58 up, -55 down) — the edge is purely in win rate (66%), not asymmetric payoff
+- 15:00 negative prior delta: 60% up but only +5.2 avg move — directional but insufficient magnitude
+- **Practical conclusion:** use 09:45 positive prior delta as a confirming signal in a broader setup, not as a standalone scalp trigger. Other windows need stacking with additional filters before they're actionable.
+
+### RTH-VOL-007 — 15-Minute Bucket Direction by Prior Bucket Delta
+**Query ID:** RTH-VOL-007 | Task date: 2026-06-18
+
+**How to read this table:**
+- `current_bucket` = the 15-min window being observed (e.g. 09:45 = 09:45–10:00)
+- `prior_bucket_delta` = net aggressor delta of the immediately preceding bucket (e.g. 09:30–09:45)
+- `current_bucket_up_pct` = % of days where the current bucket closes above its open
+- Signal is known at the **start** of the current bucket (i.e. at 09:45 you know the 09:30–09:45 delta and can act on it immediately)
+
+Selected windows with meaningful divergence from 50%:
+
+| Current Bucket | Prior Bucket Delta | Current Bucket Up % | Note |
+|---|---|---|---|
+| 09:45–10:00 | positive | **66.2%** | Strongest signal in dataset |
+| 09:45–10:00 | negative | 45.5% | Mild fade |
+| 11:00–11:15 | positive | 62.0% | Mid-morning continuation |
+| 13:00–13:15 | negative | 58.1% | Midday sell pressure fades |
+| 13:30–13:45 | negative | 60.2% | Midday sell fades (2nd window) |
+| 14:45–15:00 | positive | **65.3%** | Pre-close buy momentum carries |
+| 15:00–15:15 | negative | 60.0% | Closing-hour sell absorbed |
+| 12:45–13:00 | positive | 36.4% | Midday buy is exhaustion signal |
+| 13:00–13:15 | positive | 37.1% | Same — midday buying fades |
+
+**Findings:**
+- **09:45–10:00, prior bucket positive delta (66.2%):** when 09:30–09:45 has net buy aggression, the next 15-min window closes up 66% of the time — the strongest directional signal in the 15-min analysis
+- **14:45–15:00, prior bucket positive delta (65.3%):** pre-close buy aggression at 14:30–14:45 carries into the next window at nearly the same rate
+- **Midday reversal pattern (12:45–13:30):** positive prior delta predicts DOWN (36-37%), negative prior delta predicts UP (58-60%) — midday buying is an exhaustion signal, midday selling gets faded. Opposite regime vs open/close windows
+- **15:00–15:15, prior bucket negative delta (60%):** closing-hour sell pressure fades — consistent with institutional end-of-day absorption
+- Aggregate edge is 50% because open/close continuation and midday reversal regimes cancel each other out across all windows
 
 ### RTH-VOL-006 — 15-Minute Rolling Delta Windows
 **Query ID:** RTH-VOL-006 | Task date: 2026-06-16
 **Materialized view created:** `nq_data.rth_15min_buckets_agg` — per-bucket OHLC + delta for all RTH 15-min windows
 
-| Prev Delta Direction | Next Bucket Up | Total | Next Up % |
-|----------------------|----------------|-------|-----------|
-| Negative             | 1,026          | 2,010 | 51.0%     |
-| Positive             | 961            | 1,907 | 50.4%     |
+| Prior Bucket Delta Direction | Current Bucket Up Count | Total | Current Bucket Up % |
+|------------------------------|------------------------|-------|---------------------|
+| Negative                     | 1,026                  | 2,010 | 51.0%               |
+| Positive                     | 961                    | 1,907 | 50.4%               |
 
 **Findings:**
-- No edge at aggregate level: prior 15-min delta direction has essentially zero predictive power for next 15-min direction (51% vs 50.4%)
+- No edge at aggregate level: prior bucket delta direction has essentially zero predictive power for current bucket direction across all windows (51% vs 50.4%)
 - This is expected — aggregating across all hours and days kills any time-specific patterns
 - Next step: break down by `hour_min` — specific windows (e.g. 09:30, 15:45) may show edge while midday does not
 
@@ -386,6 +415,22 @@ Breakdown of RTH-VOL-006 by specific 15-min window. Selected windows with meanin
 ---
 
 ## News Days
+
+### RTH-NEWS-003a — FOMC Reaction Spike Analysis (methodology established, incomplete)
+**Query ID:** RTH-NEWS-003a | Task date: 2026-06-19
+**Status:** Query built and validated through spike_direction. Not extended further — reversal logic deferred.
+
+**Methodology established:**
+- Pre-event reference price: last tick strictly before 14:00 ET on FOMC day (MAX(ts_event) → point-lookup JOIN)
+- Reaction range: MIN/MAX price in 14:00–15:00 ET window
+- Spike direction: first extreme hit determined by comparing timestamp of reaction_high vs reaction_low (DISTINCT ON pattern)
+
+**Known limitation identified:** A simple "did price return to pre_event_price before 16:00" reversal check is flawed — price may have already returned to the reference level mid-spike, making the check misleading. Correct approach requires anchoring the reversal check to the spike extreme (first target = pre_event_price from the spike high/low), not the raw reference price.
+
+**Future extensions noted:**
+- Replace hardcoded 14:00 with `event_time_et` from news_events for generalized multi-event-type support
+- Apply same methodology to NFP/CPI (08:30 ET reference, Globex window)
+- Reversal pattern: measure time/distance from spike extreme back to pre-event level
 
 ### RTH-NEWS-001 — News Events Table Created
 **Query ID:** RTH-NEWS-001 | Task date: 2026-06-18

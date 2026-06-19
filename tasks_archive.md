@@ -14227,3 +14227,13 @@ GROUP BY user_id
 *(Full task content archived from tasks.md — see score summary above)*
 
 ---
+
+### Task Archive: 2026-06-18 (Week 26, Day 4) — Score: 27/30
+
+**Task 1 (RTH-NEWS-001):** Created nq_data.news_events table, populated FOMC/NFP/CPI dates Sep 2025–Jun 2026. 9/10 — solid design, instrument column present, delayed NFP dates handled correctly.
+
+**Task 2 (RTH-NEWS-002):** Clean vs event-day close-to-close by weekday. 8/10 — used r_close from rth_firsthour_rest_ohlc_ranges instead of daily_ohlcv_rth.close. Key finding: clean Wednesday +102 avg 70.8% up, structural not FOMC-driven.
+
+**Task 3 (RTH-VOL-007):** 15-min current bucket direction by prior bucket delta, broken down by hour_min. 10/10 — 09:45 positive prior delta 66.2%, 14:45 positive 65.3%, midday reversal regime confirmed.
+
+---

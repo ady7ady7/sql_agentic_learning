@@ -1,3 +1,15 @@
+## Week 27, Day 1 — Agent Feedback on Student
+
+**Score: 29/30**
+
+**Extra (RTH-VOL-009):** Done Sunday trading brief — delta vs candle direction alignment. Clean, correct. 10/10.
+
+**Task 1 (RTH-NEWS-003b):** FOMC query skeleton reused cleanly, time windows correct, fh_open as RTH open proxy is a smart shortcut. Minor: CTE still named ticks_fomc_days — should be ticks_news_days. Not penalized. 9/10.
+
+**Task 2 (RTH-NEWS-004):** Clean aggregation wrapping Task 1. All columns correct, FILTER syntax right. Key finding: CPI 71% closed above pre-event (initial drop gets bought), NFP 40% closed above pre-event (initial pop fades). Strong contrast for only 5-7 days each. 10/10.
+
+---
+
 ## Week 26, Day 5 — Agent Feedback on Student
 
 **Score: 18/20**

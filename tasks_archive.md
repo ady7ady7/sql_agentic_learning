@@ -14237,3 +14237,13 @@ GROUP BY user_id
 **Task 3 (RTH-VOL-007):** 15-min current bucket direction by prior bucket delta, broken down by hour_min. 10/10 — 09:45 positive prior delta 66.2%, 14:45 positive 65.3%, midday reversal regime confirmed.
 
 ---
+
+### Task Archive: 2026-06-19 (Week 26, Day 5) — Score: 18/20
+
+**Task 1 (RTH-NEWS-003a):** FOMC reaction spike query — pre-event price, reaction range 14:00–15:00, spike direction via timestamp comparison. 8/10 — query correct, stopped before reversal logic after correctly identifying flaw (needs spike-extreme anchoring not raw reference price).
+
+**Task 2 (RTH-VOL-008):** 15-min bucket magnitude by prior bucket delta. 10/10 — 09:45 positive prior delta is only window with real EV (+20 pts avg_move_all, 66.2% up); all others marginal after spread.
+
+**Extra (RTH-VOL-009, Sunday trading brief):** Delta bias vs candle direction alignment — bullish delta → bullish candle 77.6%, bearish delta → bullish candle 25.4%. ~23% divergence cases represent absorption/exhaustion setups.
+
+---

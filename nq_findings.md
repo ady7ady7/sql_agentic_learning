@@ -300,6 +300,23 @@
 - **Thursday gap_down + bullish FH: 80% rest bullish** (10 days) — gap down recovery on Thursday is the exception to the bearish Thursday pattern
 - Sample sizes are small (5-13 days per bucket) — directional but not statistically robust without more data
 
+### RTH-VOL-009 — Delta Bias vs Candle Direction Alignment
+**Query ID:** RTH-VOL-009 | Task date: 2026-06-21
+
+How often does aggressor delta direction agree with the 15-min candle direction (bucket_close vs bucket_open)?
+
+| Delta Bias | Total Buckets | Bullish Candle | Bullish Candle % |
+|---|---|---|---|
+| Bullish (delta > 0) | 1,973 | 1,530 | **77.6%** |
+| Bearish (delta < 0) | 2,098 | 532 | **25.4%** |
+| Flat (delta = 0) | 5 | 3 | 60% |
+
+**Findings:**
+- Delta and candle direction agree ~75-77% of the time — meaningful correlation but not redundant
+- ~23% of buckets show divergence (positive delta + bearish candle, or negative delta + bullish candle) — these absorption/exhaustion cases are structurally interesting signals on their own
+- **Practical implication:** OHLC candle direction is a usable but weaker proxy for delta. TradingView's approximated delta (tick-rule based) will agree with true aggressor delta directionally most of the time on liquid instruments like NQ, but divergences will be noisier than our true bid/ask data
+- The 09:45 signal from RTH-VOL-008 is based on true delta — candle-direction substitute would capture ~75% of the same signal
+
 ### RTH-VOL-008 — 15-Minute Bucket Magnitude by Prior Bucket Delta
 **Query ID:** RTH-VOL-008 | Task date: 2026-06-19
 
@@ -415,6 +432,33 @@ Selected windows with meaningful divergence from 50%:
 ---
 
 ## News Days
+
+### RTH-NEWS-004 — NFP vs CPI Reaction Summary
+**Query ID:** RTH-NEWS-004 | Task date: 2026-06-22
+
+Aggregated spike behavior by event type. Pre-event reference = last tick before 08:30 ET. Reaction window = 08:30–09:30 ET (Globex). RTH close comparison uses fh_close from rth_firsthour_rest_ohlc_ranges.
+
+| Event | Days | Avg Spike | Spike Up % | Avg RTH Open vs Pre | Avg RTH Close vs Pre | Closed Above Pre % |
+|---|---|---|---|---|---|---|
+| CPI | 7 | 122 pts | 42.9% | +27 | +36 | **71.4%** |
+| NFP | 5 | 185 pts | 60.0% | -6 | -8 | 40.0% |
+
+**Findings:**
+- **CPI: initial spike is mostly down (57%), but RTH closes above pre-announcement 71% of the time** — the CPI drop gets bought back through the session. Avg close +36 pts above pre-event level
+- **NFP: initial spike is mostly up (60%), but RTH closes below pre-announcement 60% of the time** — the NFP pop fades. Avg close -8 pts below pre-event level
+- **NFP spikes are significantly larger** (185 pts avg vs 122 pts for CPI) — employment data creates more violent initial moves than inflation data
+- **RTH open after NFP is nearly flat vs pre-event** (-6 pts avg) — the Globex reaction is mixed and RTH opens close to the pre-announcement level; after CPI, RTH opens +27 pts above (market holds some of the recovery into open)
+- Sample is small (5-7 events each) — directional contrast is clean but not statistically robust
+
+### RTH-NEWS-003b — NFP/CPI Reaction Spike Detail (per event)
+**Query ID:** RTH-NEWS-003b | Task date: 2026-06-22
+
+Per-event spike data: pre-event price, reaction range 08:30–09:30 ET, spike direction, RTH open and first-hour close vs pre-event. See tasks.md for full row-level data.
+
+Notable events:
+- 2026-03-06 NFP: 296 pt spike (largest), spiked up first, RTH closed -42 vs pre-event — full fade
+- 2025-12-18 CPI: 176 pt spike down, RTH closed +212 vs pre-event — strongest CPI recovery
+- 2026-02-11 NFP: 213 pt spike down, RTH closed -161 vs pre-event — continuation of the drop
 
 ### RTH-NEWS-003a — FOMC Reaction Spike Analysis (methodology established, incomplete)
 **Query ID:** RTH-NEWS-003a | Task date: 2026-06-19

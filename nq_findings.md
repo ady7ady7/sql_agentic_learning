@@ -280,18 +280,19 @@
 ## Stacked Edges
 
 ### RTH-SESS-003 — Weekday × Gap Direction × First Hour Direction
-**Query ID:** RTH-SESS-003 | Task date: 2026-06-16
-**Note:** fh_direction labels are inverted in the query (`fh_open > fh_close` labeled 'bullish' — should be 'bearish'). Results below use corrected labels. avg_close_location formula also inverted (distance from high, not from low) — treat as approximate.
+**Query ID:** RTH-SESS-003 | Task date: 2026-06-16 (corrected same session)
+**Note:** Original submission had two label inversions — both fixed and rerun: (1) `fh_open > fh_close` now correctly labeled 'bearish'; (2) avg_close_location uses `r_close - daily_low` in numerator. Results below are from the corrected query.
 
-| Weekday   | Gap       | FH Dir  | Days | Rest Bullish % |
-|-----------|-----------|---------|------|----------------|
-| Tuesday   | gap_down  | bearish | 9    | 100%           |
-| Monday    | gap_down  | bearish | 5    | 80%            |
-| Thursday  | gap_down  | bullish | 10   | 80%            |
-| Monday    | gap_down  | bullish | 13   | 69.2%          |
-| Monday    | gap_up    | bearish | 9    | 66.7%          |
-| Thursday  | gap_up    | bearish | 12   | 66.7%          |
-| Thursday  | gap_up    | bullish | 5    | 0%             |
+| Weekday   | Gap       | FH Dir  | Days | Rest Bullish % | Avg Close Location |
+|-----------|-----------|---------|------|----------------|--------------------|
+| Tuesday   | gap_down  | bearish | 9    | 100%           | 70.4%              |
+| Monday    | gap_down  | bearish | 5    | 80%            | 68.1%              |
+| Thursday  | gap_down  | bullish | 10   | 80%            | 65.2%              |
+| Wednesday | gap_down  | bullish | 5    | 80%            | 69.8%              |
+| Monday    | gap_down  | bullish | 13   | 69.2%          | 72.8%              |
+| Thursday  | gap_up    | bearish | 12   | 66.7%          | 57.1%              |
+| Monday    | gap_up    | bearish | 9    | 66.7%          | 41.5%              |
+| Thursday  | gap_up    | bullish | 5    | 0%             | 34.0%              |
 
 **Findings:**
 - **Tuesday gap_down + bearish FH: 100% rest bullish** (9 days) — small sample but striking. Gap down, first hour sells off, afternoon fully reverses every time in the dataset
@@ -386,6 +387,30 @@ Selected windows with meaningful divergence from 50%:
 
 ## Opening Range Breakout
 
+### RTH-ORB-002 — OR Delta × Weekday Breakout Rates
+**Query ID:** RTH-ORB-002 | Task date: 2026-06-24
+**Note:** day_of_week computed from ts_recv — Sunday rows in output are misclassified Monday Globex ticks. Exclude Sunday; all other weekday results valid.
+
+**Key rows (excluding Sunday, within-group pct):**
+
+| Weekday | OR Delta | Breakout | Days | Within-Group % |
+|---|---|---|---|---|
+| Tuesday | bullish | break_up | 10 | **62.5%** |
+| Tuesday | bullish | break_down | 2 | 12.5% |
+| Tuesday | bearish | break_down | 10 | **58.8%** |
+| Thursday | bullish | break_up | 9 | **60.0%** |
+| Thursday | bearish | break_down | 7 | 50.0% |
+| Wednesday | bearish | break_down | 12 | **63.2%** |
+| Wednesday | bullish | break_both | 5 | 41.7% |
+| Monday | bullish | break_both | 8 | **57.1%** |
+| Monday | bearish | break_both | 8 | 42.1% |
+
+**Findings:**
+- **Tuesday has the strongest OR delta → breakout alignment in the dataset** — bullish OR delta → break_up 62.5%, bearish OR delta → break_down 58.8%. OR delta is a reliable directional signal on Tuesdays despite Tuesday's structural bearish drift
+- **Thursday bullish OR delta → break_up 60%** — holds well. Bearish OR delta on Thursday is weaker (50% break_down) — consistent with Thursday's tendency to fade regardless of opening conditions
+- **Wednesday bearish OR delta → break_down 63%** — strongest bearish alignment of any weekday. Bullish OR delta on Wednesday is mixed (break_both 42%, break_up 42%) — no clean directional signal
+- **Monday is dominated by break_both** regardless of OR delta direction — Monday tends to expand range in both directions before resolving. OR delta less useful as a directional filter on Mondays
+
 ### RTH-ORB-001 — Opening Range Breakout Direction vs OR Volume Delta
 **Query ID:** RTH-ORB-001 | Task date: 2026-06-16
 **Opening Range:** 09:30–10:00 ET (30 minutes). Breakout measured 10:00–16:00 ET.
@@ -432,6 +457,24 @@ Selected windows with meaningful divergence from 50%:
 ---
 
 ## News Days
+
+### RTH-NEWS-005 — FOMC Spike Reversal (Anchored to Spike Extreme)
+**Query ID:** RTH-NEWS-005 | Task date: 2026-06-24
+
+Reversal defined as: after the spike extreme is reached, does price cross back through pre_event_price before 16:00? All 7 FOMC days in dataset show reversed = 1 (100% reversal rate).
+
+| Spike Direction | Reversed | Days | Avg Close vs Pre-Event |
+|---|---|---|---|
+| down | 1 | 4 | **+107.94** |
+| up | 1 | 3 | **-56.17** |
+
+**Findings:**
+- **100% of FOMC spikes reversed back through pre-event price** — every spike in the dataset (7 events) was a trap, not a trend
+- **Spike down + reversed:** avg RTH close +108 pts above pre-event — market spiked down on FOMC, reversed, and closed well above the pre-announcement level. Buy-the-dip pattern.
+- **Spike up + reversed:** avg RTH close -56 pts below pre-event — market spiked up, reversed, and closed below. Fade-the-spike pattern.
+- Both directions close on the opposite side of pre_event_price — FOMC reaction spikes in this dataset are consistently exhaustion moves, not directional trends
+- Sample is small (3-4 days per group) — treat as directional signal, not statistical certainty
+- **Known issue:** spike_magnitude in the underlying view (fomc_agg) uses reaction_high - reaction_low (full reaction range) instead of |spike_extreme - pre_event_price| (true spike size from reference). Fix deferred.
 
 ### RTH-NEWS-004 — NFP vs CPI Reaction Summary
 **Query ID:** RTH-NEWS-004 | Task date: 2026-06-22

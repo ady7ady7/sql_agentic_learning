@@ -14247,3 +14247,13 @@ GROUP BY user_id
 **Extra (RTH-VOL-009, Sunday trading brief):** Delta bias vs candle direction alignment — bullish delta → bullish candle 77.6%, bearish delta → bullish candle 25.4%. ~23% divergence cases represent absorption/exhaustion setups.
 
 ---
+
+### Task Archive: 2026-06-22 (Week 27, Day 1) — Score: 29/30
+
+**Extra (RTH-VOL-009, Sunday brief):** Delta bias vs candle direction alignment — bullish delta → bullish candle 77.6%, bearish delta → bullish candle 25.4%. 10/10.
+
+**Task 1 (RTH-NEWS-003b):** NFP/CPI reaction spike — pre-08:30 reference, 08:30–09:30 reaction window, spike direction via timestamp comparison. 9/10 — CTE still named ticks_fomc_days instead of ticks_news_days.
+
+**Task 2 (RTH-NEWS-004):** NFP vs CPI aggregated summary. 10/10 — CPI 71% closed above pre-event (drop gets bought), NFP 40% closed above (pop fades), NFP avg spike 185pts vs CPI 122pts.
+
+---

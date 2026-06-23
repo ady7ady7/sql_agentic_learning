@@ -1,3 +1,13 @@
+## Week 27, Day 2 — Agent Feedback on Student
+
+**Score: 16/20**
+
+**Task 1 (RTH-NEWS-005):** Query logic correct — date filter on JOIN fixed, MAX for boolean reversal correct, spike extreme anchoring right. Two issues: (1) spike_magnitude in the view still uses reaction_high - reaction_low (noted by student — should be spike extreme vs pre_event_price, fix deferred); (2) 100% reversal rate (all 7 FOMC days reversed) — not a bug, but worth flagging as a finding. Good initiative creating the view first. 8/10.
+
+**Task 2 (RTH-ORB-002):** Breakout logic clean, within-group pct correct. Recurring ts_recv issue for day_of_week — Sunday rows confirm it again. Fix: use TRIM(TO_CHAR(trade_date, 'Day')). Findings strong despite bug — Tuesday bullish OR delta → break_up 62.5% is the strongest weekday alignment. 8/10.
+
+---
+
 ## Week 27, Day 1 — Agent Feedback on Student
 
 **Score: 29/30**

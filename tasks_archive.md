@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-06-24 (Week 27, Day 2) — Score: 16/20
+
+**Task 1 (RTH-NEWS-005):** FOMC spike reversal anchored to spike extreme timestamp (not pre-event time). Created fomc_agg VIEW beforehand. 8/10 — reversal logic correct, MAX(crossed) for boolean flag correct, date filter on JOIN fixed. Two open issues: spike_magnitude in the view still uses reaction_high - reaction_low instead of |spike_extreme - pre_event_price| (deferred fix); 100% reversal rate (all 7 FOMC events) is a genuine finding.
+
+**Task 2 (RTH-ORB-002):** OR delta × weekday breakout rates. 8/10 — breakout logic clean, within-group pct correct. Recurring ts_recv weekday bug produced Sunday rows again (fix: use TRIM(TO_CHAR(trade_date, 'Day'))). Tuesday confirmed strongest alignment: bullish OR delta → break_up 62.5%, bearish OR delta → break_down 58.8%. Monday dominated by break_both regardless of delta direction.
+
+---
+
 ### Task Archive: 2026-06-16 (Week 26, Day 3) — Score: 28/30
 
 **Task 1 (RTH-SESS-003):** Weekday × gap × FH direction 3-way stack. 9/10 — two label inversions (fh_direction and avg_close_location) fixed after submission. Key finding: Tuesday gap_down+bearish FH 100% rest bullish; Thursday gap_up+bullish FH 0% rest bullish.

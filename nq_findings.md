@@ -387,6 +387,66 @@ Selected windows with meaningful divergence from 50%:
 
 ## Opening Range Breakout
 
+### RTH-ORB-005 — OR Direction × FH Direction Combined Signal
+**Query ID:** RTH-ORB-005 | Task date: 2026-06-24
+**Materialized view used:** `nq_data.or_rest_ohlc_ranges` (OR + rest OHLC) joined to `nq_data.rth_firsthour_rest_ohlc_ranges` (FH + rest OHLC) on trade_date.
+
+| OR Direction | FH Direction | Days | Rest Bullish Days | Rest Bullish % |
+|---|---|---|---|---|
+| bearish | bearish | 62 | 37 | 59.68% |
+| bullish | bullish | 77 | 45 | 58.44% |
+| bullish | bearish | 10 | 5  | 50.00% |
+| bearish | bullish | 10 | 4  | 40.00% |
+
+**Findings:**
+- **Counterintuitive result: agree-bearish (both OR and FH bearish) → 59.7% rest bullish** — higher than agree-bullish (58.4%). A bearish open that persists through both the OR and FH windows consistently gets bought into the afternoon. This is a mean-reversion / exhaustion pattern at the session level.
+- **Agree-bullish → 58.4% rest bullish** — mild continuation bias, consistent with RTH-FH-001 and RTH-ORB-003 standalone results
+- **OR bearish + FH bullish → 40% rest bullish** — the only signal with a mild bearish rest bias. Interpretation: when OR sells off but first hour recovers, the recovery fails to hold into the afternoon more often than not
+- **OR bullish + FH bearish → 50% rest bullish** — coin flip, no edge. A strong OR followed by a weak first hour gives no directional information for the rest of session
+- **Key implication:** Do NOT fade a bearish open using both OR and FH together as a combined bearish signal — that setup resolves bullishly 60% of the time. The agree-bearish case is a buy setup, not a short setup.
+- **Agree signal count skew:** agree-bullish (77 days) vs agree-bearish (62 days) — market opens bullishly more often than bearishly in this sample
+- Divergence cases are rare (10 days each) — treat with caution
+
+### RTH-ORB-004 — OR Delta Direction vs Rest-of-Session Direction
+**Query ID:** RTH-ORB-004 | Task date: 2026-06-24
+**Note:** Redefined from planned magnitude-bucketing task — OR delta direction vs rest-of-session direction is the correct first step before bucketing. Analogous to RTH-VOL-004 (FH delta vs rest direction).
+
+| OR Delta Direction | Days | Avg OR Delta | Rest Bullish Days | Rest Bullish % |
+|--------------------|------|-------------|-------------------|----------------|
+| Positive           | 77   | +1,149.34   | 46                | 59.74%         |
+| Negative           | 82   | -1,304.61   | 42                | 51.22%         |
+
+**Findings:**
+- Positive OR delta → bullish rest-of-session 59.74%; negative OR delta → only 51.22% — an 8.5pp gap
+- Bearish arm is near-random (51%) — OR delta provides almost no signal when net selling dominated the OR window
+- **Comparison with FH delta (RTH-VOL-004):** FH delta gap was 60.3% vs 54.7% = 5.6pp. OR delta gap is larger (8.5pp), but the bearish arm is weaker (51% vs 54.7%). Neither signal is decisive standalone.
+- The OR is a tighter window (30 min vs 60 min) — larger delta magnitude asymmetry (avg +1,149 vs -1,305) suggests sell sessions build delta faster than buy sessions in the OR
+
+### RTH-ORB-003 — OR Direction vs Rest-of-Session Continuation
+**Query ID:** RTH-ORB-003 | Task date: 2026-06-24
+**Note:** Materialized view `nq_data.or_rest_ohlc_ranges` created this session — stores per-day OR OHLC (09:30–<10:00) and rest OHLC (10:00–<16:00). OR open = first tick price; OR close = last tick price (by MIN/MAX ts_event joined back to ticks). OR upper bound uses `< '10:00'` (exclusive) — 10:00:00.000 tick falls in rest window.
+
+| OR Direction | Days | Rest Bullish Days | Rest Bullish % |
+|---|---|---|---|
+| Bullish | 87 | 52 | 59.77% |
+| Bearish | 72 | 36 | 50.00% |
+
+**Findings:**
+- Bullish OR (close > open in 09:30–10:00) → 59.77% rest-of-session bullish — modest but consistent upside continuation
+- Bearish OR → exactly 50% rest bullish — a coin flip, no directional edge whatsoever
+- **Direct comparison with FH direction (RTH-FH-001):**
+
+| Signal | Bullish arm | Bearish arm | Two-sided gap |
+|---|---|---|---|
+| FH direction | 56.3% | 41.7% | **14.6pp** |
+| OR direction | 59.8% | 50.0% | 9.8pp |
+| FH delta | 60.3% | 54.7% | 5.6pp |
+| OR delta | 59.7% | 51.2% | 8.5pp |
+
+- **FH direction is the superior two-sided signal** — its bearish arm (41.7%) is strongly predictive of a rest-of-session reversal, while OR bearish direction is a coin flip. The 30-min OR window is too short for price direction alone to carry information; the full first hour is needed.
+- OR's bullish arm is marginally stronger than FH's bullish arm (59.8% vs 56.3%), but the difference is small and the loss of bearish edge makes OR an inferior standalone indicator.
+- **Takeaway for trading:** Use FH direction as the primary directional filter for rest-of-session bias. OR direction adds nothing on bearish days.
+
 ### RTH-ORB-002 — OR Delta × Weekday Breakout Rates
 **Query ID:** RTH-ORB-002 | Task date: 2026-06-24
 **Note:** day_of_week computed from ts_recv — Sunday rows in output are misclassified Monday Globex ticks. Exclude Sunday; all other weekday results valid.

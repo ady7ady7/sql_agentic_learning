@@ -1,3 +1,15 @@
+## Week 27, Day 3 — Agent Feedback on Student
+
+**Score: 27/30**
+
+**Task 1 (RTH-ORB-003):** Smart call building `or_rest_ohlc_ranges` as a materialized view first — correct professional instinct on a 56M-row table, now reusable for Tasks 2 and 3. DISTINCT ON via MIN/MAX ts_event join is clean and correct. Main query: CASE, FILTER, flat exclusion all right. Minor: OR upper bound uses `< '10:00'` (exclusive) — the 10:00:00 tick lands in the rest window. Negligible practical impact but worth knowing. 9/10.
+
+**Task 2 (RTH-ORB-004):** Good judgment redefining this as delta direction vs rest-of-session first (analogous to RTH-VOL-004) before going to magnitude buckets — right sequencing. Query structure clean: FILTER aggregation, JOIN to materialized view, CASE logic all correct. Dead `rest_range` column computed but never used in final SELECT — harmless. Key finding: positive OR delta → 59.7% vs negative → 51.2% (8.5pp gap, bearish arm near-random). 9/10.
+
+**Task 3 (RTH-ORB-005):** Clean JOIN of both materialized views, CASE logic correct across all CTEs. Minor: `pre_agg` CTE exists solely to compute `signals_agree`, which is then never used in the final SELECT — could skip that CTE and just GROUP BY directly on `directions_agg`. The results are the most counterintuitive finding of the session: bearish OR + bearish FH → rest bullish 59.7% (higher than agree-bullish at 58.4%). Divergence case (OR bearish, FH bullish → 40% rest bullish) is the only mild bearish signal. Student didn't flag this surprise explicitly in findings — worth noting in nq_findings for the trading implication. 9/10.
+
+---
+
 ## Week 27, Day 2 — Agent Feedback on Student
 
 **Score: 16/20**

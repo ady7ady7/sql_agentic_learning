@@ -1,3 +1,15 @@
+## Week 27, Day 4 — Agent Feedback on Student
+
+**Score: 28/30**
+
+**Task 1 (RTH-ORB-006):** Clean weekday extension of RTH-ORB-005 — correct grouping, FILTER syntax right, results rich. Minor: `signals_agree` column computed in `pre_agg` CTE but never used in final SELECT (same pattern as yesterday). Key finding: Tuesday agree-bearish 75% is the strongest single weekday signal; Friday agree-bearish 40% is the lone exception where agree-bearish is bearish. Thursday agree-bullish 50% confirms RTH-SESS-003. 9/10.
+
+**Task 2 (RTH-ORB-007):** Logic mostly correct. One bug caught and fixed same session: `reached_or_close` used `o.r_high` (OR window high, always ≥ or_close on bearish OR days) instead of `r.r_high` — produced spurious 100%. Corrected to `r.r_high >= o.or_close` → 83.9%. All other columns were correct throughout. Good instinct to fix immediately. 9/10.
+
+**Bonus (fomc_agg fix):** Dropped and recreated as MATERIALIZED VIEW — pragmatic call given the error. Corrected spike_magnitude CASE is exactly right. 10/10.
+
+---
+
 ## Week 27, Day 3 — Agent Feedback on Student
 
 **Score: 27/30**

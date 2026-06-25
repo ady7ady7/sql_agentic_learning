@@ -387,6 +387,61 @@ Selected windows with meaningful divergence from 50%:
 
 ## Opening Range Breakout
 
+### RTH-ORB-007 — Agree-Bearish Bounce Targets
+**Query ID:** RTH-ORB-007 | Task date: 2026-06-25
+**Filter:** agree-bearish days only (or_close < or_open AND fh_close < fh_open) — 62 days total.
+**Note:** Initial submission had a bug — `o.r_high` (OR window high) used instead of `r.r_high` (rest-of-session high) for `reached_or_close`, producing 100%. Fixed same session; results below are from the corrected query.
+
+| Metric | Value |
+|---|---|
+| Total agree-bearish days | 62 |
+| Reached OR close (10:00 price) | **83.9%** |
+| Reached RTH open (= OR open, 09:30 price) | **43.6%** |
+| Reached OR high (intraday peak of OR window) | **32.3%** |
+| Avg r_high above OR close (all agree-bearish days) | **+113 pts** |
+
+**Findings:**
+- **83.9% of agree-bearish afternoons recover back to OR close** — the 10:00 price (end of the bearish OR window) is reached nearly 5 out of 6 times. This is the high-probability minimum target.
+- **43.6% recover all the way to RTH open (OR open = 09:30 price)** — the full 30-minute OR selloff gets completely erased in nearly half of agree-bearish days
+- **OR high reached 32.3% of the time** — one in three agree-bearish days sees the afternoon trade above the intraday peak of the OR window itself, meaning price fully reclaims the OR range and extends higher
+- **Avg r_high is +113 pts above OR close** across all 62 agree-bearish days — the bounce typically extends well past OR close even on days that don't reach RTH open
+- **Practical target hierarchy for agree-bearish setup (both OR and FH bearish):**
+  - OR close: primary target, ~84% hit rate — take partial at minimum
+  - RTH open: secondary target, ~44% hit rate — trail stop after OR close reached
+  - OR high: extended target, ~32% hit rate — only for runners
+
+### RTH-ORB-006 — OR × FH Combined Signal by Weekday
+**Query ID:** RTH-ORB-006 | Task date: 2026-06-25
+**Extension of RTH-ORB-005** — adds weekday dimension to the 4-scenario OR × FH breakdown.
+
+**Agree-bearish (both OR and FH bearish) by weekday:**
+
+| Weekday | Days | Rest Bullish % |
+|---|---|---|
+| Tuesday | 12 | **75.0%** |
+| Thursday | 18 | **61.1%** |
+| Monday | 10 | 60.0% |
+| Wednesday | 12 | 58.3% |
+| Friday | 10 | 40.0% |
+
+**Agree-bullish (both OR and FH bullish) by weekday:**
+
+| Weekday | Days | Rest Bullish % |
+|---|---|---|
+| Tuesday | 16 | 62.5% |
+| Wednesday | 15 | 60.0% |
+| Monday | 20 | 60.0% |
+| Friday | 16 | 56.3% |
+| Thursday | 10 | 50.0% |
+
+**Findings:**
+- **Tuesday agree-bearish is the strongest signal in the dataset: 75% rest bullish (12 days)** — both OR and FH selling off on Tuesday is a reliable afternoon buy setup
+- **Thursday agree-bearish: 61.1% rest bullish (18 days, largest sample)** — the agree-bearish → bullish rest pattern is not a Thursday artefact; it is real and consistent across Mon/Tue/Wed/Thu
+- **Friday agree-bearish is the lone exception: 40% rest bullish** — Friday is the only weekday where agree-bearish is actually a mild bearish signal. Position squaring and end-of-week dynamics override the reversal pattern
+- **Thursday agree-bullish: only 50% rest bullish (10 days)** — confirms RTH-SESS-003 (Thursday gap_up + bullish FH = 0% rest bullish). When the OR also joins the bullish chorus on Thursday, the afternoon still doesn't follow through. Agree-bullish on Thursday carries no edge.
+- **Agree-bearish is a more consistent signal than agree-bullish on most weekdays** — the reversal tendency after double bearish confirmation (OR + FH both sell off) is more reliable than continuation after double bullish confirmation, except on Tuesday where both directions show edge
+- **Trading implication:** On any Thursday or Tuesday where both OR and FH are bearish, the data strongly supports buying the afternoon. On Fridays, treat agree-bearish as neutral-to-bearish.
+
 ### RTH-ORB-005 — OR Direction × FH Direction Combined Signal
 **Query ID:** RTH-ORB-005 | Task date: 2026-06-24
 **Materialized view used:** `nq_data.or_rest_ohlc_ranges` (OR + rest OHLC) joined to `nq_data.rth_firsthour_rest_ohlc_ranges` (FH + rest OHLC) on trade_date.
@@ -534,7 +589,7 @@ Reversal defined as: after the spike extreme is reached, does price cross back t
 - **Spike up + reversed:** avg RTH close -56 pts below pre-event — market spiked up, reversed, and closed below. Fade-the-spike pattern.
 - Both directions close on the opposite side of pre_event_price — FOMC reaction spikes in this dataset are consistently exhaustion moves, not directional trends
 - Sample is small (3-4 days per group) — treat as directional signal, not statistical certainty
-- **Known issue:** spike_magnitude in the underlying view (fomc_agg) uses reaction_high - reaction_low (full reaction range) instead of |spike_extreme - pre_event_price| (true spike size from reference). Fix deferred.
+- **Fixed 2026-06-25:** fomc_agg recreated as MATERIALIZED VIEW with corrected spike_magnitude = `reaction_high - pre_event_price` (spike_up) or `pre_event_price - reaction_low` (spike_down). Prior version used reaction_high - reaction_low (full range).
 
 ### RTH-NEWS-004 — NFP vs CPI Reaction Summary
 **Query ID:** RTH-NEWS-004 | Task date: 2026-06-22

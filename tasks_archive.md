@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-06-25 (Week 27, Day 3) — Score: 27/30
+
+**Task 1 (RTH-ORB-003):** OR direction vs rest-of-session continuation. Built `nq_data.or_rest_ohlc_ranges` materialized view first. 9/10 — clean DISTINCT ON pattern, minor: OR upper bound `< '10:00'` excludes 10:00:00 tick. Bullish OR → 59.8% rest bullish; bearish OR → 50% coin flip.
+
+**Task 2 (RTH-ORB-004):** Redefined from magnitude-bucketing to OR delta direction vs rest-of-session (analogous to RTH-VOL-004) — correct sequencing. 9/10 — dead `rest_range` column. Positive OR delta → 59.7% rest bullish; negative → 51.2% (8.5pp gap, bearish arm near-random).
+
+**Task 3 (RTH-ORB-005):** OR × FH combined signal — 4-scenario breakdown. 9/10 — unused `pre_agg` CTE. Counterintuitive finding: agree-bearish → 59.7% rest bullish (stronger than agree-bullish 58.4%); OR bearish + FH bullish → 40% rest bullish is the only mild bearish signal.
+
+---
+
 ### Task Archive: 2026-06-24 (Week 27, Day 2) — Score: 16/20
 
 **Task 1 (RTH-NEWS-005):** FOMC spike reversal anchored to spike extreme timestamp (not pre-event time). Created fomc_agg VIEW beforehand. 8/10 — reversal logic correct, MAX(crossed) for boolean flag correct, date filter on JOIN fixed. Two open issues: spike_magnitude in the view still uses reaction_high - reaction_low instead of |spike_extreme - pre_event_price| (deferred fix); 100% reversal rate (all 7 FOMC events) is a genuine finding.

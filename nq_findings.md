@@ -234,6 +234,31 @@
 - Friday and Thursday have the highest avg FH ranges (~215 pts) — more volatile openings, consistent with being the highest full-day range weekdays (RTH-RANGE-001)
 - Monday/Tuesday/Wednesday have nearly identical avg FH ranges (~190 pts) — similar opening volatility despite different directional biases
 
+### RTH-FH-004 — FH High/Low as Day Extreme × Gap Direction
+**Query ID:** RTH-FH-004 | Task date: 2026-06-26
+**Extension of RTH-FH-002** — adds gap direction dimension. Gap = RTH open vs prior RTH close (LAG). Flat opens excluded.
+
+| Weekday | Gap | Days | FH Sets High % | FH Sets Low % |
+|---|---|---|---|---|
+| Thursday | gap_up | 17 | **58.8%** | 35.3% |
+| Thursday | gap_down | 21 | **57.1%** | 38.1% |
+| Tuesday | gap_up | 18 | 55.6% | 22.2% |
+| Friday | gap_up | 20 | 50.0% | 50.0% |
+| Wednesday | gap_up | 22 | 50.0% | 50.0% |
+| Wednesday | gap_down | 12 | 33.3% | 41.7% |
+| Monday | gap_up | 20 | 45.0% | 40.0% |
+| Monday | gap_down | 18 | 27.8% | **66.7%** |
+| Friday | gap_down | 15 | 20.0% | **66.7%** |
+| Tuesday | gap_down | 21 | 19.1% | **52.4%** |
+
+**Findings:**
+- **Thursday FH-sets-high is gap-direction agnostic: 58.8% gap-up, 57.1% gap-down** — both above the 54.8% overall Thursday baseline (RTH-FH-002). Thursday simply opens near its high regardless of gap direction. The structural fade tendency is baked in — gap direction doesn't amplify or reduce it.
+- **Monday gap-down: FH sets day LOW 66.7%** — when Monday gaps down, the opening weakness is the day's low two thirds of the time. Consistent with Monday's strong close-to-close drift (+114 avg, RTH-CLOSE-001) — gap-down Monday is a buy-the-open setup.
+- **Friday gap-down: FH sets day LOW 66.7%** — same rate as Monday gap-down. Friday opening weakness is typically the day's low, but the afternoon close-to-open drift is near-flat (+5.55 avg) — the bounce exists intraday but doesn't carry to close as strongly as Monday.
+- **Tuesday gap-down: FH sets day LOW 52.4%, FH sets day HIGH only 19%** — gap-down Tuesdays are strongly directional: the FH low is almost never the high, and the FH low is the day's low more than half the time. Consistent with Tuesday agree-bearish → 75% rest bullish (RTH-ORB-006).
+- **Tuesday gap-up: FH sets day HIGH 55.6%** — gap-up Tuesdays see the FH establish the day's high more than half the time, the opposite regime.
+- **Gap direction is a strong moderator of FH extreme-setting on all weekdays except Thursday** — Thursday's FH-sets-high tendency is structural; for all other days gap direction meaningfully splits the distribution.
+
 ### RTH-FH-002 — First Hour High/Low as Day's Extreme
 **Query ID:** RTH-FH-002 | Task date: 2026-06-09
 
@@ -386,6 +411,29 @@ Selected windows with meaningful divergence from 50%:
 - Next step: break down by `hour_min` — specific windows (e.g. 09:30, 15:45) may show edge while midday does not
 
 ## Opening Range Breakout
+
+### RTH-ORB-008 — Agree-Bearish Bounce Targets by Weekday
+**Query ID:** RTH-ORB-008 | Task date: 2026-06-26
+**Extension of RTH-ORB-007** — adds weekday dimension to agree-bearish bounce target analysis.
+
+| Weekday | Days | Rest Bullish % | Reached OR Close | Reached RTH Open | Reached OR High |
+|---|---|---|---|---|---|
+| Tuesday | 12 | **75.0%** | 91.7% | **75.0%** | **58.3%** |
+| Friday | 10 | 40.0% | 90.0% | 60.0% | 30.0% |
+| Thursday | 18 | 61.1% | 88.9% | 33.3% | 22.2% |
+| Wednesday | 12 | 58.3% | 83.3% | 25.0% | 25.0% |
+| Monday | 10 | 60.0% | 60.0% | 30.0% | 30.0% |
+
+**Findings:**
+- **Tuesday agree-bearish is the cleanest setup in the dataset** — 75% rest bullish, OR close reached 91.7%, RTH open reached 75%, OR high reached 58.3%. The reach rates fully confirm the rest bullish %. When Tuesday has a bearish OR and bearish FH, the afternoon consistently rallies and targets are consistently hit.
+- **Friday agree-bearish: OR close reached 90% but rest bullish only 40%** — the bounce happens (OR close reached nearly as often as Tuesday) but it reverses before the close. Friday agree-bearish is an intraday bounce setup, not a directional one — price recovers to OR close then fades back. Do not hold into close on Friday agree-bearish days.
+- **Thursday agree-bearish: OR close 89% but RTH open only 33%** — the bounce reliably gets back to OR close, but rarely reaches the full RTH open (09:30 price). Target OR close on Thursday agree-bearish; RTH open is too ambitious.
+- **Wednesday agree-bearish: RTH open only 25%, OR high only 25%** — moderate rest bullish (58%) but targets rarely extended beyond OR close. Weakest bounce quality of Mon/Wed/Thu.
+- **Monday agree-bearish: OR close only 60%** — lowest OR close reach rate of all weekdays. On the 40% of Monday agree-bearish days where the bounce doesn't even get back to OR close, the session likely just drifts higher gradually without a sharp recovery.
+- **Practical target hierarchy per weekday (agree-bearish setup):**
+  - Tuesday: OR high viable (~58%), RTH open primary target (75%), OR close almost guaranteed (92%)
+  - Thursday/Friday: OR close is the target; RTH open is overreach
+  - Wednesday/Monday: OR close is not guaranteed — size down vs Tuesday setups
 
 ### RTH-ORB-007 — Agree-Bearish Bounce Targets
 **Query ID:** RTH-ORB-007 | Task date: 2026-06-25

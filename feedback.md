@@ -1,3 +1,13 @@
+## Week 27, Day 5 — Agent Feedback on Student
+
+**Score: 19/20**
+
+**Task 1 (RTH-ORB-008):** Fixed `r.` prefix correctly after check — clean. CASE flags, FILTER aggregation all right. Key finding: Friday agree-bearish reaches OR close 90% but only 40% rest bullish — the bounce happens but reverses before close. Tuesday agree-bearish confirms across all three targets (92%/75%/58%). 10/10.
+
+**Task 2 (RTH-FH-004):** LAG for gap direction correct, IS NOT NULL filter clean, daily_ohlcv_rth.weekday reused correctly. Unused `fh_direction` column computed but not in final SELECT — harmless. Key finding: Thursday FH-sets-high is gap-agnostic (57-59% both gap directions); Monday/Friday gap-down → FH sets day LOW 66.7% each. 9/10.
+
+---
+
 ## Week 27, Day 4 — Agent Feedback on Student
 
 **Score: 28/30**

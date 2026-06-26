@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-06-25 (Week 27, Day 4) — Score: 28/30
+
+**Task 1 (RTH-ORB-006):** OR × FH × weekday breakdown. 9/10 — unused `signals_agree` CTE. Key: Tuesday agree-bearish 75% strongest signal; Friday agree-bearish 40% lone exception; Thursday agree-bullish 50% confirms RTH-SESS-003.
+
+**Task 2 (RTH-ORB-007):** Agree-bearish bounce targets. 9/10 — bug caught and fixed same session (o.r_high → r.r_high for reached_or_close). Corrected results: OR close 84%, RTH open 44%, OR high 32%, avg +113 pts above OR close.
+
+**Bonus (fomc_agg fix):** Recreated as MATERIALIZED VIEW with corrected spike_magnitude (spike extreme vs pre_event_price). 10/10.
+
+---
+
 ### Task Archive: 2026-06-25 (Week 27, Day 3) — Score: 27/30
 
 **Task 1 (RTH-ORB-003):** OR direction vs rest-of-session continuation. Built `nq_data.or_rest_ohlc_ranges` materialized view first. 9/10 — clean DISTINCT ON pattern, minor: OR upper bound `< '10:00'` excludes 10:00:00 tick. Bullish OR → 59.8% rest bullish; bearish OR → 50% coin flip.

@@ -287,6 +287,47 @@
 - Monday is the mirror: FH sets the day LOW 54.6% — Monday opens weak, then rallies through the session, consistent with RTH-CLOSE-001 (+114 avg close change)
 - Tuesday shows no skew — FH sets neither extreme particularly often (33%/36%), suggesting Tuesdays are more symmetric intraday
 
+### RTH-GAP-004 — Overnight Gap Tendency by Exit Weekday
+**Query ID:** RTH-GAP-004 | Task date: 2026-06-29
+**Definition:** Gap = RTH open vs prior RTH close (LAG). Grouped by exit weekday (the day being opened into). Flat opens excluded. Answers: is holding overnight favorable by weekday?
+
+| Exit Weekday | Days | Gap Up % | Gap Down % | Avg Gap Up Size | Avg Gap Down Size |
+|---|---|---|---|---|---|
+| Wednesday | 34 | **64.7%** | 35.3% | 138 pts | 71 pts |
+| Friday | 35 | 57.1% | 42.9% | 111 pts | 196 pts |
+| Monday | 38 | 52.6% | 47.4% | 223 pts | 170 pts |
+| Tuesday | 39 | 46.2% | 53.9% | 91 pts | 158 pts |
+| Thursday | 38 | 44.7% | **55.3%** | 167 pts | 146 pts |
+
+**Findings:**
+- **Wednesday is the most favorable overnight hold for longs** — gaps up 64.7% of the time, with avg gap-up size (138 pts) nearly double the avg gap-down size (71 pts). Holding Tuesday → Wednesday has strong historical tailwind.
+- **Thursday gaps down more often than up (55.3%)** — holding Wednesday → Thursday overnight is the most unfavorable for longs. Consistent with Thursday being the weakest close-to-close weekday (RTH-CLOSE-001, -90 avg).
+- **Tuesday also gaps down more often (53.9%)** — holding Monday → Tuesday overnight has a modest downside bias. Gap-down size (158 pts) > gap-up size (91 pts) — asymmetric risk to the downside.
+- **Monday has the largest average gap sizes in both directions (223 up / 170 down)** — most volatile overnight move of the week regardless of direction. Weekend gap risk is real on NQ.
+- **Friday gaps up 57.1%** — holding Thursday → Friday has a modest upside bias in direction, but gap-down size (196 pts) is the largest of any weekday in that direction — when Friday gaps down, it gaps down hard.
+- **Overnight hold summary:** Wednesday is the cleanest long hold. Thursday is the worst. Tuesday has downside asymmetry. Monday has high gap variance either way.
+
+### RTH-GAP-003 — Gap Magnitude Buckets vs Fill Rate and Rest-of-Session Direction
+**Query ID:** RTH-GAP-003 | Task date: 2026-06-29
+**Definition:** Gap size = ABS(open - prev_close). Bucketed into thirds via NTILE(3) across all gap days (both directions combined). Fill = low ≤ prev_close for gap-up; high ≥ prev_close for gap-down. Rest bullish = RTH close > RTH open.
+
+| Direction | Bucket | Days | Avg Gap Size | Fill % | Bullish Close % |
+|---|---|---|---|---|---|
+| down | small | 25 | 30 pts | **80%** | 52% |
+| down | medium | 35 | 118 pts | 63% | 66% |
+| down | large | 27 | 309 pts | 56% | **74%** |
+| up | small | 37 | 35 pts | **86%** | 49% |
+| up | medium | 26 | 115 pts | 58% | 50% |
+| up | large | 34 | 292 pts | **29%** | **38%** |
+
+**Findings:**
+- **Large gap-ups (avg 292 pts) fill only 29% of the time** — by far the lowest fill rate of any bucket. The overall 58.2% gap-up fill rate (RTH-GAP-002) is heavily inflated by small gaps. A large gap-up is structurally resistant to filling.
+- **Large gap-ups produce a bearish RTH close 62% of the time (bullish only 38%)** — the only bucket with a net bearish close bias. Large gap-ups exhaust upside; the session tends to drift lower from the open.
+- **Large gap-downs (avg 309 pts) fill 56% of the time and produce bullish closes 74% of the time** — large downside gaps get bought. The bigger the gap-down, the more bullish the close. Opposite asymmetry from gap-ups.
+- **Small gaps fill at very high rates (86% gap-up, 80% gap-down)** — small gaps are almost always filled intraday. Not a directional signal.
+- **Practical implication for today's ~300 pt gap-up:** This is a large bucket gap-up. Historical fill rate: 29%. Bullish close rate: 38%. The setup strongly favors fading strength rather than chasing. Consistent with RTH-SESS-001 gap-up findings.
+- **Bucket thresholds (approx):** small < ~75 pts, medium ~75–180 pts, large > ~180 pts (derived from avg gap sizes per bucket).
+
 ### RTH-GAP-002 — Gap Fill Rate (RTH open vs prior RTH close)
 **Query ID:** RTH-GAP-002 | Task date: 2026-06-08
 **Note:** Gap-up count includes flat opens (open = prev_close) due to ELSE branch in CASE — fill rate for gap_up slightly overstated
@@ -409,6 +450,24 @@ Selected windows with meaningful divergence from 50%:
 - No edge at aggregate level: prior bucket delta direction has essentially zero predictive power for current bucket direction across all windows (51% vs 50.4%)
 - This is expected — aggregating across all hours and days kills any time-specific patterns
 - Next step: break down by `hour_min` — specific windows (e.g. 09:30, 15:45) may show edge while midday does not
+
+### RTH-ORB-009 — OR Range Size vs Rest-of-Session Range
+**Query ID:** RTH-ORB-009 | Task date: 2026-06-29
+**Definition:** OR range = or_high - or_low (09:30–10:00). Rest range = r_high - r_low (10:00–16:00). Bucketed into NTILE(4) by OR range. or_pct_of_day = OR range / (OR range + rest range).
+
+| Bucket | Days | Avg OR Range | Avg Rest Range | OR % of Day | Rest Bullish % |
+|---|---|---|---|---|---|
+| Q1 (tightest) | 40 | 86 pts | 219 pts | 32.5% | 57.5% |
+| Q2 | 40 | 128 pts | 279 pts | 34.9% | 45.0% |
+| Q3 | 40 | 175 pts | 285 pts | 40.2% | 52.5% |
+| Q4 (widest) | 39 | 251 pts | 383 pts | 41.0% | **66.7%** |
+
+**Findings:**
+- **Wide OR → wider rest-of-session, not compression** — Q4 rest range (383 pts) is 75% larger than Q1 (219 pts). A volatile OR signals a volatile afternoon; there is no mean-reversion in volatility across the session.
+- **OR % of day increases with OR size (32.5% → 41%)** — wider ORs do front-load a larger fraction of the day's range, but the absolute rest-of-session range still expands significantly. The afternoon is not "used up" by a wide OR.
+- **Q4 (widest OR) has the strongest bullish close bias: 66.7%** — days with a wide OR tend to resolve bullishly into the close. Possible explanation: wide ORs often occur on high-momentum days where the directional move started in the OR continues.
+- **Q2 is the weakest for bulls (45%)** — medium-wide ORs produce the most uncertain close direction. Tight ORs (Q1, 57.5%) and wide ORs (Q4, 66.7%) are both more directional than medium.
+- **Practical implication:** If the OR is very wide today (>~200 pts), expect a wide afternoon range and a bullish close bias. A tight OR (< ~100 pts) suggests a quieter afternoon but still slightly bullish close tendency.
 
 ## Opening Range Breakout
 

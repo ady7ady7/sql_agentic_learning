@@ -1,3 +1,15 @@
+## Week 28, Day 1 — Agent Feedback on Student
+
+**Score: 27/30**
+
+**Task 1 (RTH-GAP-003):** LAG correct, NTILE(3) across all gaps correct, fill logic correct. Minor: ELSE branch in gap_direction catches flat days but WHERE gap_size > 0 makes it harmless. Key finding: large gap-ups (292 pts avg) fill only 29% — today's ~300 pt gap-up is in this bucket. Large gap-ups produce bearish closes 62% of the time. Large gap-downs fill 56% AND produce 74% bullish closes — opposite asymmetry. 9/10.
+
+**Task 2 (RTH-ORB-009):** Clean aggregation, NTILE(4) correct, or_pct_of_day formula correct. Column headers missing in pasted results but data readable. Key finding: wide OR → wider rest-of-session (not compression); Q4 rest range 383 pts vs Q1 219 pts. Q4 also has 66.7% bullish close bias. 9/10.
+
+**Task 3 (RTH-GAP-004):** LAG correct, FILTER for directional averages clean. Minor: signed avg_gap not computed (only abs avg_gap_size) — spec called for it, but directional split + per-direction size gives equivalent info. Key finding: Wednesday gaps up 64.7% (best overnight hold for longs); Thursday/Tuesday gap down more often than up; Monday has largest gap size variance (223/170 pts). 9/10.
+
+---
+
 ## Week 27, Day 5 — Agent Feedback on Student
 
 **Score: 19/20**

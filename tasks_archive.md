@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-06-26 (Week 27, Day 5) — Score: 19/20
+
+**Task 1 (RTH-ORB-008):** Agree-bearish bounce targets by weekday. 10/10 — fixed r. prefix correctly after check. Tuesday agree-bearish: 92%/75%/58% (OR close/RTH open/OR high); Friday reaches OR close 90% but only 40% rest bullish (bounce reverses before close); Monday OR close only 60%.
+
+**Task 2 (RTH-FH-004):** FH extreme × gap direction. 9/10 — unused fh_direction column. Thursday FH-sets-high gap-agnostic (57-59% both directions); Monday/Friday gap-down → FH sets day LOW 66.7%; Tuesday gap-down → FH sets LOW 52%, gap-up → FH sets HIGH 56%.
+
+---
+
 ### Task Archive: 2026-06-25 (Week 27, Day 4) — Score: 28/30
 
 **Task 1 (RTH-ORB-006):** OR × FH × weekday breakdown. 9/10 — unused `signals_agree` CTE. Key: Tuesday agree-bearish 75% strongest signal; Friday agree-bearish 40% lone exception; Thursday agree-bullish 50% confirms RTH-SESS-003.

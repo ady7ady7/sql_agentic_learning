@@ -1,167 +1,229 @@
-# NQ Project — Week 27 Day 5
+# NQ Project — Week 28 Day 1
 
-**Generated:** 2026-06-26
-**Focus:** Agree-bearish bounce targets by weekday + FH extreme × gap direction
-
----
-
-## Task 1: Agree-Bearish Bounce Targets by Weekday
-
-**Scenario:**
-RTH-ORB-007 established aggregate bounce targets for all 62 agree-bearish days: OR close reached 84%, RTH open 44%, OR high 32%, avg +113 pts above OR close. But RTH-ORB-006 showed agree-bearish rest bullish % varies significantly by weekday (Tuesday 75% vs Friday 40%). Do the bounce targets also vary — i.e. on a Tuesday agree-bearish day, does the bounce reach RTH open more reliably than on a Wednesday? **(ID: RTH-ORB-008)**
-
-Extend RTH-ORB-007 to add `weekday` as a grouping dimension.
-
-Use:
-- `nq_data.or_rest_ohlc_ranges` for OR open/close/high and rest high
-- `nq_data.rth_firsthour_rest_ohlc_ranges` for FH open/close
-
-Filter: agree-bearish days only (`or_close < or_open AND fh_close < fh_open`).
-
-For each day compute:
-- `reached_or_close` — `r.r_high >= o.or_close`
-- `reached_rth_open` — `r.r_high >= o.or_open`
-- `reached_or_high` — `r.r_high >= o.or_high`
-- `rest_bullish` — `r.r_close > r.r_open`
-
-**Output per weekday:**
-- `weekday`
-- `days`
-- `rest_bullish_pct`
-- `reached_or_close_pct`
-- `reached_rth_open_pct`
-- `reached_or_high_pct`
-
-Order by `rest_bullish_pct DESC`.
-
-**Finding to answer:** On Tuesday (75% rest bullish), do the bounce targets confirm — i.e. high reach rates for RTH open and OR high? On Friday (40% rest bullish), are the reach rates correspondingly low, suggesting the bounce doesn't even get back to OR close?
-
-**Tables:** `nq_data.or_rest_ohlc_ranges`, `nq_data.rth_firsthour_rest_ohlc_ranges`
-
-**Difficulty Rating:** 3/5
-
-**(ID: RTH-ORB-008)**
-
-
-
-WITH bearish_only_agg AS (
-SELECT
-	TRIM(TO_CHAR(o.trade_date, 'Day')) AS weekday,
-	r.r_high,
-	o.or_close,
-	o.or_open,
-	o.or_high,
-	r.r_close,
-	r.r_open
-FROM nq_data.or_rest_ohlc_ranges o
-JOIN nq_data.rth_firsthour_rest_ohlc_ranges r ON o.trade_date = r.trade_date
-WHERE o.or_close < o.or_open AND r.fh_close < r.fh_open
-),
-scenarios_agg AS (
-SELECT 
-	*,
-	CASE WHEN r_high >= or_close THEN TRUE ELSE FALSE END AS reached_or_close,
-	CASE WHEN r_high >= or_open THEN TRUE ELSE FALSE END AS reached_rth_open,
-	CASE WHEN r_high >= or_high THEN TRUE ELSE FALSE END AS reached_or_high,
-	CASE WHEN r_close > r_open THEN TRUE ELSE FALSE END AS rest_bullish
-FROM bearish_only_agg
-)
-SELECT
-	WEEKDAY,
-	count(*) AS days,
-	ROUND(COUNT(*) FILTER (WHERE reached_or_close IS TRUE) / count(*)::NUMERIC * 100, 2) AS reached_or_close_pct,
-	ROUND(COUNT(*) FILTER (WHERE reached_rth_open IS TRUE) / count(*)::NUMERIC * 100, 2) AS reached_rth_open_pct,
-	ROUND(COUNT(*) FILTER (WHERE reached_or_high IS TRUE) / count(*)::NUMERIC * 100, 2) AS reached_or_high_pct,
-	ROUND(COUNT(*) FILTER (WHERE rest_bullish IS TRUE) / count(*)::NUMERIC * 100, 2) AS rest_bullish_pct
-FROM scenarios_agg
-GROUP BY weekday
-
-weekday	days	reached_or_close_pct	reached_rth_open_pct	reached_or_high_pct	rest_bullish_pct
-Tuesday	12	91.67	75	58.33	75
-Friday	10	90	60	30	40
-Wednesday	12	83.33	25	25	58.33
-Thursday	18	88.89	33.33	22.22	61.11
-Monday	10	60	30	30	60
+**Generated:** 2026-06-29
+**Focus:** Gap magnitude vs fill rate + OR range vs rest-of-session range + overnight gap tendency by weekday
 
 ---
 
-## Task 2: FH High/Low as Day Extreme × Gap Direction
+## Task 1: Gap Magnitude Buckets vs Fill Rate and Rest-of-Session Direction
 
 **Scenario:**
-RTH-FH-002 showed that Thursday FH sets the day HIGH 54.8% of the time overall. But yesterday's setup was a gap-up Thursday — does gap direction amplify the FH-sets-high tendency? Intuitively: gap-up Thursday → FH is bullish more often (RTH-FH-003: 41% bullish FH on Thu) → but if the FH is the high, does a gap-up make that even more likely? This connects gap direction to the FH extreme-setting behaviour across all weekdays. **(ID: RTH-FH-004)**
+RTH-GAP-002 established overall gap fill rates: 65.5% for gap-down, 58.2% for gap-up. But today's gap is ~300 pts — roughly 2x the dataset average (~145 pts). Does a larger gap fill less often? Does it produce a more directional or wider rest-of-session? This research directly answers whether gap size is a meaningful moderator of gap behavior. **(ID: RTH-GAP-003)**
 
-Using `nq_data.rth_firsthour_rest_ohlc_ranges` joined to `nq_data.daily_ohlcv_rth`:
+Using `nq_data.daily_ohlcv_rth`:
 
-Gap direction: `CASE WHEN o.open > LAG(o.close) OVER (ORDER BY o.trade_date) THEN 'gap_up' WHEN o.open < LAG(o.close) OVER (...) THEN 'gap_down' END` — exclude flat opens.
+Compute `gap_size = ABS(open - prev_close)` via LAG. Exclude flat opens (gap_size = 0).
 
-FH sets day high: `fh_high >= daily_high` (where `daily_high` comes from `daily_ohlcv_rth`).
-FH sets day low: `fh_low <= daily_low`.
+Bucket gap_size into thirds using NTILE(3) — label them:
+- `small` (Q1 — smallest third)
+- `medium` (Q2)
+- `large` (Q3 — largest third)
+
+Gap filled = gap-up filled when `low <= prev_close`; gap-down filled when `high >= prev_close`.
 
 **Output:**
-- `weekday`
-- `gap_direction`
+- `gap_direction` — gap_up / gap_down
+- `gap_bucket` — small / medium / large
 - `days`
-- `fh_sets_high_pct`
-- `fh_sets_low_pct`
+- `avg_gap_size` — so you know what each bucket actually represents in points
+- `fill_pct` — % of days where gap filled
+- `rest_bullish_pct` — % of days where RTH close > RTH open
 
-Filter to weekdays with at least 5 days in the bucket. Order by `weekday`, `gap_direction`.
+Order by `gap_direction`, `gap_bucket`.
 
-**Finding to answer:** On gap-up Thursdays, does the FH-sets-high rate rise above the 54.8% overall Thursday baseline? On gap-down Thursdays, does FH-sets-low dominate instead? Does the gap direction × FH extreme pattern hold consistently across other weekdays too?
+**Finding to answer:** Does fill rate drop as gap size increases? Is a large gap-up more or less likely to produce a bullish close than a small gap-up? Where does today's ~300 pt gap fall in the distribution (which bucket)?
 
-**Tables:** `nq_data.rth_firsthour_rest_ohlc_ranges`, `nq_data.daily_ohlcv_rth`
+**Tables:** `nq_data.daily_ohlcv_rth`
 
 **Difficulty Rating:** 4/5
 
-**(ID: RTH-FH-004)**
+**(ID: RTH-GAP-003)**
 
 
 
-WITH gap_agg AS (
-SELECT
-	rf.trade_date,
-	CASE WHEN dor.open > LAG(dor.close) OVER (ORDER BY dor.trade_date) THEN 'gap_up' WHEN dor.open < LAG(dor.close) OVER (ORDER BY dor.trade_date) THEN 'gap_down' END AS gap_direction,
-	dor.high AS daily_high,
-	dor.low AS daily_low,
-	dor.weekday,
-	fh_high,
-	fh_low,
-	CASE WHEN fh_open < fh_close THEN 'bullish' ELSE 'bearish' END AS fh_direction
-FROM nq_data.rth_firsthour_rest_ohlc_ranges rf
-JOIN nq_data.daily_ohlcv_rth dor ON rf.trade_date = dor.trade_date
-),
-days_agg AS (
+WITH gaps_agg AS (
 SELECT 
 	*,
-	CASE WHEN fh_high >= daily_high THEN TRUE ELSE FALSE END AS fh_sets_high,
-	CASE WHEN fh_low <= daily_low THEN TRUE ELSE FALSE END AS fh_sets_low
-FROM gap_agg
-WHERE gap_direction IS NOT NULL
+	LAG(close) OVER (ORDER BY trade_date) AS prev_close,
+	ABS(OPEN - (LAG(close) OVER (ORDER BY trade_date))) AS gap_size
+FROM nq_data.daily_ohlcv_rth dor
+),
+gap_direction_buckets_agg AS (
+SELECT 
+	*,
+	CASE WHEN prev_close > OPEN THEN 'down' ELSE 'up' END AS gap_direction,
+	NTILE(3) OVER (ORDER BY gap_size) AS gap_bucket
+FROM gaps_agg
+WHERE gap_size > 0
+),
+gap_fill_agg AS (
+SELECT 
+	*,
+	CASE WHEN CLOSE > OPEN THEN 1 ELSE 0 END AS is_bullish,
+	CASE 
+		WHEN gap_direction = 'up' AND low <= prev_close THEN 1
+		WHEN gap_direction = 'down' AND high >= prev_close THEN 1 ELSE 0
+	END AS gap_filled
+FROM gap_direction_buckets_agg
 )
 SELECT 
-	weekday,
 	gap_direction,
-	COUNT(*) AS days,
-	ROUND(COUNT(*) FILTER (WHERE fh_sets_high IS TRUE) / COUNT(*)::NUMERIC * 100, 2) AS fh_sets_high_pct,
-	ROUND(COUNT(*) FILTER (WHERE fh_sets_low IS TRUE) / COUNT(*)::NUMERIC * 100, 2) AS fh_sets_low_pct
-FROM days_agg
-GROUP BY weekday, gap_direction
+	gap_bucket,
+	COUNT(*),
+	SUM(gap_filled) AS gaps_filled,
+	ROUND(AVG(gap_size), 2) AS avg_gap_size,
+	ROUND(SUM(gap_filled) / COUNT(*)::NUMERIC * 100, 2) AS fill_pct,
+	ROUND(SUM(is_bullish) / COUNT(*)::NUMERIC * 100, 2) AS rest_bullish_pct
+FROM gap_fill_agg 
+GROUP BY gap_direction, gap_bucket
+ORDER BY gap_direction, gap_bucket
 
-weekday	gap_direction	days	fh_sets_high_pct	fh_sets_low_pct
-Thursday	gap_down	21	57.14	38.1
-Monday	gap_up	20	45	40
-Thursday	gap_up	17	58.82	35.29
-Tuesday	gap_down	21	19.05	52.38
-Friday	gap_down	15	20	66.67
-Friday	gap_up	20	50	50
-Wednesday	gap_up	22	50	50
-Wednesday	gap_down	12	33.33	41.67
-Monday	gap_down	18	27.78	66.67
-Tuesday	gap_up	18	55.56	22.22
+
+gap_direction	gap_bucket	count	gaps_filled	avg_gap_size	fill_pct	rest_bullish_pct
+down	1	25	20	30.3	80	52
+down	2	35	22	117.94	62.86	65.71
+down	3	27	15	308.74	55.56	74.07
+up	1	37	32	34.99	86.49	48.65
+up	2	26	15	114.75	57.69	50
+up	3	34	10	292.14	29.41	38.24
+
+---
+
+## Task 2: OR Range Size vs Rest-of-Session Range
+
+**Scenario:**
+The OR (09:30–10:00) range (or_high - or_low) is known at 10:00 — no look-ahead bias. Does a wider OR predict a wider or narrower rest-of-session (10:00–16:00)? Volatility compression vs expansion: does the market front-load its range in the first 30 minutes, or does a wide OR signal that the full session will be volatile too? **(ID: RTH-ORB-009)**
+
+Using `nq_data.or_rest_ohlc_ranges`:
+
+Compute:
+- `or_range = or_high - or_low`
+- `rest_range = r_high - r_low`
+- `or_pct_of_day = or_range / (or_range + rest_range)` — fraction of combined OR+rest range set in the OR window
+
+Bucket `or_range` into quartiles using NTILE(4) — label Q1 (tightest OR) through Q4 (widest OR).
+
+**Output:**
+- `or_range_bucket` — Q1 through Q4
+- `days`
+- `avg_or_range` — avg OR range in pts
+- `avg_rest_range` — avg rest-of-session range in pts
+- `avg_or_pct_of_day` — avg fraction of combined range set in OR window
+- `rest_bullish_pct` — does a wider OR predict direction at all?
+
+Order by `or_range_bucket`.
+
+**Finding to answer:** Does Q4 (widest OR) produce a wider or narrower rest-of-session? Does `avg_or_pct_of_day` increase with OR size (front-loading) or stay flat? Any directional bias?
+
+**Tables:** `nq_data.or_rest_ohlc_ranges`
+
+**Difficulty Rating:** 3/5
+
+**(ID: RTH-ORB-009)**
+
+WITH or_rest_agg AS (
+SELECT 
+	*,
+	ntile(4) OVER (ORDER BY (or_high - or_low)) AS or_range_bucket,
+	or_high - or_low AS or_range,
+	r_high - r_low AS rest_range,
+	ROUND((or_high - or_low) / ((or_high - or_low) + (r_high - r_low)) * 100, 2) AS or_pct_of_day,
+	CASE WHEN r_close > r_open THEN 1 ELSE 0 END AS is_bullish
+FROM nq_data.or_rest_ohlc_ranges
+)
+SELECT 
+	or_range_bucket,
+	COUNT(*) AS days,
+	ROUND(AVG(or_range), 2) AS avg_or_range,
+	ROUND(AVG(rest_range), 2) AS avg_rest_range,
+	ROUND(AVG(or_pct_of_day), 2) AS avg_or_pct_of_day,
+	ROUND(SUM(is_bullish) / COUNT(*)::NUMERIC * 100, 2) AS rest_bullish_pct
+FROM or_rest_agg
+GROUP BY or_range_bucket
+ORDER BY or_range_bucket
+
+
+
+1	40	86.44	218.91	32.54	57.50
+2	40	127.76	279.07	34.87	45.00
+3	40	175.30	284.73	40.22	52.50
+4	39	251.07	383.36	41.00	66.67
+
+
+
+
+---
+
+## Task 3: Overnight Gap Tendency by Exit Weekday
+
+**Scenario:**
+Is it worth holding NQ overnight? The question is: on each weekday, does NQ tend to open above or below the prior RTH close — and by how much? Grouped by the *exit day* (the day you wake up to), this tells you whether holding into Monday, Tuesday, etc. has historically been favorable or not. **(ID: RTH-GAP-004)**
+
+Using `nq_data.daily_ohlcv_rth`:
+
+Compute per row:
+- `prev_close` — LAG(close) OVER (ORDER BY trade_date)
+- `gap = open - prev_close` (signed — positive = gap up, negative = gap down)
+- `gap_direction` — gap_up / gap_down / flat (exclude flat in aggregation)
+- `exit_weekday` — weekday of the current row (the day you're opening into)
+
+Then aggregate by `exit_weekday`:
+- `days` — total non-flat gap days
+- `avg_gap` — signed average gap (positive = tends to gap up into this day)
+- `gap_up_pct` — % of days that opened above prior close
+- `gap_down_pct` — % of days that opened below prior close
+- `avg_gap_up_size` — avg gap size on gap-up days only (abs pts)
+- `avg_gap_down_size` — avg gap size on gap-down days only (abs pts)
+
+Order by `gap_up_pct DESC`.
+
+**Finding to answer:** Which weekday tends to open with the most favorable gap for longs? Is there a weekday where holding overnight is consistently punished (large gap-downs)? Does the avg signed gap align with the close-to-close drift from RTH-CLOSE-001 (Monday +114 avg)?
+
+**Tables:** `nq_data.daily_ohlcv_rth`
+
+**Difficulty Rating:** 3/5
+
+**(ID: RTH-GAP-004)**
+
+
+WITH gaps_agg AS (
+SELECT 
+	*,
+	LAG(close) OVER (ORDER BY trade_date) AS prev_close,
+	ABS(OPEN - (LAG(close) OVER (ORDER BY trade_date))) AS gap_size
+FROM nq_data.daily_ohlcv_rth dor
+),
+gap_direction_agg AS (
+SELECT 
+	*,
+	weekday AS exit_weekday,
+	CASE WHEN prev_close > OPEN THEN 'down' ELSE 'up' END AS gap_direction
+FROM gaps_agg
+WHERE gap_size > 0
+)
+SELECT 
+	exit_weekday,
+	COUNT(*) AS days,
+	ROUND(AVG(gap_size), 2) AS avg_gap_size,
+	ROUND(COUNT(*) FILTER (WHERE gap_direction = 'up') / COUNT(*)::NUMERIC * 100, 2) AS gap_up_pct,
+	ROUND(COUNT(*) FILTER (WHERE gap_direction = 'down') / COUNT(*)::NUMERIC * 100, 2) AS gap_down_pct,
+	ROUND(AVG(gap_size) FILTER (WHERE gap_direction = 'up'), 2) AS avg_gap_up_size,
+	ROUND(AVG(gap_size) FILTER (WHERE gap_direction = 'down'), 2) AS avg_gap_down_size
+FROM gap_direction_agg
+GROUP BY exit_weekday
+
+
+exit_weekday	days	avg_gap_size	gap_up_pct	gap_down_pct	avg_gap_up_size	avg_gap_down_size
+Monday	38	197.8	52.63	47.37	222.95	169.86
+Friday	35	147.22	57.14	42.86	110.95	195.58
+Thursday	38	155.24	44.74	55.26	167.25	145.52
+Wednesday	34	114.81	64.71	35.29	138.44	71.48
+Tuesday	39	127.19	46.15	53.85	91.33	157.92
+
 
 
 ---
 
 ## Submission Instructions
 
-Paste your queries and results. Log query IDs: RTH-ORB-008, RTH-FH-004.
-After submission: MODE C (session wrap + weekly recap).
+Paste your queries and results. Log query IDs: RTH-GAP-003, RTH-ORB-009, RTH-GAP-004.

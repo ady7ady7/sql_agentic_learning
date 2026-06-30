@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-06-29 (Week 28, Day 1) — Score: 27/30
+
+**Task 1 (RTH-GAP-003):** Gap magnitude in thirds vs fill rate + bullish close. 9/10 — ELSE branch in gap_direction harmless given WHERE filter. Large gap-ups (292 pts avg) fill only 29%, close bearish 62%; large gap-downs fill 56%, close bullish 74%.
+
+**Task 2 (RTH-ORB-009):** OR range quartiles vs rest-of-session range. 9/10 — column headers missing in pasted results. Wide OR → wider rest-of-session (Q4 383 pts vs Q1 219 pts); Q4 has 66.7% bullish close bias.
+
+**Task 3 (RTH-GAP-004):** Overnight gap tendency by exit weekday. 9/10 — signed avg_gap not computed but directional split gives equivalent info. Wednesday gaps up 64.7% (best overnight long hold); Tuesday/Thursday gap down more often; Monday largest gap variance.
+
+---
+
 ### Task Archive: 2026-06-26 (Week 27, Day 5) — Score: 19/20
 
 **Task 1 (RTH-ORB-008):** Agree-bearish bounce targets by weekday. 10/10 — fixed r. prefix correctly after check. Tuesday agree-bearish: 92%/75%/58% (OR close/RTH open/OR high); Friday reaches OR close 90% but only 40% rest bullish (bounce reverses before close); Monday OR close only 60%.

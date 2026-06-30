@@ -234,6 +234,50 @@
 - Friday and Thursday have the highest avg FH ranges (~215 pts) — more volatile openings, consistent with being the highest full-day range weekdays (RTH-RANGE-001)
 - Monday/Tuesday/Wednesday have nearly identical avg FH ranges (~190 pts) — similar opening volatility despite different directional biases
 
+### RTH-FH-006 — FH Range Size vs Rest-of-Session Range
+**Query ID:** RTH-FH-006 | Task date: 2026-06-30
+**Definition:** FH range = fh_high - fh_low (09:30–10:30). Rest range = r_high - r_low (10:30–16:00). Bucketed into NTILE(4) by FH range. fh_pct_of_day = FH range / (FH range + rest range).
+
+| Bucket | Days | Avg FH Range | Avg Rest Range | FH % of Day | Rest Bullish % |
+|---|---|---|---|---|---|
+| Q1 (tightest) | 40 | 101 pts | 199 pts | 38.4% | 52.5% |
+| Q2 | 40 | 164 pts | 250 pts | 43.5% | 60.0% |
+| Q3 | 40 | 213 pts | 271 pts | 46.6% | 52.5% |
+| Q4 (widest) | 39 | 330 pts | 342 pts | 50.2% | **64.1%** |
+
+**Findings:**
+- **Wide FH → wider rest-of-session** — same expansion pattern as RTH-ORB-009 (OR range). Q4 rest range (342 pts) is 72% larger than Q1 (199 pts). No volatility compression after a wide first hour.
+- **FH front-loads more of the day than the OR** — Q4 FH claims 50.2% of combined range vs OR Q4 at 41.0%. The first hour (60 min) captures half the day's range when wide; the OR (30 min) captures only 41% even at its widest.
+- **Q4 bullish close bias: 64.1%** — matches RTH-ORB-009 finding (OR Q4: 66.7%). Wide opening windows (both OR and FH) tend to resolve bullishly. High-volatility opens are not exhaustion signals — they precede strong directional closes.
+- **Direct comparison with RTH-ORB-009 (OR range):**
+
+| Metric | OR Q1→Q4 range | FH Q1→Q4 range |
+|---|---|---|
+| Avg window range | 86→251 pts | 101→330 pts |
+| Avg rest range | 219→383 pts | 199→342 pts |
+| Window % of day | 32.5→41.0% | 38.4→50.2% |
+| Rest bullish % at Q4 | 66.7% | 64.1% |
+
+- FH captures more of the day when wide, but the absolute rest-of-session range is slightly smaller than for wide ORs (342 vs 383 pts) — the OR predicts a wider afternoon than the FH does at equivalent quartile.
+
+### RTH-FH-005 — Gap-Up Tuesday FH Rejection Depth
+**Query ID:** RTH-FH-005 | Task date: 2026-06-30
+**Filter:** Tuesday + gap-up (open > prev_close) + FH high > rest-of-session high (proxy for FH setting day high — note: filter uses fh_high > r_high rather than fh_high >= daily_high; slight semantic difference, results directionally valid). 10 qualifying days.
+
+| Metric | Value |
+|---|---|
+| Days | 10 |
+| Avg drop from FH high to afternoon low | **310 pts** |
+| Avg drop from FH high to RTH close | **235 pts** |
+| Reached FH open (09:30 price) | **100%** |
+
+**Findings:**
+- **Every gap-up Tuesday where the FH sets the high sees the afternoon fully retrace back to the 09:30 open price** — 100% of 10 occurrences. The entire first-hour bullish move is erased by the close.
+- **Avg afternoon drop from FH high to rest low: 310 pts** — a substantial fade. The afternoon doesn't just drift lower; it typically drops hard from the FH peak.
+- **Avg close is 235 pts below the FH high** — the day closes well below the first-hour peak, not just a minor pullback. Combined with the 100% FH-open reach rate, the close is typically near or below the 09:30 level.
+- **Practical implication for today:** If Tuesday opens with a gap-up and the first hour is bullish, the FH high is the fade level. Target: FH open (= 09:30 price, 100% historical reach), expect ~235 pts below FH high at close. Size accordingly — this is the highest-conviction fade setup found on Tuesdays.
+- **Caveat:** Small sample (10 days). Filter uses fh_high > r_high as proxy for FH-sets-high — rerun with fh_high >= daily_high for exact population.
+
 ### RTH-FH-004 — FH High/Low as Day Extreme × Gap Direction
 **Query ID:** RTH-FH-004 | Task date: 2026-06-26
 **Extension of RTH-FH-002** — adds gap direction dimension. Gap = RTH open vs prior RTH close (LAG). Flat opens excluded.

@@ -1,3 +1,13 @@
+## Week 28, Day 2 — Agent Feedback on Student
+
+**Score: 17/20**
+
+**Task 1 (RTH-FH-005):** CTE chain clean, LAG correct, gap_direction logic correct. Good call dropping the or_open metric (correctly identified it's the same as fh_open). Filter issue: used `fh_high > r_high` (FH high > rest-of-session high) instead of `fh_high >= d.high` (FH high = full day high) — different population, subtly broader condition. Directionally valid results. Key finding: 100% of 10 gap-up Tuesday FH-sets-high days retrace all the way to the 09:30 open; avg drop to close 235 pts from FH peak. 8/10.
+
+**Task 2 (RTH-FH-006):** Clean single-table aggregation. NTILE(4) correct, formula correct. Minor: column aliased `avg_fg_range` (typo, fg vs fh) — harmless. Key finding: same expansion pattern as RTH-ORB-009 — wide FH → wider rest-of-session; Q4 FH claims 50.2% of day's range vs OR Q4 at 41%. Q4 bullish close bias 64.1% matches OR Q4 (66.7%). 9/10.
+
+---
+
 ## Week 28, Day 1 — Agent Feedback on Student
 
 **Score: 27/30**

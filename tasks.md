@@ -1,153 +1,221 @@
-# NQ Project — Week 28 Day 2
+# NQ Project — Week 28 Day 3
 
-**Generated:** 2026-06-30
-**Focus:** Gap-up Tuesday FH rejection depth + FH range vs rest-of-session range
+**Generated:** 2026-07-01
+**Focus:** Choppy day detection (tight OR + FH) + session high/low timing by 30-min window
 
 ---
 
-## Task 1: Gap-Up Tuesday FH High Rejection — How Far Does the Afternoon Drop?
+## Task 1: Choppy Day Detection — Tight OR + FH Joint Filter
 
 **Scenario:**
-RTH-FH-004 showed that on gap-up Tuesdays, the FH sets the day HIGH 55.6% of the time. Today's setup: large gap-up Monday followed by Tuesday. If Tuesday opens with a bullish first hour, the FH high is likely the day's high — but how far does the afternoon typically drop from that peak? This gives actionable fade targets for a gap-up Tuesday with a bullish FH. **(ID: RTH-FH-005)**
+Yesterday was a choppy session. RTH-ORB-009 and RTH-FH-006 both showed that tight OR/FH ranges predict quieter afternoons. Can we define a "low-conviction day" as one where both the OR range AND the FH range are in their smallest quartile (Q1), and characterize what that predicts for rest-of-session range, direction, and close location? Practical value: identify days to size down or avoid trading entirely. **(ID: RTH-SESS-004)**
 
-Using `nq_data.rth_firsthour_rest_ohlc_ranges` joined to `nq_data.daily_ohlcv_rth`:
+Using `nq_data.or_rest_ohlc_ranges` joined to `nq_data.rth_firsthour_rest_ohlc_ranges`:
 
-Filter to: `weekday = 'Tuesday'` AND gap-up (open > prev_close via LAG on `daily_ohlcv_rth`) AND FH sets day high (`fh_high >= daily_high`).
+Compute:
+- `or_range = or_high - or_low`
+- `fh_range = fh_high - fh_low`
+- `or_range_bucket` — NTILE(4) OVER (ORDER BY or_range)
+- `fh_range_bucket` — NTILE(4) OVER (ORDER BY fh_range)
 
-For each qualifying day compute:
-- `fh_high_to_rest_low` — fh_high - r_low (how far from the FH high does the afternoon drop?)
-- `fh_high_to_daily_close` — fh_high - close (how far below the FH high does the day close?)
-- `reached_fh_open` — did `r_low <= fh_open`? (did the afternoon drop all the way back to where the FH started?)
-- `reached_or_open` — did `r_low <= or_open`? (did the afternoon drop back to the RTH open = 09:30 price?)
+Define 3 day types:
+- `both_tight` — or_range_bucket = 1 AND fh_range_bucket = 1
+- `both_wide` — or_range_bucket = 4 AND fh_range_bucket = 4
+- `mixed` — all other combinations
 
-Then aggregate:
-- `days` — total qualifying days
-- `avg_fh_high_to_rest_low` — avg drop from FH high to afternoon low
-- `avg_fh_high_to_close` — avg drop from FH high to close
-- `reached_fh_open_pct` — % that dropped back to FH open
-- `reached_or_open_pct` — % that dropped back to OR open (09:30)
+For each day type aggregate:
+- `days`
+- `avg_or_range`
+- `avg_fh_range`
+- `avg_rest_range` — r_high - r_low
+- `rest_bullish_pct` — r_close > r_open
+- `avg_close_location` — (r_close - r_low) / NULLIF(r_high - r_low, 0) — where does the rest-of-session close within its own range?
 
-For `or_open`: use `or_open` from `nq_data.or_rest_ohlc_ranges` (JOIN on trade_date).
+Order by `day_type`.
 
-**Tables:** `nq_data.rth_firsthour_rest_ohlc_ranges`, `nq_data.daily_ohlcv_rth`, `nq_data.or_rest_ohlc_ranges`
+**Finding to answer:** How much smaller is the rest-of-session range on both_tight days vs both_wide? Is rest direction more or less predictable on choppy days? What's the close location — do tight days drift randomly or still close near one extreme?
+
+**Tables:** `nq_data.or_rest_ohlc_ranges`, `nq_data.rth_firsthour_rest_ohlc_ranges`
 
 **Difficulty Rating:** 4/5
 
-**(ID: RTH-FH-005)**
+**(ID: RTH-SESS-004)**
 
 
-WITH fh_rest_agg AS (
+
+WITH fh_or_ranges_agg AS (
 SELECT 
-	d.trade_date,
-	d.weekday,
-	r.fh_open,
-	r.fh_close,
-	r.fh_high,
-	r.fh_low,
-	r.r_open,
-	r.r_close,
+	o.trade_date,
+	o.or_high - o.or_low AS or_range,
+	r.fh_high  - r.fh_low  AS fh_range,
+	r.r_high - r.r_low AS rest_range,
 	r.r_high,
 	r.r_low,
-	LAG(d.close) OVER (ORDER BY d.trade_date) AS prev_close,
-	CASE WHEN LAG(d.close) OVER (ORDER BY d.trade_date) < d.OPEN THEN 'up' ELSE 'down' END AS gap_direction
-FROM nq_data.rth_firsthour_rest_ohlc_ranges r
-JOIN nq_data.daily_ohlcv_rth d ON r.trade_date = d.trade_date 
+	r.r_close,
+	r.r_open,
+	NTILE(4) OVER (ORDER BY o.or_high - o.or_low) AS or_range_bucket,
+	NTILE(4) OVER (ORDER BY r.fh_high  - r.fh_low) AS fh_range_bucket
+FROM nq_data.or_rest_ohlc_ranges o
+JOIN nq_data.rth_firsthour_rest_ohlc_ranges r ON o.trade_date = r.trade_date
 ),
 pre_final_agg AS (
 SELECT 
-	*
-FROM fh_rest_agg
-WHERE prev_close IS NOT NULL AND weekday = 'Tuesday' AND gap_direction = 'up' AND fh_high > r_high
-),
-final_agg AS (
-SELECT 
 	*,
-	fh_high - r_low AS fh_high_to_rest_low,
-	fh_high - r_close AS fh_high_to_close,
-	CASE WHEN r_low <= fh_open THEN 1 ELSE 0 END AS reached_fh_open
-FROM pre_final_agg
+	CASE 
+		WHEN or_range_bucket = 1 and fh_range_bucket = 1 THEN 'both tight'
+		WHEN or_range_bucket = 4 and fh_range_bucket = 4 THEN 'both wide'
+	ELSE 'mixed' END AS day_type
+FROM fh_or_ranges_agg
 )
 SELECT 
+	day_type,
 	COUNT(*) AS days,
-	ROUND(AVG(fh_high_to_rest_low), 2) AS avg_distance_from_high_to_rest_low,
-	ROUND(AVG(fh_high_to_close), 2) AS avg_distance_from_high_to_close,
-	ROUND(COUNT(*) FILTER (WHERE reached_fh_open = 1) / COUNT(*)::NUMERIC * 100, 2) AS reached_fh_open_pct
-FROM final_agg
+	ROUND(AVG(or_range), 2) AS avg_or_range,
+	ROUND(AVG(fh_range), 2) AS avg_fh_range,
+	ROUND(AVG(rest_range), 2) AS avg_rest_range,
+	ROUND(COUNT(*) FILTER (WHERE r_close > r_open) / COUNT(*)::NUMERIC * 100, 2) AS rest_bullish_pct,
+	ROUND(AVG((r_close - r_low) / NULLIF(r_high - r_low, 0)), 2) AS avg_close_location
+FROM pre_final_agg
+GROUP BY day_type
 
 
-or_open and fh_open are the same shit, so your aggregation logic doesn't make sense.
+day_type	days	avg_or_range	avg_fh_range	avg_rest_range	rest_bullish_pct	avg_close_location
+both wide	28	267.6	329.73	339.45	67.86	0.61
+both tight	31	82.47	94.11	197.14	54.84	0.58
+mixed	100	153.23	198.46	265.16	55	0.54
 
-
-days	avg_distance_from_high_to_rest_low	avg_distance_from_high_to_close	reached_fh_open_pct
-10	310.43	235.08	100
 
 ---
 
-## Task 2: FH Range Size vs Rest-of-Session Range
+## Task 2: Session High/Low Timing by 30-Minute Window
 
 **Scenario:**
-RTH-ORB-009 showed that a wider OR (09:30–10:00) predicts a wider rest-of-session — no volatility compression. Does the same hold for the first hour (09:30–10:30)? Does a wide FH exhaust the day's move (compression), or does it signal a volatile afternoon (expansion)? The FH is twice as long as the OR — the relationship may differ. **(ID: RTH-FH-006)**
+At what time of day does the RTH high and low most commonly form? Knowing whether the morning or afternoon tends to set the day's extreme directly informs when to expect turning points and whether to hold positions through midday. **(ID: RTH-SESS-005)**
 
-Using `nq_data.rth_firsthour_rest_ohlc_ranges`:
+Using `nq_data.ticks` joined to `nq_data.daily_ohlcv_rth`:
 
-Compute:
-- `fh_range = fh_high - fh_low`
-- `rest_range = r_high - r_low`
-- `fh_pct_of_day = fh_range / (fh_range + rest_range)` — fraction of combined FH+rest range set in the FH window
+For each trading day, find the **first time** the daily high and daily low were touched:
+- Join ticks to `daily_ohlcv_rth` on trade_date
+- Filter to RTH only: `(ts_event AT TIME ZONE 'America/New_York')::time >= '09:30'` AND `< '16:00'`
+- For each trade_date, find `MIN(ts_event)` WHERE `price = daily_high` → this is `high_time`
+- For each trade_date, find `MIN(ts_event)` WHERE `price = daily_low` → this is `low_time`
 
-Bucket `fh_range` into quartiles using NTILE(4) — Q1 (tightest FH) through Q4 (widest FH).
+Then bucket `high_time` and `low_time` into 30-minute windows:
+- `DATE_TRUNC('hour', time_et) + INTERVAL '30 min' * FLOOR(EXTRACT(MINUTE FROM time_et) / 30)` → gives window start (09:30, 10:00, 10:30, ... 15:30)
+
+Aggregate:
+- For each 30-min window: count of days where high was first touched in that window, count where low was first touched
+- Express as % of total trading days
 
 **Output:**
-- `fh_range_bucket` — Q1 through Q4
-- `days`
-- `avg_fh_range` — avg FH range in pts
-- `avg_rest_range` — avg rest-of-session range in pts
-- `avg_fh_pct_of_day` — avg fraction of combined range set in FH
-- `rest_bullish_pct` — % where r_close > r_open
+- `window_start` — 09:30, 10:00, 10:30, ... 15:30
+- `high_formed_count`
+- `high_formed_pct`
+- `low_formed_count`
+- `low_formed_pct`
 
-Order by `fh_range_bucket`.
+Order by `window_start`.
 
-**Finding to answer:** Does Q4 (widest FH) produce a wider or narrower rest-of-session vs Q1? Compare `avg_fh_pct_of_day` across buckets — does the FH front-load a larger share of the day when it's wide? Compare the pattern directly to RTH-ORB-009 (OR range buckets) — is the FH relationship stronger or weaker than the OR relationship?
+**Hint:** This will scan 56M rows — consider using `nq_data.daily_ohlcv_rth` to get the daily high/low first, then join back to ticks to find timing. That way you're only scanning ticks for rows that match the daily extreme price, not computing extremes from ticks directly.
 
-**Tables:** `nq_data.rth_firsthour_rest_ohlc_ranges`
+**Finding to answer:** Which 30-min window most commonly produces the day's high? Which produces the day's low? Is the opening window (09:30–10:00) dominant for both, or does the afternoon contribute meaningfully? Does the high tend to form earlier or later than the low?
 
-**Difficulty Rating:** 3/5
+**Tables:** `nq_data.ticks`, `nq_data.daily_ohlcv_rth`
 
-**(ID: RTH-FH-006)**
+**Difficulty Rating:** 5/5
 
-
-
+**(ID: RTH-SESS-005)**
 
 
-WITH daily_fh_rest_agg AS (
+
+I've done it in abit circular way, but also I think my approach to hod_set and lod_set times was smarter and more convenient to understand, and I've done everything without your assistance. 
+
+Definitely though those window extracts needed me to look up some past queries, as that's too freaking complex to understand easily.
+
+
+Also I opted for ET times as it's the ET times that I'm interested in.
+
+
+
+WITH hod_set_times AS (
 SELECT 
-	*,
-	ntile(4) OVER (ORDER BY (fh_high - fh_low)) AS fh_range_bucket,
-	fh_high - fh_low AS fh_range,
-	r_high - r_low AS rest_range,
-	ROUND((fh_high - fh_low) / ((fh_high - fh_low) + (r_high - r_low)) * 100, 2) AS fh_pct_of_day
-FROM nq_data.rth_firsthour_rest_ohlc_ranges
+	d.trade_date,
+	min(t.ts_event) AS high_set_time
+FROM nq_data.daily_ohlcv_rth d
+JOIN nq_data.ticks t ON d.trade_date = t.ts_event::date AND t.ts_event >= d.session_start AND t.ts_event <= d.session_end
+AND t.price = d.high
+GROUP BY d.trade_date
+),
+lod_set_times AS (
+SELECT 
+	d.trade_date,
+	min(t.ts_event) AS low_set_time
+FROM nq_data.daily_ohlcv_rth d
+JOIN nq_data.ticks t ON d.trade_date = t.ts_event::date AND t.ts_event >= d.session_start AND t.ts_event <= d.session_end
+AND t.price = d.LOW
+GROUP BY d.trade_date
+),
+hod_lod_agg AS (
+SELECT 
+	h.trade_date,
+	h.high_set_time,
+	l.low_set_time,
+	TO_CHAR(DATE_TRUNC('hour', h.high_set_time AT TIME ZONE 'America/New_York') + (EXTRACT(MINUTE FROM h.high_set_time AT TIME ZONE 'America/New_York')::int / 30 * INTERVAL '30 Minutes'), 'HH24:MI') AS high_formation_window_et,
+	TO_CHAR(DATE_TRUNC('hour', l.low_set_time AT TIME ZONE 'America/New_York') + (EXTRACT(MINUTE FROM l.low_set_time AT TIME ZONE 'America/New_York')::int / 30 * INTERVAL '30 Minutes'), 'HH24:MI') AS low_formation_window_et
+FROM hod_set_times h
+JOIN lod_set_times l ON h.trade_date = l.trade_date
+),
+hod_agg AS (
+SELECT
+	high_formation_window_et,
+	COUNT(*) AS high_formed_days,
+	(SELECT COUNT(*) FROM hod_lod_agg) AS total_days,
+	ROUND(COUNT(*) / (SELECT COUNT(*) FROM hod_lod_agg)::NUMERIC * 100, 2) AS high_formed_pct
+FROM hod_lod_agg
+GROUP BY high_formation_window_et
+ORDER BY high_formation_window_et
+),
+lod_agg AS (
+SELECT
+	low_formation_window_et,
+	COUNT(*) AS low_formed_days,
+	(SELECT COUNT(*) FROM hod_lod_agg) AS total_days,
+	ROUND(COUNT(*) / (SELECT COUNT(*) FROM hod_lod_agg)::NUMERIC * 100, 2) AS low_formed_pct
+FROM hod_lod_agg
+GROUP BY low_formation_window_et
+ORDER BY low_formation_window_et
 )
 SELECT 
-	fh_range_bucket,
-	COUNT(*),
-	ROUND(AVG(fh_range), 2) AS avg_fg_range,
-	ROUND(AVG(rest_range), 2) AS avg_rest_range,
-	ROUND(AVG(fh_pct_of_day), 2) AS avg_pct_of_day,
-	ROUND(COUNT(*) FILTER (WHERE r_close > r_open) / COUNT(*)::NUMERIC * 100, 2) AS rest_bullish_pct
-FROM daily_fh_rest_agg
-GROUP BY fh_range_bucket
-ORDER BY fh_range_bucket
+	h.high_formation_window_et AS time_window,
+	h.high_formed_days,
+	h.high_formed_pct,
+	l.low_formed_days,
+	l.low_formed_pct
+FROM hod_agg h
+JOIN lod_agg l ON h.high_formation_window_et = l.low_formation_window_et
 
-fh_range_bucket	count	avg_fg_range	avg_rest_range	avg_pct_of_day	rest_bullish_pct
-1	40	100.83	199.26	38.38	52.5
-2	40	163.97	249.54	43.5	60
-3	40	213.2	270.74	46.62	52.5
-4	39	330.14	342.29	50.22	64.1
+
+
+time_window	high_formed_days	high_formed_pct	low_formed_days	low_formed_pct
+09:30	53	33.33	59	37.11
+10:00	13	8.18	13	8.18
+10:30	5	3.14	13	8.18
+11:00	9	5.66	9	5.66
+11:30	6	3.77	11	6.92
+12:00	6	3.77	7	4.4
+12:30	7	4.4	3	1.89
+13:00	4	2.52	5	3.14
+13:30	7	4.4	11	6.92
+14:00	2	1.26	2	1.26
+14:30	10	6.29	4	2.52
+15:00	13	8.18	3	1.89
+15:30	24	15.09	19	11.95
+
+
 
 
 ---
 
 ## Submission Instructions
 
-Paste your queries and results. Log query IDs: RTH-FH-005, RTH-FH-006.
+Paste your queries and results. Log query IDs: RTH-SESS-004, RTH-SESS-005.

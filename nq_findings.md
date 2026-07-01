@@ -701,6 +701,55 @@ Selected windows with meaningful divergence from 50%:
 - No flat OR delta days present after exclusion
 - This is the strongest single-metric breakout predictor found so far — OR delta direction aligns with breakout direction >50% of the time in both groups
 
+### RTH-SESS-005 — Session High/Low Formation Timing by 30-Minute Window
+**Query ID:** RTH-SESS-005 | Task date: 2026-07-01
+**Method:** For each trade day, MIN(ts_event) where tick price = daily_high (HOD) or daily_low (LOD). Bucketed into 30-min ET windows. 159 trading days. JOIN uses session_start/session_end from daily_ohlcv_rth to avoid AT TIME ZONE cast on 56M rows.
+
+| Window ET | High Formed % | Low Formed % |
+|---|---|---|
+| 09:30 | **33.3%** | **37.1%** |
+| 15:30 | 15.1% | 12.0% |
+| 10:00 | 8.2% | 8.2% |
+| 15:00 | **8.2%** | 1.9% |
+| 14:30 | 6.3% | 2.5% |
+| 10:30 | 3.1% | 8.2% |
+| 11:30 | 3.8% | 6.9% |
+| 13:30 | 4.4% | 6.9% |
+| 11:00 | 5.7% | 5.7% |
+| 12:30 | 4.4% | 1.9% |
+| 12:00 | 3.8% | 4.4% |
+| 13:00 | 2.5% | 3.1% |
+| 14:00 | 1.3% | 1.3% |
+
+**Findings:**
+- **09:30 window dominates both extremes: 33.3% of day highs and 37.1% of day lows form in the first 30 minutes** — the opening half-hour is the single most important window for establishing the day's extremes by a wide margin
+- **15:30 is the second most common window for both (15.1% high / 12.0% low)** — the final 30 minutes is the next most likely time for the day's extreme to be set. Combined with 09:30, the open and close account for ~48% of highs and ~49% of lows
+- **Late afternoon asymmetry: 14:30–15:00 form highs more often than lows (14.5% combined vs 4.4%)** — the 14:30–15:30 window has a clear upside bias for establishing new extremes. Afternoon sessions tend to push to new highs rather than new lows.
+- **Midday graveyard (11:00–13:30): only ~20% of highs and ~22% of lows form** — spread across 5 windows averaging ~4% each. Midday rarely sets the extreme.
+- **10:30 forms lows (8.2%) more than highs (3.1%)** — the first-hour close window has a downside skew for extreme setting. Consistent with RTH-FH-001 (bearish FH → reversal more common than continuation).
+- **Practical trading implications:**
+  - The 09:30 open is the single most important level to watch — it becomes the day's high or low one in three times
+  - If the open doesn't set the extreme, the next most likely window is the final 30 min (15:30) — hold through midday noise
+  - The 14:30–15:00 window is the highest-probability time for a new high to form (not a new low) — afternoon strength late in the session is common
+  - Midday (11:00–13:30) moves rarely define the day — fade midday breakouts
+
+### RTH-SESS-004 — Choppy Day Detection: Tight OR + FH Joint Filter
+**Query ID:** RTH-SESS-004 | Task date: 2026-07-01
+**Definition:** both_tight = OR range Q1 AND FH range Q1; both_wide = OR range Q4 AND FH range Q4; mixed = all other combinations. NTILE(4) computed independently for OR and FH ranges.
+
+| Day Type | Days | Avg OR Range | Avg FH Range | Avg Rest Range | Rest Bullish % | Avg Close Location |
+|---|---|---|---|---|---|---|
+| both_wide | 28 | 268 pts | 330 pts | **339 pts** | **67.9%** | 0.61 |
+| mixed | 100 | 153 pts | 198 pts | 265 pts | 55.0% | 0.54 |
+| both_tight | 31 | 82 pts | 94 pts | **197 pts** | 54.8% | 0.58 |
+
+**Findings:**
+- **both_tight rest range (197 pts) is 42% smaller than both_wide (339 pts)** — tight OR + FH is a reliable signal for a quieter afternoon. If both opening windows are narrow, the rest-of-session will also be narrow.
+- **both_tight rest_bullish_pct (54.8%) is nearly identical to mixed (55%)** — tight days give no directional edge. The afternoon is quiet but equally likely to drift up or down. Size down on both_tight days; don't try to pick direction.
+- **both_tight close location 0.58** — tight days still close above the midpoint of their afternoon range on average. The quiet drift is mildly bullish in character even if not statistically significant.
+- **both_wide is the most directional and bullish day type: 67.9% rest bullish, close location 0.61** — wide OR + FH = high-conviction day with strong afternoon bullish bias. These are the best days to hold directional positions.
+- **Practical implication:** When both OR range and FH range are tight (< ~90 pts OR, < ~110 pts FH — approximate Q1 thresholds), expect a rest-of-session range of ~197 pts and no directional edge. Reduce size. When both are wide (> ~220 pts OR, > ~270 pts FH), expect ~339 pts rest range and a 68% bullish afternoon — these are trend days worth holding.
+
 ## Session Patterns
 
 ### RTH-SESS-001 — Gap Direction × First Hour Direction Interaction

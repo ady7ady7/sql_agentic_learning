@@ -1,4 +1,20 @@
 
+### Task Archive: 2026-07-01 (Week 28, Day 3) — Score: 19/20
+
+**Task 1 (RTH-SESS-004):** Choppy day detection — tight OR + FH joint filter. 10/10 — NTILE(4) on both OR and FH ranges, three-bucket classification, NULLIF on close location denominator all correct. both_tight rest range 197 pts (42% smaller than both_wide 339 pts); both_tight directionally random (54.8% bullish ≈ mixed 55%); both_wide most bullish (67.9%) and most directional.
+
+**Task 2 (RTH-SESS-005):** Session high/low formation timing by 30-min window. 9/10 — smart approach reusing session_start/session_end from daily_ohlcv_rth for the tick JOIN. Final JOIN drops windows where high ≠ low window (should be FULL OUTER JOIN) — no rows lost in practice. 09:30 window dominant for both extremes (33.3% high, 37.1% low); 15:30 second (15.1%/12%); late afternoon asymmetry: 14:30-15:00 sets highs (14.5%) far more than lows (4.4%).
+
+---
+
+### Task Archive: 2026-06-30 (Week 28, Day 2) — Score: 17/20
+
+**Task 1 (RTH-FH-005):** Gap-up Tuesday FH rejection depth. 8/10 — filter used fh_high > r_high instead of fh_high >= daily_high (slightly different population). Good call dropping redundant or_open metric. Key: 100% of 10 gap-up Tuesday FH-sets-high days retrace to 09:30 open; avg drop to close 235 pts.
+
+**Task 2 (RTH-FH-006):** FH range quartiles vs rest-of-session range. 9/10 — minor avg_fg_range typo. Same expansion pattern as RTH-ORB-009; wide FH claims 50.2% of day vs OR's 41%; Q4 bullish close bias 64.1%.
+
+---
+
 ### Task Archive: 2026-06-29 (Week 28, Day 1) — Score: 27/30
 
 **Task 1 (RTH-GAP-003):** Gap magnitude in thirds vs fill rate + bullish close. 9/10 — ELSE branch in gap_direction harmless given WHERE filter. Large gap-ups (292 pts avg) fill only 29%, close bearish 62%; large gap-downs fill 56%, close bullish 74%.

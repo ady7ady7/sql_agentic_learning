@@ -1,3 +1,13 @@
+## Week 28, Day 3 — Agent Feedback on Student
+
+**Score: 19/20**
+
+**Task 1 (RTH-SESS-004):** Clean two-CTE structure. NTILE(4) computed in first CTE, classification in second, final GROUP BY clean. NULLIF on close_location denominator correct. FILTER (WHERE r_close > r_open) syntax correct. Results crisp and actionable. Key finding: both_tight rest range 197 pts vs both_wide 339 pts — 42% smaller range on joint tight days. Direction random on both_tight (54.8% ≈ mixed 55%); both_wide most directional and most bullish (67.9%). 10/10.
+
+**Task 2 (RTH-SESS-005):** Four-CTE structure with the smart optimization: joined ticks to daily_ohlcv_rth using session_start/session_end (UTC timestamps from the view) rather than AT TIME ZONE cast on 56M rows — correct professional instinct. Window bucketing formula correct (floor(minute/30) * 30min). Subquery `(SELECT COUNT(*) FROM hod_lod_agg)` reused cleanly for both HOD and LOD pct denominators. Minor: final JOIN uses INNER JOIN — should be FULL OUTER JOIN to catch windows where high and low windows differ. In practice no rows were lost from the data. 9/10.
+
+---
+
 ## Week 28, Day 2 — Agent Feedback on Student
 
 **Score: 17/20**

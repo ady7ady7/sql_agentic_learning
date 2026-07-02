@@ -136,7 +136,25 @@
 
 ## Volatility
 
-*(findings to be added)*
+### RTH-VOL-010 — Day-over-Day Range Continuity (Volatility Clustering)
+**Query ID:** RTH-VOL-010 | Task date: 2026-07-03
+**Method:** LAG(high - low) OVER (ORDER BY trade_date) to get prior day range. NTILE(3) on both prev_range and daily_range within same CTE. Wide day threshold: daily_range ≥ 380 pts (approx global Q3). 185 days after excluding first (no prior day).
+
+| Prev Day Bucket | Days | Avg Prev Range | Avg Today Range | Pct Today Wide |
+|---|---|---|---|---|
+| Large (Q3) | 61 | 522 pts | **424 pts** | **55.7%** |
+| Medium (Q2) | 62 | 306 pts | 324 pts | 27.4% |
+| Small (Q1) | 62 | 185 pts | **266 pts** | **16.1%** |
+
+**Findings:**
+- **Volatility clusters strongly in NQ — daily ranges are NOT independent.** After a large day (avg 522 pts), today's expected range is 424 pts and there is a 55.7% chance of another wide day. After a small day (avg 185 pts), expected range is only 266 pts and wide-day probability drops to 16.1% — a 3.5x difference.
+- **After a large day, today's avg range (424 pts) exceeds the large-bucket threshold (~380 pts) on average** — wide days don't just predict wide days, they predict days that are themselves in the top third.
+- **The medium bucket shows a clear intermediate step (324 pts avg, 27.4% wide)** — the relationship is monotonic and not just a binary high/low split. Volatility decays gradually, not in a single step.
+- **Practical implication — pre-market sizing rule:**
+  - Yesterday large (500+ pts): expect today ~420 pts, >50% odds wide. Size up, wider stops.
+  - Yesterday medium (240–380 pts): expect today ~325 pts, ~27% odds wide. Normal sizing.
+  - Yesterday small (<240 pts): expect today ~265 pts, 16% odds wide. Size down, tighter targets.
+- **Bucket thresholds (approx):** small < ~240 pts, medium ~240–380 pts, large > ~380 pts (derived from avg prev_range per bucket).
 
 ---
 
@@ -751,6 +769,33 @@ Selected windows with meaningful divergence from 50%:
 - **Practical implication:** When both OR range and FH range are tight (< ~90 pts OR, < ~110 pts FH — approximate Q1 thresholds), expect a rest-of-session range of ~197 pts and no directional edge. Reduce size. When both are wide (> ~220 pts OR, > ~270 pts FH), expect ~339 pts rest range and a 68% bullish afternoon — these are trend days worth holding.
 
 ## Session Patterns
+
+### RTH-SESS-006 — Session High/Low Timing by Weekday (30-Min Windows)
+**Query ID:** RTH-SESS-006 | Task date: 2026-07-03
+**Extension of RTH-SESS-005** — adds weekday dimension. Within-weekday percentages via SUM(COUNT(*)) OVER (PARTITION BY weekday). ~29–39 days per weekday. Note: INNER JOIN on matching high/low windows drops windows where no overlap exists — negligible impact on data.
+
+**09:30 window HOD/LOD concentration by weekday (dominant pattern):**
+
+| Weekday | HOD in 09:30 % | LOD in 09:30 % | Key secondary window |
+|---|---|---|---|
+| Thursday | **45.2%** | 41.4% | 15:30 LOD 13.8% |
+| Wednesday | 36.4% | **42.4%** | 15:00 HOD 18.2% |
+| Friday | 34.5% | 27.3% | Spread across midday |
+| Monday | 27.3% | **51.5%** | 15:30 HOD 21.2% |
+| Tuesday | 24.2% | 27.3% | 15:30 HOD 27.3% |
+
+**Findings:**
+- **Thursday HOD front-loaded: 45.2% in 09:30 window** — highest of any weekday, well above the 33.3% global average. Thursday's high is set at the open more than any other day, confirming the structural fade tendency (RTH-FH-002: FH sets day HIGH 54.8% on Thursdays). If Thursday opens strong, the 09:30–10:00 high is the most likely HOD.
+- **Monday LOD: 51.5% in 09:30 window** — by far the most concentrated LOD formation of any weekday. Half of Monday's day lows are set in the first 30 minutes. Combined with Monday's bullish drift (RTH-CLOSE-001: +114 avg), the pattern is clear: Monday gaps down or sells off at the open, that opening low holds all day, and price drifts higher through the session. The 09:30 LOD is the key buy level on Mondays.
+- **Tuesday has a split HOD distribution: 24.2% at 09:30, 27.3% at 15:30** — nearly equal. Tuesday's high is as likely to form late (15:30) as early (09:30), consistent with the agree-bearish reversal pattern (RTH-ORB-006: 75% rest bullish after bearish OR+FH) — afternoon rallies push to new highs late in the session.
+- **Wednesday LOD: 42.4% in 09:30 + 12.9% at 10:00** — over half of Wednesday's lows form in the first 30–60 minutes. The opening weakness is the day's low, price then drifts higher (RTH-CLOSE-001: +80 avg). Wednesday HOD secondary peak at 15:00 (18.2%) — the high often forms in the final hour, consistent with post-FOMC or late-session continuation.
+- **Friday is the most evenly distributed** — HOD spread across 09:30 (34.5%), 11:00 (10.3%), 12:00 (10.3%), 13:30 (10.3%); no window dominates beyond the open. Friday extremes form at unpredictable times — the 09:30 window is still the modal window but the edge is weaker than other weekdays.
+- **Practical weekday entry timing:**
+  - **Thursday:** Watch the first 30 min for the HOD — if it's an up-open, the 09:30 high is the fade level with 45% historical probability of being the day's extreme
+  - **Monday:** The 09:30 low is the buy level — 51.5% chance it holds all day
+  - **Tuesday:** Don't fade the morning high too aggressively — 27% of Tuesday HODs form at 15:30 (afternoon rally)
+  - **Wednesday:** Buy early weakness — 55% of LODs form by 10:00; HOD often comes late (15:00)
+  - **Friday:** No strong timing edge beyond the open; treat as more random intraday
 
 ### RTH-SESS-001 — Gap Direction × First Hour Direction Interaction
 **Query ID:** RTH-SESS-001 | Task date: 2026-06-10

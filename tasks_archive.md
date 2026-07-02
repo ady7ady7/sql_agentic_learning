@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-07-03 (Week 28, Day 4) — Score: 19/20
+
+**Task 1 (RTH-SESS-006):** Session high/low timing by weekday. 9/10 — correct weekday propagation through CTEs, SUM/OVER PARTITION BY weekday denominators right, same INNER JOIN limitation as RTH-SESS-005. Thursday HOD 45.2% in 09:30 (most front-loaded); Monday LOD 51.5% in 09:30; Tuesday HOD bi-modal (24% open, 27% 15:30).
+
+**Task 2 (RTH-VOL-010):** Day-over-day range continuity. 10/10 — LAG and dual NTILE in same CTE clean. Hardcoded ≥380 threshold minor vs subquery spec. Finding: 3.5x difference in wide-day probability (55.7% after large vs 16.1% after small day) — strong volatility clustering confirmed.
+
+---
+
 ### Task Archive: 2026-07-01 (Week 28, Day 3) — Score: 19/20
 
 **Task 1 (RTH-SESS-004):** Choppy day detection — tight OR + FH joint filter. 10/10 — NTILE(4) on both OR and FH ranges, three-bucket classification, NULLIF on close location denominator all correct. both_tight rest range 197 pts (42% smaller than both_wide 339 pts); both_tight directionally random (54.8% bullish ≈ mixed 55%); both_wide most bullish (67.9%) and most directional.

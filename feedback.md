@@ -1,3 +1,13 @@
+## Week 28, Day 4 — Agent Feedback on Student
+
+**Score: 19/20**
+
+**Task 1 (RTH-SESS-006):** Clean weekday extension of RTH-SESS-005. Correct propagation of weekday through both HOD/LOD CTE chains. SUM(COUNT(*)) OVER (PARTITION BY weekday) for within-weekday denominators is exactly right. DISTINCT ON on the final JOIN is the same workaround as RTH-SESS-005 — same minor limitation (INNER JOIN drops non-overlapping windows), negligible impact. Key findings: Thursday HOD 45.2% in 09:30 (highest weekday); Monday LOD 51.5% in 09:30 (half of Monday lows are set at the open); Tuesday HOD splits 24%/27% between 09:30 and 15:30 (bi-modal, consistent with afternoon reversal pattern). 9/10.
+
+**Task 2 (RTH-VOL-010):** Clean two-CTE structure. LAG correct, NTILE(3) on both ranges in same CTE is efficient. Minor: hardcoded `>= 380` for `pct_today_wide` instead of computing Q3 via subquery as specced — pragmatic and result is clear. Finding is one of the most actionable of the project: 3.5x difference in wide-day probability (55.7% after large vs 16.1% after small). Volatility clusters strongly — NQ daily ranges are serially correlated. Monotonic relationship across all three buckets confirms it's a real gradient, not noise. 10/10.
+
+---
+
 ## Week 28, Day 3 — Agent Feedback on Student
 
 **Score: 19/20**

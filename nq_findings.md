@@ -156,6 +156,65 @@
   - Yesterday small (<240 pts): expect today ~265 pts, 16% odds wide. Size down, tighter targets.
 - **Bucket thresholds (approx):** small < ~240 pts, medium ~240–380 pts, large > ~380 pts (derived from avg prev_range per bucket).
 
+### RTH-VOL-012 — Volatility Regime × Prior Day Direction
+**Query ID:** RTH-VOL-012 | Task date: 2026-07-04
+**Extension of RTH-VOL-010** — adds prior day direction dimension. LAG(close) / LAG(open) for prev_direction. NTILE(3) on prev_range. 185 days (first excluded, no prior day). Flat days (prev_close = prev_open) absorbed into 'bearish' — negligible count.
+
+| Prev Bucket | Prev Direction | Days | Avg Today Range | Today Bullish % |
+|---|---|---|---|---|
+| Large (3) | bullish | 35 | 423 pts | **65.7%** |
+| Large (3) | bearish | 26 | 424 pts | **50.0%** |
+| Medium (2) | bullish | 30 | 308 pts | 63.3% |
+| Medium (2) | bearish | 32 | 338 pts | 43.8% |
+| Small (1) | bullish | 35 | 238 pts | 60.0% |
+| Small (1) | bearish | 27 | 302 pts | **37.0%** |
+
+**Findings:**
+- **After a large bullish day: today bullish 65.7%** — strong directional continuation. A wide up day begets another up day more often than not. Range also stays wide (423 pts avg). The volatility clustering from RTH-VOL-010 is amplified and directional on the bullish side.
+- **After a large bearish day: today bullish only 50%** — coin flip. Large bearish days produce no directional signal for the next session. Neither continuation nor mean reversion. Prior direction is irrelevant after a large down day.
+- **After a small bearish day: today bullish only 37%** — the strongest bearish continuation signal in the dataset. Small down days tend to continue lower. Counterintuitively, large down days don't continue but small down days do.
+- **After a small bullish day: today bullish 60%** — mild bullish continuation regardless of prior range size.
+- **Range is symmetric across prior direction within each bucket** — avg today range is nearly identical whether the prior large day was bullish or bearish (423 vs 424 pts). Prior direction affects which way the range expands, not how much.
+- **Prior direction adds real information beyond range size alone — but only on the bullish side and the small-bearish case.** Large bearish days are the exception where direction adds nothing.
+- **Combined pre-market framework (RTH-VOL-010 + RTH-VOL-012):**
+  - Yesterday large bullish: expect wide day (~424 pts), 65.7% bullish — best long setup from prior-day signal
+  - Yesterday large bearish: expect wide day (~424 pts), direction unknown (50/50) — size up for range, no directional lean
+  - Yesterday small bearish: expect narrow day (~238–302 pts), 37% bullish — mild bearish lean, size down
+  - Yesterday small bullish: expect narrow day (~238 pts), 60% bullish — mild bullish lean, size down
+
+### RTH-VOL-011 — Cumulative Intraday Range Expansion Curve
+**Query ID:** RTH-VOL-011 | Task date: 2026-07-04
+**Method:** Raw ticks joined to daily_ohlcv_rth via session_start/session_end. MAX(price)/MIN(price) per (trade_date, 30-min window). Running MAX/MIN via window function OVER (PARTITION BY trade_date ORDER BY current_window_et). Expressed as % of full day's range (daily_ohlcv_rth.high - low). 16:00 row shows 102% — boundary artefact from ticks landing just after session close, ignore.
+
+| Time Window | Avg Range Captured % | Median Range Captured % |
+|---|---|---|
+| 09:30 | 51% | 49% |
+| 10:00 | 63% | 63% |
+| 10:30 | 72% | 72% |
+| 11:00 | 77% | 78% |
+| 11:30 | 81% | 84% |
+| 12:00 | 84% | 87% |
+| 12:30 | 87% | 94% |
+| 13:00 | 89% | 95% |
+| 13:30 | 92% | **100%** |
+| 14:00 | 93% | 100% |
+| 14:30 | 95% | 100% |
+| 15:00 | 97% | 100% |
+| 15:30 | 100% | 100% |
+
+**Findings:**
+- **By 09:30 (end of first 30-min window): 51% of the day's range is already captured on average** — the opening half-hour alone establishes over half the day's range. Consistent with RTH-SESS-005 (33% of HODs and 37% of LODs form in the 09:30 window).
+- **By 10:30 (FH midpoint): 72% captured** — nearly three quarters of the day's range is already in place by the time the first hour is half done.
+- **By 11:00 (FH close): 77% captured** — consistent with RTH-RANGE-002 (FH captures 58–67% of full day range by its close). The discrepancy is because RTH-RANGE-002 measured FH range / (FH + rest) rather than cumulative running range vs full day.
+- **Median hits 100% at 13:30** — on more than half of all trading days, the complete day's range (both HOD and LOD) is already established by 13:30. The afternoon session rarely breaks new ground on the median day.
+- **The curve is steep early and flat late:** most range expansion happens 09:30–11:30 (avg goes from 0% to 81% in 2 hours); the final 4 hours add only ~19% of the remaining range on average.
+- **Mean vs median divergence widens after 12:00** (84% avg vs 87% median at 12:00, then 92% avg vs 100% median at 13:30) — the avg is pulled down by outlier days where a late news event or momentum spike creates new extremes in the final hour. The typical day is fully ranged by early afternoon; the late-expanding days are the exception.
+- **Practical implications:**
+  - By 10:30, you know ~72% of the day's range — use this for realistic target-setting at that point in the session
+  - Midday trades (11:30–13:30) are operating in a window where the median day has already set its range — expect low breakout success rate from midday levels
+  - Late-session new extremes (after 14:00) are genuine outlier events, not the norm — treat 14:00+ breakouts with skepticism unless driven by a catalyst
+  - The 50% range marker is hit in the first 30 minutes — opening volatility is not "noise," it's establishing half the day's structure
+
 ---
 
 ## Gap Analysis

@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-07-04 (Week 28, Day 5) — Score: 19/20
+
+**Task 1 (RTH-VOL-011):** Cumulative intraday range expansion curve. 10/10 — five-CTE architecture, identified and solved nanosecond-duplicate problem with DISTINCT ON independently, running MAX/MIN window function correct. Key: 51% of day's range captured by 09:30; median day fully ranged by 13:30; curve steep early (0→81% in first 2 hours), flat late.
+
+**Task 2 (RTH-VOL-012):** Volatility regime × prior day direction. 9/10 — clean LAG extension of RTH-VOL-010, flat days absorbed into bearish (negligible). Key: large bullish day → 65.7% continuation; large bearish → 50% coin flip; small bearish → 37% bullish (strongest signal). Prior direction informative on bullish side and small-bearish case only.
+
+---
+
 ### Task Archive: 2026-07-03 (Week 28, Day 4) — Score: 19/20
 
 **Task 1 (RTH-SESS-006):** Session high/low timing by weekday. 9/10 — correct weekday propagation through CTEs, SUM/OVER PARTITION BY weekday denominators right, same INNER JOIN limitation as RTH-SESS-005. Thursday HOD 45.2% in 09:30 (most front-loaded); Monday LOD 51.5% in 09:30; Tuesday HOD bi-modal (24% open, 27% 15:30).

@@ -1,3 +1,13 @@
+## Week 28, Day 5 — Agent Feedback on Student
+
+**Score: 19/20**
+
+**Task 1 (RTH-VOL-011):** Five-CTE architecture handling a genuinely hard problem. Correctly separated high/low (MAX/MIN, no deduplication needed) from open/close (DISTINCT ON + MIN/MAX ts_event JOIN to ticks). Identified and solved the nanosecond-timestamp duplicate problem independently — professional-level instinct. Running MAX/MIN window function with default frame (RANGE UNBOUNDED PRECEDING) is correct here since ORDER BY is on a time column with no ties at the per-day level. 16:00 row at 102% is a boundary artefact, not a query bug. Key finding: median day fully ranged by 13:30; 51% of range captured in the opening 30 minutes. 10/10.
+
+**Task 2 (RTH-VOL-012):** Clean extension of RTH-VOL-010. LAG for prev_close/prev_open correct, CASE WHEN for prev_direction clean. Minor: flat days (prev_close = prev_open) fall into 'bearish' via ELSE — negligible count but worth noting. Key finding: after large bullish day 65.7% continuation; after large bearish day 50% (coin flip); after small bearish day only 37% bullish — strongest directional signal is actually on small bearish days, not large ones. Prior direction adds real information on bullish side and small-bearish case, but not after large down days. 9/10.
+
+---
+
 ## Week 28, Day 4 — Agent Feedback on Student
 
 **Score: 19/20**

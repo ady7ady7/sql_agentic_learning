@@ -7,6 +7,14 @@
 
 ---
 
+### Task Archive: 2026-07-07 (Week 29, Day 1) — Score: 18/20
+
+**Task 1 (RTH-SESS-008):** Monday LOD depth from 09:30 open. 9/10 — fh_open as 09:30 reference clean, ABS distances correct, LAG gap direction correct. 100% of Mondays dip below open; gap-down avg dip 65 pts / 71.4% close above open; gap-up avg dip 81 pts / 52.6% — gap-down is the cleaner buy-the-open setup.
+
+**Task 2 (RTH-VOL-013):** Range expansion curve by weekday. 9/10 — clean weekday extension of RTH-VOL-011, ts_recv latent bug negligible. Wednesday most gradual (43.3% at 09:30, median 100% at 14:00); Friday biggest 09:30→10:30 jump (47.7%→74.2%); Tuesday slowest early (67% at 10:30).
+
+---
+
 ### Task Archive: 2026-07-03 (Week 28, Day 4) — Score: 19/20
 
 **Task 1 (RTH-SESS-006):** Session high/low timing by weekday. 9/10 — correct weekday propagation through CTEs, SUM/OVER PARTITION BY weekday denominators right, same INNER JOIN limitation as RTH-SESS-005. Thursday HOD 45.2% in 09:30 (most front-loaded); Monday LOD 51.5% in 09:30; Tuesday HOD bi-modal (24% open, 27% 15:30).

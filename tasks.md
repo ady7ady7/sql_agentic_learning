@@ -1,42 +1,151 @@
-# NQ Project — Week 28 Day 5
+# NQ Project — Week 29 Day 1
 
-**Generated:** 2026-07-04
-**Focus:** Cumulative intraday range expansion curve (RTH-VOL-011) + volatility regime × direction interaction (RTH-VOL-012)
+**Generated:** 2026-07-07
+**Focus:** Monday LOD depth from 09:30 open (RTH-SESS-008) + range expansion curve by weekday (RTH-VOL-013)
 
 ---
 
-## Task 1: Cumulative Intraday Range Expansion Curve
+## Task 1: Monday LOD Depth from 09:30 Open
 
 **Scenario:**
-We know the first hour captures 58–67% of the full day's range (RTH-RANGE-002), but that's a single snapshot at 10:30. What does the full intraday range expansion curve look like across all 13 RTH 30-min windows? At 10:00, how much of the day's range is already locked in? At 13:00? This gives a real-time "how much range is left to expect" estimate at any point in the session — directly useful for target-setting and position sizing mid-day. **(ID: RTH-VOL-011)**
+RTH-SESS-006 showed 51.5% of Monday LODs form in the 09:30 window. RTH-FH-004 showed gap-down Monday → FH sets day LOW 66.7%. The setup is clear: buy the Monday opening low. But how deep does that dip typically go? If the average dip is 20 pts below the 09:30 open, that's a tight stop. If it's 100+ pts, you need a much wider entry approach. Knowing the typical LOD depth defines the practical entry zone and stop placement for the Monday buy-the-open setup. **(ID: RTH-SESS-008)**
 
-Using `nq_data.rth_15min_buckets_agg` (the materialized view already built for RTH-VOL-006/007/008 — per-bucket OHLC for all RTH 15-min windows) joined to `nq_data.daily_ohlcv_rth`:
+Using `nq_data.daily_ohlcv_rth` — for each Monday, compute:
+- `open_to_low` — open - low (how far the LOD is below the 09:30 open, in points; positive = LOD below open)
+- `open_to_high` — high - open (how far the HOD is above the 09:30 open)
+- `open_to_close` — close - open (net session move from open)
 
-For each 30-min window boundary (10:00, 10:30, 11:00, ... 16:00), compute the **running high and low** established across all buckets up to and including that window, then express it as a % of the full day's range.
+Aggregate across all Mondays:
+- `days`
+- `avg_open_to_low` — average dip depth below open
+- `avg_open_to_high` — average extension above open
+- `avg_open_to_close` — average net close vs open
+- `pct_low_below_open` — % of Mondays where the LOD is below the 09:30 open (open > low)
+- `pct_close_above_open` — % of Mondays where RTH closes above the 09:30 open
 
-Approach:
-- Group 15-min buckets into 30-min windows: floor to 30-min boundary using the same pattern as RTH-SESS-005
-- For each trade_date and each 30-min window, compute `running_high = MAX(bucket_high)` and `running_low = MIN(bucket_low)` across all buckets from session open up to that window (cumulative, not per-window)
-- Join to `daily_ohlcv_rth` to get the full day's range (`high - low`)
-- Compute `range_captured_pct = (running_high - running_low) / NULLIF(high - low, 0) * 100`
-- Average across all trading days per window
+Then add a second cut — split by gap direction (gap_up vs gap_down, using LAG(close) for prev_close):
+- Same metrics per gap direction to see if the dip depth differs on gap-down vs gap-up Mondays
 
-**Output:**
-- `time_window` — 10:00, 10:30, 11:00, ... 16:00 (13 rows)
-- `avg_range_captured_pct` — average % of full day's range already established by this window
-- `median_range_captured_pct` — PERCENTILE_CONT(0.5) for robustness against outlier days
+**Finding to answer:** How deep is the typical Monday dip below the 09:30 open? Does the LOD go significantly below the open even on gap-up Mondays? How does dip depth differ between gap-up and gap-down Mondays? What's the avg close vs open — confirming the bullish drift?
 
-Order by `time_window`.
+**Tables:** `nq_data.daily_ohlcv_rth`
 
-**Hint:** Use a window function — `MAX(bucket_high) OVER (PARTITION BY trade_date ORDER BY bucket_start ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)` to get the running high up to each bucket. Then aggregate to 30-min windows after.
+**Difficulty Rating:** 3/5
 
-**Finding to answer:** How quickly does the day's range expand? Is the curve steep early (most range locked in by 11:00) and flat midday, or does it expand gradually throughout? At what time is 50% of the day's range typically established? 75%?
+**(ID: RTH-SESS-008)**
 
-**Tables:** `nq_data.rth_15min_buckets_agg`, `nq_data.daily_ohlcv_rth`
 
-**Difficulty Rating:** 5/5
+WITH mondays_fh_rest AS (
+SELECT DISTINCT ON (r.trade_date)
+	r.trade_date,
+	d.weekday,
+	r.fh_open,
+	r.fh_close,
+	r.fh_low,
+	r.fh_high,
+	d.CLOSE AS rest_close,
+	d.low AS daily_low,
+	ABS(fh_low - fh_open) AS open_to_low,
+	ABS(fh_open - fh_high) AS open_to_high,
+	ABS(fh_open - fh_close) AS open_to_close
+FROM nq_data.rth_firsthour_rest_ohlc_ranges r
+JOIN nq_data.daily_ohlcv_rth d ON r.trade_date = d.trade_date 
+WHERE d.weekday = 'Monday'
+)
+SELECT 
+ COUNT(*) AS days,
+ ROUND(AVG(open_to_low), 2) AS avg_open_to_low,
+ ROUND(AVG(open_to_high), 2) AS open_to_high,
+ ROUND(AVG(open_to_close), 2) AS avg_open_to_close,
+ ROUND(COUNT(*) FILTER (WHERE daily_low < fh_open) / COUNT(*)::NUMERIC * 100, 2) AS pct_low_below_open,
+ ROUND(COUNT(*) FILTER (WHERE rest_close > fh_open) / COUNT(*)::NUMERIC * 100, 2) AS pct_close_above_open
+FROM mondays_fh_rest
 
-**(ID: RTH-VOL-011)**
+
+
+days	avg_open_to_low	open_to_high	avg_open_to_close	pct_low_below_open	round
+33	74.55	114.71	113.22	100	60.61
+
+
+And now the second cut - I hope it's done properly as I was running it down without testing each step, editing the whole query in one go :))
+
+
+WITH mondays_fh_rest AS (
+SELECT DISTINCT ON (r.trade_date)
+	r.trade_date,
+	d.weekday,
+	r.fh_open,
+	r.fh_close,
+	r.fh_low,
+	r.fh_high,
+	d.CLOSE AS rest_close,
+	d.low AS daily_low,
+	LAG(d.close) OVER (ORDER BY r.trade_date) AS prev_close,
+	ABS(fh_low - fh_open) AS open_to_low,
+	ABS(fh_open - fh_high) AS open_to_high,
+	ABS(fh_open - fh_close) AS open_to_close
+FROM nq_data.rth_firsthour_rest_ohlc_ranges r
+JOIN nq_data.daily_ohlcv_rth d ON r.trade_date = d.trade_date 
+),
+gap_calc AS (
+SELECT 
+	*,
+	CASE WHEN prev_close > fh_open THEN 'gap_down' ELSE 'gap_up' END AS gap_direction
+FROM mondays_fh_rest
+),
+monday_gap_agg AS (
+SELECT * FROM gap_calc
+WHERE weekday = 'Monday'
+),
+first_agg AS (
+SELECT
+	 gap_direction,
+	 COUNT(*) AS days,
+	 ROUND(AVG(open_to_low), 2) AS avg_open_to_low,
+	 ROUND(AVG(open_to_high), 2) AS open_to_high,
+	 ROUND(AVG(open_to_close), 2) AS avg_open_to_close,
+	 ROUND(COUNT(*) FILTER (WHERE daily_low < fh_open) / COUNT(*)::NUMERIC * 100, 2) AS pct_low_below_open,
+	 ROUND(COUNT(*) FILTER (WHERE rest_close > fh_open) / COUNT(*)::NUMERIC * 100, 2) AS pct_close_above_open
+FROM monday_gap_agg
+GROUP BY gap_direction
+)
+SELECT * FROM first_agg
+
+
+
+gap_direction	days	avg_open_to_low	open_to_high	avg_open_to_close	pct_low_below_open	pct_close_above_open
+gap_down	14	65.27	140.82	108.93	100	71.43
+gap_up	19	81.39	95.47	116.38	100	52.63
+
+
+
+---
+
+## Task 2: Range Expansion Curve by Weekday
+
+**Scenario:**
+RTH-VOL-011 gave the aggregate cumulative range expansion curve (51% captured by 09:30, median fully ranged by 13:30). But weekdays have structurally different intraday patterns — Thursday front-loads its HOD (45% in 09:30 window), Monday's HOD forms late (21% at 15:30). Does Thursday's range expansion curve look steeper early than Monday's? Does Monday keep expanding later into the session? A weekday split on the existing curve gives a more precise real-time sizing reference for each specific day. **(ID: RTH-VOL-013)**
+
+Reuse the RTH-VOL-011 query structure — the same 5-CTE tick-based approach — and add `d.weekday` to the grouping.
+
+Output: one row per `(weekday, time_window)`, ordered by weekday then time_window.
+
+Compute the same two metrics per row:
+- `avg_range_captured_pct`
+- `median_range_captured_pct` — PERCENTILE_CONT(0.5)
+
+**Note:** With ~29–39 days per weekday (vs 159 total), the per-window per-weekday cells will have small samples. Focus findings on the dominant shape of the curve per weekday rather than individual window values.
+
+**Finding to answer:** Does Thursday's curve peak earlier (steeper 09:30–10:00 rise) than other weekdays? Does Monday's curve stay flatter early and keep expanding later? Which weekday has the most range locked in by 11:00, and which the least?
+
+**Tables:** `nq_data.ticks`, `nq_data.daily_ohlcv_rth`
+
+**Difficulty Rating:** 4/5
+
+**(ID: RTH-VOL-013)**
+
+
+
 
 WITH nq_ticks_hrs_dates AS (
 SELECT 
@@ -94,107 +203,87 @@ SELECT
 FROM ranges_running_agg
 )
 SELECT 
+	weekday,
 	current_window_et AS time_window,
 	ROUND(AVG(daily_range_pct), 2) AS avg_range_captured_pct,
-	PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY daily_range_pct)
+	PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY daily_range_pct) AS median_range_captured_pct
 FROM running_agg
-GROUP BY current_window_et
+GROUP BY weekday, current_window_et
 
-
-time_window	avg_range_captured_pct	percentile_cont
-09:30	51.34	49.42
-10:00	63.39	62.665
-10:30	71.58	71.88
-11:00	76.69	78.355
-11:30	81.06	84.065
-12:00	83.93	87.4
-12:30	86.64	93.545
-13:00	89.02	94.945
-13:30	91.85	100
-14:00	93.2	100
-14:30	95.15	100
-15:00	97.27	100
-15:30	100	100
-16:00	102	100
-
-
----
-
-## Task 2: Volatility Regime × Direction Interaction
-
-**Scenario:**
-RTH-VOL-010 showed that wide days cluster — after a large day, tomorrow is likely wide too. But does the direction of yesterday's move matter? After a large bearish day, does the market mean-revert (today bullish) or continue (today bearish)? After a large bullish day, same question. This would turn the volatility clustering signal into a full directional + sizing framework: not just "expect a wide day" but "expect a wide day in which direction." **(ID: RTH-VOL-012)**
-
-Using `nq_data.daily_ohlcv_rth`, extend RTH-VOL-010 by adding prior day direction:
-
-For each trading day compute:
-- `prev_range` — LAG(high - low)
-- `prev_direction` — LAG(close > open) → 'bullish' / 'bearish' (exclude flat: close = open)
-- `prev_range_bucket` — NTILE(3) OVER (ORDER BY prev_range): 'small', 'medium', 'large'
-- `today_bullish` — close > open
-
-Aggregate by `(prev_range_bucket, prev_direction)`:
-- `days`
-- `avg_prev_range`
-- `avg_today_range` — high - low
-- `today_bullish_pct` — % of days where today closed bullish
-
-Focus the finding on the `large` bucket split by prior direction — that's where the actionable signal lives.
-
-**Output:** one row per `(prev_range_bucket, prev_direction)`, ordered by prev_range_bucket DESC, prev_direction.
-
-**Finding to answer:** After a large bullish day, does today lean bullish (continuation) or bearish (mean reversion)? After a large bearish day, which way? Is the directional signal stronger after large days than after small days? Does prior direction add any information beyond prior range size alone?
-
-**Tables:** `nq_data.daily_ohlcv_rth`
-
-**Difficulty Rating:** 4/5
-
-**(ID: RTH-VOL-012)**
-
-
-
-WITH days_rth_ranges AS (
-SELECT 
-	*,
-	high - low AS daily_range,
-	LAG((high - low)) OVER (ORDER BY trade_date) AS prev_range,
-	LAG(close) OVER (ORDER BY trade_date) AS prev_close,
-	LAG(open) OVER (ORDER BY trade_date) AS prev_open
-FROM nq_data.daily_ohlcv_rth
-),
-prev_range_agg AS (
-SELECT 
-	*,
-	CASE WHEN prev_close > prev_open THEN 'bullish' ELSE 'bearish' END AS prev_direction,
-	CASE WHEN CLOSE > OPEN THEN 1 ELSE 0 END AS today_bullish,
-	ntile(3) OVER (ORDER BY daily_range) AS daily_range_bucket,
-	ntile(3) OVER (ORDER BY prev_range) AS prev_range_bucket
-FROM days_rth_ranges
-WHERE prev_range IS NOT NULL
-)
-SELECT 
-	prev_range_bucket,
-	prev_direction,
-	COUNT(*) AS days,
-	ROUND(AVG(daily_range), 2) AS avg_daily_range,
-	ROUND(SUM(today_bullish) / COUNT(*)::NUMERIC * 100, 2) AS today_bullish_pct
-FROM prev_range_agg
-GROUP BY prev_range_bucket, prev_direction
-ORDER BY prev_range_bucket
-
-
-prev_range_bucket	prev_direction	days	avg_daily_range	today_bullish_pct
-1	bearish	27	302.43	37.04
-1	bullish	35	237.63	60
-2	bearish	32	338.34	43.75
-2	bullish	30	308.44	63.33
-3	bearish	26	423.99	50
-3	bullish	35	423.49	65.71
-
-
+weekday	time_window	avg_range_captured_pct	median_range_captured_pct
+Friday	09:30	47.68	49.11
+Friday	10:00	64.04	60.32
+Friday	10:30	74.19	82.31
+Friday	11:00	79.76	84.4
+Friday	11:30	83.61	90.93
+Friday	12:00	86.48	94.5
+Friday	12:30	89.81	97.62
+Friday	13:00	92.64	100
+Friday	13:30	96.68	100
+Friday	14:00	97.42	100
+Friday	14:30	97.67	100
+Friday	15:00	98.37	100
+Friday	15:30	100	100
+Friday	16:00	100.72	100
+Monday	09:30	56.1	57.25
+Monday	10:00	66.85	68.83
+Monday	10:30	73.7	73.56
+Monday	11:00	78.81	78.59
+Monday	11:30	82.25	81.96
+Monday	12:00	86.3	90.2
+Monday	12:30	88.3	95.06
+Monday	13:00	88.89	91.7
+Monday	13:30	90.49	95.06
+Monday	14:00	91.82	97.58
+Monday	14:30	93.59	100
+Monday	15:00	97.08	100
+Monday	15:30	100	100
+Monday	16:00	100.37	100
+Thursday	09:30	55.84	52.81
+Thursday	10:00	65.87	62.54
+Thursday	10:30	76.67	81.18
+Thursday	11:00	80.11	83.71
+Thursday	11:30	83.77	92.72
+Thursday	12:00	85.6	93.35
+Thursday	12:30	88.4	96.23
+Thursday	13:00	90.4	97.88
+Thursday	13:30	94.13	100
+Thursday	14:00	95.5	100
+Thursday	14:30	96.35	100
+Thursday	15:00	98.59	100
+Thursday	15:30	100	100
+Thursday	16:00	101.47	100
+Tuesday	09:30	52.41	53.2
+Tuesday	10:00	62.32	63.98
+Tuesday	10:30	67.12	69.71
+Tuesday	11:00	73.81	73.37
+Tuesday	11:30	78.12	77.11
+Tuesday	12:00	81.4	79.34
+Tuesday	12:30	84.15	83.2
+Tuesday	13:00	88.22	87.4
+Tuesday	13:30	91.6	96.19
+Tuesday	14:00	92.43	96.19
+Tuesday	14:30	93.48	96.19
+Tuesday	15:00	94.94	99.67
+Tuesday	15:30	100	100
+Tuesday	16:00	102.18	100
+Wednesday	09:30	43.25	41.38
+Wednesday	10:00	57.13	54.33
+Wednesday	10:30	65.75	65.905
+Wednesday	11:00	70.48	69.895
+Wednesday	11:30	77.35	81.12
+Wednesday	12:00	79.59	85.295
+Wednesday	12:30	82.32	87.845
+Wednesday	13:00	84.83	89.835
+Wednesday	13:30	86.18	99.11
+Wednesday	14:00	88.77	100
+Wednesday	14:30	94.9	100
+Wednesday	15:00	97.66	100
+Wednesday	15:30	100	100
+Wednesday	16:00	105.41	100
 
 ---
 
 ## Submission Instructions
 
-Paste your queries and results. Log query IDs: RTH-VOL-011, RTH-VOL-012.
+Paste your queries and results. Log query IDs: RTH-SESS-008, RTH-VOL-013.

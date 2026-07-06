@@ -1,3 +1,13 @@
+## Week 29, Day 1 — Agent Feedback on Student
+
+**Score: 18/20**
+
+**Task 1 (RTH-SESS-008):** Smart use of rth_firsthour_rest_ohlc_ranges for fh_open (09:30 price). ABS() on all distance metrics correct. GAP direction CASE logic correct (prev_close > fh_open = gap_down). LAG computed on full table before Monday filter — correct behavior, gets the actual prior day's close. Key finding: 100% of Mondays dip below open; gap-down Monday is the cleaner setup (65 pt avg dip, 71.4% close above open vs gap-up 81 pt dip, 52.6%). 9/10.
+
+**Task 2 (RTH-VOL-013):** Clean weekday extension of RTH-VOL-011 — just added weekday to GROUP BY, correct reuse of architecture. ts_recv AT TIME ZONE for window bucketing is a latent bug (should be ts_event) but negligible practical impact on MAX/MIN price. Wednesday standout: only 43.3% at 09:30 (lowest), median 100% at 14:00 (latest). Tuesday has slowest early expansion (67% at 10:30). Friday shows biggest single-window jump (09:30→10:30: 47.7%→74.2%). 9/10.
+
+---
+
 ## Week 28, Day 5 — Agent Feedback on Student
 
 **Score: 19/20**

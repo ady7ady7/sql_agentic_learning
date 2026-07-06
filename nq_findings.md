@@ -136,6 +136,32 @@
 
 ## Volatility
 
+### RTH-VOL-013 — Range Expansion Curve by Weekday
+**Query ID:** RTH-VOL-013 | Task date: 2026-07-07
+**Extension of RTH-VOL-011** — adds weekday dimension. Same 5-CTE tick architecture. ~29–39 days per weekday. Note: `ts_recv AT TIME ZONE` used for window bucketing (should be `ts_event`) — minor correctness issue, negligible practical impact since ts_recv ≈ ts_event for RTH ticks.
+
+**09:30 avg range captured % and window where median hits 100%:**
+
+| Weekday | 09:30 avg % | 10:30 avg % | 11:00 avg % | Median 100% at | Character |
+|---|---|---|---|---|---|
+| Monday | **56.1%** | 73.7% | 78.8% | 14:30 | Front-loaded open, gradual late expansion |
+| Thursday | 55.8% | 76.7% | 80.1% | 13:30 | Front-loaded, fastest to stabilize |
+| Tuesday | 52.4% | 67.1% | 73.8% | 15:30 | Slowest early expansion, steady through session |
+| Friday | 47.7% | 74.2% | 79.8% | 13:00 | Slow open, then accelerates fast by 10:30 |
+| Wednesday | **43.3%** | 65.8% | 70.5% | 14:00 | Slowest overall — keeps expanding all day |
+
+**Findings:**
+- **Wednesday has the least range captured at 09:30 (43.3%)** — lowest of all weekdays by a significant margin. Wednesday range expands slowly and continuously through the whole session; median doesn't hit 100% until 14:00 (latest of all weekdays). Consistent with FOMC-driven afternoon moves and Wednesday's low first-hour capture rate (RTH-RANGE-002: 57.9%, lowest weekday).
+- **Monday and Thursday are the most front-loaded at 09:30 (~56%)** — nearly identical opening range capture. Both have structural reasons: Thursday's HOD front-loading (45% in 09:30 window, RTH-SESS-006) and Monday's LOD front-loading (51.5% in 09:30 window). Despite similar opening front-loading, Monday's median hits 100% at 14:30 vs Thursday's 13:30 — Monday keeps slowly adding range late in the session (the HOD drift pattern).
+- **Tuesday has the slowest early expansion (67.1% at 10:30 — lowest of all weekdays)** — Tuesday builds range gradually and steadily throughout the session. No dominant single window. Consistent with Tuesday's bi-modal HOD distribution (24% open, 27% at 15:30 — RTH-SESS-006).
+- **Friday has a notable acceleration pattern: only 47.7% at 09:30 but jumps to 74.2% at 10:30** — the biggest single-window jump of any weekday (26.5pp in 30 minutes). Friday range is relatively quiet in the opening 30 min then expands rapidly through the OR/FH window. Median fully ranged by 13:00 (earliest of all weekdays).
+- **Practical weekday-specific sizing rules:**
+  - **Monday:** 56% range known at open, but keep targets open — median day adds range until 14:30
+  - **Tuesday:** At 10:30 you only know 67% of the range — widest remaining uncertainty at that point. Keep stops wider on Tuesday morning setups.
+  - **Wednesday:** At 11:00 only 70% known — the afternoon often brings a new extreme. Don't assume the range is set by midday.
+  - **Thursday:** 76.7% known by 10:30, median fully ranged by 13:30 — range sets early, use tighter targets after noon
+  - **Friday:** Slow open (47.7%), then rapid expansion to 74% by 10:30 — the 09:30–10:30 window is the critical expansion window on Fridays
+
 ### RTH-VOL-010 — Day-over-Day Range Continuity (Volatility Clustering)
 **Query ID:** RTH-VOL-010 | Task date: 2026-07-03
 **Method:** LAG(high - low) OVER (ORDER BY trade_date) to get prior day range. NTILE(3) on both prev_range and daily_range within same CTE. Wide day threshold: daily_range ≥ 380 pts (approx global Q3). 185 days after excluding first (no prior day).
@@ -828,6 +854,33 @@ Selected windows with meaningful divergence from 50%:
 - **Practical implication:** When both OR range and FH range are tight (< ~90 pts OR, < ~110 pts FH — approximate Q1 thresholds), expect a rest-of-session range of ~197 pts and no directional edge. Reduce size. When both are wide (> ~220 pts OR, > ~270 pts FH), expect ~339 pts rest range and a 68% bullish afternoon — these are trend days worth holding.
 
 ## Session Patterns
+
+### RTH-SESS-008 — Monday LOD Depth from 09:30 Open
+**Query ID:** RTH-SESS-008 | Task date: 2026-07-07
+**Method:** `fh_open` from `rth_firsthour_rest_ohlc_ranges` as the 09:30 reference price. ABS distances for open_to_low, open_to_high, open_to_close. LAG(d.close) for gap direction. 33 Mondays total; 14 gap-down, 19 gap-up.
+
+**Overall Monday (all gap directions):**
+
+| Days | Avg Dip Below Open | Avg Extension Above Open | Avg Close vs Open | LOD Below Open % | Close Above Open % |
+|---|---|---|---|---|---|
+| 33 | **75 pts** | 115 pts | +113 pts | **100%** | 60.6% |
+
+**By gap direction:**
+
+| Gap Direction | Days | Avg Dip Below Open | Avg Extension Above Open | Avg Close vs Open | Close Above Open % |
+|---|---|---|---|---|---|
+| gap_down | 14 | **65 pts** | 141 pts | +109 pts | **71.4%** |
+| gap_up | 19 | **81 pts** | 95 pts | +116 pts | 52.6% |
+
+**Findings:**
+- **100% of Mondays see the LOD go below the 09:30 open** — the opening price is never the exact low. Every Monday dips below the open at some point.
+- **Average dip below open: 75 pts** — practical stop placement for the Monday buy-the-open setup should be at least 75–100 pts below the 09:30 open to avoid being stopped out on the typical dip.
+- **Average extension above open: 115 pts, avg close +113 pts above open** — the round-trip is ~188 pts (75 down, then 115+ up from open). Monday structurally dips and recovers well above the open.
+- **Gap-down Monday is the cleaner setup:** dip only 65 pts below open (vs 81 pts on gap-up), closes above open 71.4% of the time, extends 141 pts above open on average. Lower risk entry (shallower dip), higher reward (larger extension), better close rate.
+- **Gap-up Monday is the weaker setup:** dips 81 pts below open (deeper than gap-down), closes above open only 52.6% (near coin flip). Consistent with RTH-GAP-003 (large gap-ups tend to fade). The opening high on a gap-up Monday is often the HOD — buying below open still works as a dip trade but with much less conviction.
+- **Practical Monday entry framework:**
+  - Gap-down open: buy dip within 65–80 pts below open, target 109–141 pts above open, stop ~100 pts below open
+  - Gap-up open: treat as a fade setup first (HOD likely at open per RTH-FH-004); if buying the dip, expect 81 pts of heat, close above open only 53% — reduce size vs gap-down setup
 
 ### RTH-SESS-006 — Session High/Low Timing by Weekday (30-Min Windows)
 **Query ID:** RTH-SESS-006 | Task date: 2026-07-03

@@ -1037,4 +1037,50 @@ Table `nq_data.news_events` created with columns: `event_date`, `event_time_et`,
 
 ## Globex vs RTH Comparisons
 
-*(findings to be added — after RTH analysis is mature)*
+### RTH-GLOB-001 — Overnight Gap Direction vs RTH Session Direction
+**Query ID:** RTH-GLOB-001 | Task date: 2026-07-08
+**Method:** LAG(close) for prev_close. gap_direction = open vs prev_close. rth_bullish = close > open (intraday). rth_close_above_prev = close > prev_close (net vs prior close). 185 days (first excluded). Flat opens absorbed into gap_down — negligible count.
+
+**Aggregate (all weekdays):**
+
+| Gap Direction | Days | Avg Gap Size | RTH Bullish % (open→close) | RTH Close > Prev Close % |
+|---|---|---|---|---|
+| gap_down | 88 | 150 pts | **63.6%** | 37.5% |
+| gap_up | 97 | 147 pts | 45.4% | **65.0%** |
+
+**By weekday:**
+
+| Weekday | Gap | Days | RTH Bullish % | RTH Close > Prev % |
+|---|---|---|---|---|
+| Monday | gap_down | 18 | **77.8%** | 50.0% |
+| Friday | gap_down | 15 | **73.3%** | 46.7% |
+| Tuesday | gap_down | 21 | 66.7% | 33.3% |
+| Wednesday | gap_down | 12 | 58.3% | 50.0% |
+| Thursday | gap_down | 22 | 45.5% | **18.2%** |
+| Monday | gap_up | 20 | 45.0% | **80.0%** |
+| Wednesday | gap_up | 22 | 54.6% | **77.3%** |
+| Friday | gap_up | 20 | 50.0% | 65.0% |
+| Thursday | gap_up | 17 | **29.4%** | 53.0% |
+| Tuesday | gap_up | 18 | 44.4% | 44.4% |
+
+**Findings:**
+- **Gap direction predicts net daily direction (vs prior close) but NOT intraday direction (open→close).** The intraday session reverses the overnight move in both cases:
+  - Gap-down → RTH open→close bullish 63.6% (intraday reversal) BUT close vs prior close only 37.5% (not enough recovery)
+  - Gap-up → RTH open→close bullish only 45.4% (intraday fade) BUT close vs prior close 65.0% (gap holds net)
+- **The overnight gap is never fully erased on average** — gap-ups close net positive 65% of the time despite fading intraday; gap-downs close net negative 62.5% of the time despite recovering intraday. The gap direction sets the day's net bias; the intraday session oscillates around it.
+- **Thursday is the structural exception on both sides:**
+  - Gap-down Thursday: only 45.5% bullish intraday (only weekday below 50%) AND only 18.2% close above prior close — Thursday gap-downs continue lower both intraday and net. Unique among all weekdays.
+  - Gap-up Thursday: only 29.4% bullish intraday (worst fade of any weekday) — Thursday fades gap-ups hardest. Both findings align with Thursday's structural bearish profile (RTH-CLOSE-001: -90 avg).
+- **Monday gap-down is the strongest intraday reversal: 77.8% bullish open→close** — directly confirms RTH-SESS-008 (Monday buy-the-open setup). The overnight gap-down gets aggressively bought intraday on Mondays.
+- **Monday gap-up holds net strongly: 80.0% close above prior close** — gap-up Mondays don't give back the overnight gain. Despite fading intraday (only 45% bullish open→close), the net day still closes above the prior close 80% of the time.
+- **Wednesday gap-up: 77.3% close above prior close** — second strongest gap-up holder. Consistent with Wednesday's bullish close-to-close drift (RTH-CLOSE-001: +80 avg, 67.6% up).
+- **Tuesday gap-up is the weakest: 44.4% both intraday AND net** — gap-up Tuesdays neither continue nor hold. The overnight gain fades completely by RTH close. Consistent with Tuesday's near-neutral average close-to-close (-5 avg).
+- **Practical overnight→RTH decision framework:**
+
+| Signal | Intraday bias | Net day bias | Action |
+|---|---|---|---|
+| Gap-down Monday | Buy (78%) | Neutral (50%) | Long intraday, close before EOD |
+| Gap-down Thursday | Sell (55%) | Sell (82%) | No buy — only weekday to continue lower |
+| Gap-up Monday/Wednesday | Fade intraday | Hold net (77-80%) | Fade open→close move but net stays positive |
+| Gap-up Tuesday | Fade intraday | Fade net (56%) | Cleanest short after gap-up |
+| Gap-up Thursday | Fade hard (71%) | Neutral net | Fade the open, cover before close |

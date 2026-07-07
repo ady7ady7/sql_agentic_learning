@@ -1,3 +1,11 @@
+## Week 29, Day 2 — Agent Feedback on Student
+
+**Score: 20/20**
+
+**Task 1 (RTH-GLOB-001):** Two cuts executed cleanly in one go without step-by-step testing — both correct. LAG for prev_close correct, flat opens absorbed into gap_down (negligible). Key structural finding: gap direction predicts net daily direction but NOT intraday direction — intraday session reverses overnight move in both gap directions. Thursday is the only weekday where gap-down continues lower both intraday (45.5%) and net (18.2%). Monday gap-down strongest intraday reversal (77.8%). Gap-up Tuesday weakest net hold (44.4% close above prior close). The two-metric approach (open→close vs close vs prev_close) was the right design — tells completely different stories. 10/10.
+
+---
+
 ## Week 29, Day 1 — Agent Feedback on Student
 
 **Score: 18/20**

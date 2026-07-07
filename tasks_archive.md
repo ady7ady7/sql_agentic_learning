@@ -7,6 +7,12 @@
 
 ---
 
+### Task Archive: 2026-07-08 (Week 29, Day 2) — Score: 20/20
+
+**Task 1 (RTH-GLOB-001):** Overnight gap direction vs RTH direction — aggregate + weekday. 10/10 — both cuts correct in one go. Key: gap direction predicts net close direction but not intraday direction (intraday always reverses overnight). Thursday unique: gap-down continues lower both intraday (45.5%) and net (18.2%). Monday gap-down strongest reversal (77.8%). Gap-up Tuesday weakest net hold (44.4%).
+
+---
+
 ### Task Archive: 2026-07-07 (Week 29, Day 1) — Score: 18/20
 
 **Task 1 (RTH-SESS-008):** Monday LOD depth from 09:30 open. 9/10 — fh_open as 09:30 reference clean, ABS distances correct, LAG gap direction correct. 100% of Mondays dip below open; gap-down avg dip 65 pts / 71.4% close above open; gap-up avg dip 81 pts / 52.6% — gap-down is the cleaner buy-the-open setup.

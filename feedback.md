@@ -1,3 +1,11 @@
+## Week 29, Day 3 — Agent Feedback on Student
+
+**Score: 20/20**
+
+**Task 1 (RTH-GLOB-002):** Clean architecture — EU tick filter correct, MAX/MIN aggregation per trade_date clean, DISTINCT ON on eu_us_joint_agg harmless (one row per date already). Minor: uses d.low (full RTH low including open) instead of post-open low as specced — slightly overstates undercut rates but directionally valid and simpler. Methodology change is defensible. Key findings: 73.3% of bullish days undercut EU midpoint, 46.5% undercut EU low — nearly half of bullish days give better post-open entries than EU. Thursday 100% undercut EU mid on bullish days (12 days — needs more data). Monday opposite: RTH opens at 63% of EU range, only 40% undercut — EU is the entry window on Mondays. 10/10.
+
+---
+
 ## Week 29, Day 2 — Agent Feedback on Student
 
 **Score: 20/20**

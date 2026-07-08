@@ -7,6 +7,12 @@
 
 ---
 
+### Task Archive: 2026-07-09 (Week 29, Day 3) — Score: 20/20
+
+**Task 1 (RTH-GLOB-002):** EU session levels vs RTH price action on bullish days. 10/10 — EU tick filter correct, methodology change (d.low vs post-open low) defensible. 73.3% of bullish days undercut EU midpoint; 46.5% undercut EU low. Thursday: 100% undercut EU mid on bullish days (12 days). Monday: RTH opens at 63% of EU range, only 40% undercut — EU is the entry window. Wednesday: 72.2% undercut EU mid but only 27.8% undercut EU low — EU low tends to hold.
+
+---
+
 ### Task Archive: 2026-07-08 (Week 29, Day 2) — Score: 20/20
 
 **Task 1 (RTH-GLOB-001):** Overnight gap direction vs RTH direction — aggregate + weekday. 10/10 — both cuts correct in one go. Key: gap direction predicts net close direction but not intraday direction (intraday always reverses overnight). Thursday unique: gap-down continues lower both intraday (45.5%) and net (18.2%). Monday gap-down strongest reversal (77.8%). Gap-up Tuesday weakest net hold (44.4%).

@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-07-10 (Week 29, Day 4) — Score: 19/20
+
+**Task 1 (RTH-GLOB-003):** Prior day direction × EU entry quality on bullish RTH days. 9/10 — correctly identified spec flaw (prev_day_direction contamination inside filtered CTE), fixed with separate CTE computing both directions over all days. Duplicate alias bug (avg_eu_range used twice) minor. Key finding: prior day direction barely splits the aggregate — weak signal, weekday remains stronger predictor.
+
+**Task 2 (RTH-GLOB-004):** Gap direction × EU entry quality on bullish RTH days. 9/10 — initial CASE inversion fixed same session (one character change). Corrected results: gap-down bullish → 60.98% EU low undercut (hypothesis wrong — gap-down days undercut MORE, not less); gap-up bullish → only 34.09% undercut EU low (EU low holds on gap-up bullish days). Gap direction explains 26.9pp of variance — far more useful than prior day direction (6.8pp from RTH-GLOB-003).
+
+**Task 3 (RTH-GLOB-002b):** Bearish RTH day mirror of RTH-GLOB-002. 10/10 — correct flag inversions, extended to both weekday + overall aggregations (self-initiated). Key: 97.26% undercut EU mid, 87.67% undercut EU low on bearish days. Wednesday: 100/100/20% — EU short is the best entry. Monday: 69.23% above EU high — always wait for RTH bounce.
+
+---
+
 ### Task Archive: 2026-07-04 (Week 28, Day 5) — Score: 19/20
 
 **Task 1 (RTH-VOL-011):** Cumulative intraday range expansion curve. 10/10 — five-CTE architecture, identified and solved nanosecond-duplicate problem with DISTINCT ON independently, running MAX/MIN window function correct. Key: 51% of day's range captured by 09:30; median day fully ranged by 13:30; curve steep early (0→81% in first 2 hours), flat late.

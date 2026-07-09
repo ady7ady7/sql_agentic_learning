@@ -1,3 +1,15 @@
+## Week 29, Day 4 — Agent Feedback on Student
+
+**Score: 19/20**
+
+**Task 1 (RTH-GLOB-003):** Correct identification of the original spec flaw — computing prev_day_direction inside a bullish-day-filtered CTE would have contaminated the LAG window, giving a skewed sample. Fix is the right approach: compute both day_direction and prev_day_direction in a clean CTE over all days, filter to bullish only in the final SELECT. Query structure sound. Minor: duplicate alias `avg_eu_range` used twice in final SELECT (second instance is pct_undercut_eu_midpoint) — won't crash but one value is silently labelled wrong. Results honest: prior day direction barely splits the aggregate (43% vs 50% EU low undercut). Finding is: prior day direction is NOT a useful pre-EU signal. Weekday remains the stronger predictor. 9/10.
+
+**Task 2 (RTH-GLOB-004):** Good architecture — same CTE extension pattern as Task 1, gap_direction logic clean. One inversion bug: `CASE WHEN rth_open > rth_close THEN 'bullish'` is backwards (open > close = bearish). So `WHERE day_direction = 'bullish'` actually filtered to bearish days. Results are internally consistent for bearish days and still interpretable — gap-down bearish: 100% undercut EU mid / 93.55% EU low makes perfect structural sense (RTH opened below EU and kept selling). Rerun with `rth_close > rth_open` to get the original bullish-day hypothesis confirmed. Worth noting the bug rather than leaving it attributed to bullish days. 9/10.
+
+**Task 3 (RTH-GLOB-002b):** Exactly the right mirror — one filter change, flag direction flipped. Good extension to both weekday and overall aggregations. Clean findings: 97.26% undercut EU midpoint, 87.67% undercut EU low on bearish days — near-universal. Wednesday standout: 100/100/20% (EU mid/EU low/EU high) — the cleanest "EU short entry is the best entry" weekday. Monday opposite: 69.23% trade above EU high — always wait for RTH on bearish Mondays. 10/10 (including the self-initiated extension).
+
+---
+
 ## Week 29, Day 3 — Agent Feedback on Student
 
 **Score: 20/20**

@@ -1,55 +1,36 @@
-# NQ Project — Week 29 Day 3
+# NQ Project — Week 29 Day 4
 
-**Generated:** 2026-07-09
-**Focus:** EU session levels vs RTH price action on bullish days (RTH-GLOB-002)
+**Generated:** 2026-07-10
+**Focus:** EU session entry depth study — prior day direction (RTH-GLOB-003) + gap direction (RTH-GLOB-004) + bearish RTH mirror (RTH-GLOB-002b)
 
 ---
 
-## Task 1: EU Session Levels vs RTH on Bullish Days
+## Task 1: Prior Day Direction × EU Entry Quality
 
 **Scenario:**
-On days where NQ closes bullish (RTH close > RTH open), was the EU session (02:00–09:30 ET) a useful entry window, or does RTH routinely undercut EU levels after the open — giving a better price to anyone who just waited? If RTH takes out the EU low on 60% of bullish days, entering long during EU was suboptimal. If RTH rarely undercuts the EU 50% level, EU entries above midrange were well-placed. **(ID: RTH-GLOB-002)**
+RTH-GLOB-002 showed that on bullish RTH days, 46.5% see the EU low undercut post-open. But does yesterday's RTH direction predict whether today's EU levels will hold? After a bullish prior day (strong context), EU lows may hold more often — continuation momentum carries through overnight. After a bearish prior day (weak context), RTH may dip harder post-open, undercutting EU levels more often. You know yesterday's close before EU even opens — making this a genuine pre-EU signal. **(ID: RTH-GLOB-003)**
 
-**Step 1 — EU session aggregates**
-Filter ticks to EU session: `(ts_event AT TIME ZONE 'America/New_York')::time >= '02:00' AND < '09:30'`. Trade_date = `ts_event::date` (EU ticks on 2026-07-09 02:00–09:30 belong to trade_date 2026-07-09).
+Extend the RTH-GLOB-002 query structure — add `LAG(close > open) OVER (ORDER BY trade_date)` to `daily_ohlcv_rth` to get `prev_bullish` (true/false), then label as `prev_day_bullish` / `prev_day_bearish`.
 
-Per trade_date compute:
-- `eu_high` — MAX(price)
-- `eu_low` — MIN(price)
-- `eu_range` — eu_high - eu_low
-- `eu_midpoint` — (eu_high + eu_low) / 2
-
-**Step 2 — RTH open location in EU range**
-Join to `nq_data.daily_ohlcv_rth` on trade_date. Compute:
-- `rth_open_location` — (open - eu_low) / NULLIF(eu_range, 0) — where does the RTH open sit within the EU range? 0 = at EU low, 1 = at EU high, 0.5 = at EU midpoint
-
-**Step 3 — Post-open price action**
-For each trade_date, find the RTH session MIN(price) after 09:30 (using ticks filtered to RTH: `ts_event >= session_start AND ts_event <= session_end` from `daily_ohlcv_rth`). This is `rth_low_after_open`.
-
-Compute:
-- `undercut_eu_low` — rth_low_after_open < eu_low (1/0)
-- `undercut_eu_midpoint` — rth_low_after_open < eu_midpoint (1/0)
-
-**Step 4 — Filter to bullish RTH days and aggregate**
-Filter: RTH close > RTH open. Aggregate across all bullish days:
+Filter to bullish RTH days (close > open) as before. Aggregate by `prev_day_direction`:
 - `days`
 - `avg_eu_range`
-- `avg_rth_open_location` — avg position of RTH open within EU range
-- `pct_undercut_eu_low` — % of bullish days where RTH traded below EU low after open
-- `pct_undercut_eu_midpoint` — % of bullish days where RTH traded below EU midpoint after open
+- `avg_rth_open_location`
+- `pct_undercut_eu_midpoint`
+- `pct_undercut_eu_low`
 
-**Then add a weekday breakdown** — same metrics grouped by weekday.
-
-**Finding to answer:** On bullish RTH days, does RTH routinely undercut the EU low or EU midpoint after the open? If yes — waiting for RTH open gives a better long entry than entering during EU. If no — the EU low/midpoint held and EU session entries were at better prices than anything available after 09:30.
+**Finding to answer:** After a bullish prior day, do EU lows hold more often on bullish RTH days (continuation context)? After a bearish prior day, does RTH dip harder and undercut EU levels more frequently? Does prior day direction meaningfully split the RTH-GLOB-002 aggregate?
 
 **Tables:** `nq_data.ticks`, `nq_data.daily_ohlcv_rth`
 
-**Difficulty Rating:** 5/5
+**Difficulty Rating:** 3/5
 
-**(ID: RTH-GLOB-002)**
+**(ID: RTH-GLOB-003)**
 
+The bullish RTH day filter doesn't make sense at the beginning, as it makes EVERY day a fucking bullish day in the previous day direciton and ita lso filters out all bearish days at the beginning, giving us skewed results - it doesn't make sense.
 
-Cut1:
+I've created another filter to properly check that:
+
 
 WITH eu_first_ticks_agg AS (
 SELECT 
@@ -71,6 +52,7 @@ GROUP BY trade_date
 eu_us_joint_agg AS (
 SELECT DISTINCT ON (e.trade_date, e.eu_high)
 	e.trade_date,
+	d.weekday,
 	e.eu_high,
 	e.eu_low,
 	e.eu_midpoint,
@@ -79,28 +61,150 @@ SELECT DISTINCT ON (e.trade_date, e.eu_high)
 	d."close" AS rth_close,
 	d.low AS rth_low,
 	d.high AS rth_high,
+	LAG(d."close") OVER (ORDER BY d.trade_date) AS prev_close,
+	LAG(d.open) OVER (ORDER BY d.trade_date) AS prev_open,
 	ROUND((d.OPEN - e.eu_low) / e.eu_range::NUMERIC * 100, 2) AS rth_open_location,
 	CASE WHEN d.low < e.eu_midpoint THEN 1 ELSE 0 END AS reached_eu_midpoint,
-	CASE WHEN d.low < e.eu_low THEN 1 ELSE 0 END AS reached_eu_low
+	CASE WHEN d.low < e.eu_low THEN 1 ELSE 0 END AS reached_eu_low,
+	CASE WHEN d.high > e.eu_high THEN 1 ELSE 0 END AS reached_eu_high
 FROM eu_levels_aggregation e
 JOIN nq_data.daily_ohlcv_rth d ON e.trade_date = d.trade_date
-WHERE d."close" > d.OPEN
+),
+prev_day_direction_agg AS (
+SELECT 
+	*,
+	CASE WHEN rth_close > rth_open THEN 'bullish' ELSE 'bearish' END AS day_direction,
+	CASE WHEN prev_close > prev_open THEN 'bullish' ELSE 'bearish' END AS prev_day_direction
+FROM eu_us_joint_agg
+WHERE prev_close IS NOT NULL AND prev_open IS NOT NULL
 )
 SELECT
+	prev_day_direction,
 	COUNT(*) AS days,
 	ROUND(AVG(eu_range), 2) AS avg_eu_range,
+	ROUND(SUM(reached_eu_midpoint)/ COUNT(*)::NUMERIC * 100, 2) AS avg_eu_range,
 	ROUND(AVG(rth_open_location), 2) AS avg_rth_open_location,
-	ROUND(SUM(reached_eu_midpoint) / COUNT(*)::NUMERIC * 100, 2) AS pct_undercut_eu_midpoint,
-	ROUND(SUM(reached_eu_low) / COUNT(*)::NUMERIC * 100, 2)pct_undercut_eu_low
+	ROUND(SUM(reached_eu_low)/ COUNT(*)::NUMERIC * 100, 2) AS pct_undercut_eu_low,
+	ROUND(SUM(reached_eu_high)/ COUNT(*)::NUMERIC * 100, 2) AS pct_went_above_eu_high
+FROM prev_day_direction_agg
+WHERE day_direction = 'bullish'
+GROUP BY prev_day_direction
+
+prev_day_direction	days	avg_eu_range	avg_eu_range	avg_rth_open_location	pct_undercut_eu_low	pct_went_above_eu_high
+bearish	37	213.26	78.38	52.69	43.24	89.19
+bullish	48	186.19	70.83	53.56	50	87.5
+
+---
+
+## Task 2: Gap Direction × EU Entry Quality
+
+**Scenario:**
+On bullish RTH days, gap direction into the RTH open likely explains a large portion of whether EU levels get undercut. On gap-down bullish days, RTH opens below EU range — the EU low was already the day's low before RTH started, so it almost certainly held. On gap-up bullish days, RTH opens above EU range or near EU high — the EU low is far below and RTH may dip back toward it post-open. Splitting RTH-GLOB-002 by gap direction may reveal that the "EU low undercut" finding is almost entirely driven by gap-up days. **(ID: RTH-GLOB-004)**
+
+Extend the RTH-GLOB-002 query — add `gap_direction` (open > prev_close = gap_up, else gap_down) using LAG(close). Filter to bullish RTH days. Aggregate by `gap_direction`:
+- `days`
+- `avg_gap_size`
+- `avg_rth_open_location`
+- `pct_undercut_eu_midpoint`
+- `pct_undercut_eu_low`
+
+**Finding to answer:** On gap-down bullish days, does the EU low almost never get undercut (RTH opened below it already)? On gap-up bullish days, does RTH frequently dip back below EU levels post-open? Does gap direction explain most of the variance in the RTH-GLOB-002 aggregate?
+
+
+**Tables:** `nq_data.ticks`, `nq_data.daily_ohlcv_rth`
+
+**Difficulty Rating:** 3/5
+
+**(ID: RTH-GLOB-004)**
+
+WITH eu_first_ticks_agg AS (
+SELECT 
+	*,
+	ts_event::DATE AS trade_date
+FROM nq_data.ticks t 
+WHERE (ts_event AT TIME ZONE 'America/New_York')::time >= '2:00' AND (ts_event AT TIME ZONE 'America/New_York')::time < '9:30'
+),
+eu_levels_aggregation AS (
+SELECT 
+	trade_date,
+	MAX(price) AS eu_high,
+	MIN(price) AS eu_low,
+	MAX(price) - MIN(price) AS eu_range,
+	ROUND(MAX(price) - ((MAX(price) - MIN(price)) / 2), 2) AS eu_midpoint
+FROM eu_first_ticks_agg
+GROUP BY trade_date
+),
+eu_us_joint_agg AS (
+SELECT DISTINCT ON (e.trade_date, e.eu_high)
+	e.trade_date,
+	d.weekday,
+	e.eu_high,
+	e.eu_low,
+	e.eu_midpoint,
+	e.eu_range,
+	d.OPEN AS rth_open,
+	d."close" AS rth_close,
+	d.low AS rth_low,
+	d.high AS rth_high,
+	LAG(d."close") OVER (ORDER BY d.trade_date) AS prev_close,
+	LAG(d.open) OVER (ORDER BY d.trade_date) AS prev_open,
+	ROUND((d.OPEN - e.eu_low) / e.eu_range::NUMERIC * 100, 2) AS rth_open_location,
+	CASE WHEN d.low < e.eu_midpoint THEN 1 ELSE 0 END AS reached_eu_midpoint,
+	CASE WHEN d.low < e.eu_low THEN 1 ELSE 0 END AS reached_eu_low,
+	CASE WHEN d.high > e.eu_high THEN 1 ELSE 0 END AS reached_eu_high
+FROM eu_levels_aggregation e
+JOIN nq_data.daily_ohlcv_rth d ON e.trade_date = d.trade_date
+),
+prev_day_direction_agg AS (
+SELECT 
+	*,
+	CASE WHEN rth_open < rth_close THEN 'bullish' ELSE 'bearish' END AS day_direction,
+	CASE WHEN rth_open > prev_close THEN 'gap_up' ELSE 'gap_down' END AS gap_direction
 FROM eu_us_joint_agg
+WHERE prev_close IS NOT NULL AND prev_open IS NOT NULL
+)
+SELECT
+	gap_direction,
+	COUNT(*) AS days,
+	ROUND(AVG(eu_range), 2) AS avg_eu_range,
+	ROUND(SUM(reached_eu_midpoint)/ COUNT(*)::NUMERIC * 100, 2) AS avg_eu_range,
+	ROUND(AVG(rth_open_location), 2) AS avg_rth_open_location,
+	ROUND(SUM(reached_eu_low)/ COUNT(*)::NUMERIC * 100, 2) AS pct_undercut_eu_low,
+	ROUND(SUM(reached_eu_high)/ COUNT(*)::NUMERIC * 100, 2) AS pct_went_above_eu_high
+FROM prev_day_direction_agg
+WHERE day_direction = 'bullish'
+GROUP BY gap_direction
 
-days	avg_eu_range	avg_rth_open_location	pct_undercut_eu_midpoint	pct_undercut_eu_low
-86	196.91	53.67	73.26	46.51
+gap_direction	days	avg_eu_range	avg_eu_range	avg_rth_open_location	pct_undercut_eu_low	pct_went_above_eu_high
+gap_down	41	217.22	85.37	43.61	60.98	80.49
+gap_up	44	180.03	63.64	62.11	34.09	95.45
 
 
 
+---
 
-Cut2:
+## Task 3 (Auxiliary): EU Session Levels vs RTH on Bearish Days
+
+**Scenario:**
+Mirror of RTH-GLOB-002 for bearish RTH days (RTH close < RTH open). On days where NQ closes bearish, does RTH trade above the EU high post-open — giving a better short entry than anything available during EU? **(ID: RTH-GLOB-002b)**
+
+Identical query to RTH-GLOB-002 with two changes:
+- Filter: `close < open` (bearish days)
+- Undercut flags become `reached_eu_high` (d.high > eu_high) and `reached_eu_midpoint` (d.high > eu_midpoint)
+- `rth_open_location` same formula — where does RTH open sit in EU range
+
+Aggregate overall + by weekday.
+
+**Finding to answer:** On bearish RTH days, does RTH trade above the EU high post-open (giving a better short than EU offered)? Which weekday sees the EU high most often exceeded after the open on bearish days?
+
+**Tables:** `nq_data.ticks`, `nq_data.daily_ohlcv_rth`
+
+**Difficulty Rating:** 2/5 (one character change + flag inversion)
+
+**(ID: RTH-GLOB-002b)**
+
+With weekday split:
+
 
 WITH eu_first_ticks_agg AS (
 SELECT 
@@ -133,10 +237,11 @@ SELECT DISTINCT ON (e.trade_date, e.eu_high)
 	d.high AS rth_high,
 	ROUND((d.OPEN - e.eu_low) / e.eu_range::NUMERIC * 100, 2) AS rth_open_location,
 	CASE WHEN d.low < e.eu_midpoint THEN 1 ELSE 0 END AS reached_eu_midpoint,
-	CASE WHEN d.low < e.eu_low THEN 1 ELSE 0 END AS reached_eu_low
+	CASE WHEN d.low < e.eu_low THEN 1 ELSE 0 END AS reached_eu_low,
+	CASE WHEN d.high > e.eu_high THEN 1 ELSE 0 END AS reached_eu_high
 FROM eu_levels_aggregation e
 JOIN nq_data.daily_ohlcv_rth d ON e.trade_date = d.trade_date
-WHERE d."close" > d.OPEN
+WHERE d."close" < d.OPEN
 )
 SELECT
 	weekday,
@@ -144,22 +249,73 @@ SELECT
 	ROUND(AVG(eu_range), 2) AS avg_eu_range,
 	ROUND(AVG(rth_open_location), 2) AS avg_rth_open_location,
 	ROUND(SUM(reached_eu_midpoint) / COUNT(*)::NUMERIC * 100, 2) AS pct_undercut_eu_midpoint,
-	ROUND(SUM(reached_eu_low) / COUNT(*)::NUMERIC * 100, 2)pct_undercut_eu_low
+	ROUND(SUM(reached_eu_low) / COUNT(*)::NUMERIC * 100, 2)pct_undercut_eu_low,
+	ROUND(SUM(reached_eu_high) / COUNT(*)::NUMERIC * 100, 2)pct_reached_eu_high
 FROM eu_us_joint_agg
 GROUP BY weekday
 
 
-weekday	days	avg_eu_range	avg_rth_open_location	pct_undercut_eu_midpoint	pct_undercut_eu_low
-Friday	17	258.94	47.98	76.47	47.06
-Monday	20	173.06	63.31	55	40
-Thursday	12	202.56	44.45	100	66.67
-Tuesday	19	196.67	51.86	73.68	57.89
-Wednesday	18	161.32	56.39	72.22	27.78
+weekday	days	avg_eu_range	avg_rth_open_location	pct_undercut_eu_midpoint	pct_undercut_eu_low	pct_reached_eu_high
+Friday	12	203.88	50.42	100	91.67	58.33
+Monday	13	244.04	67.72	92.31	76.92	69.23
+Thursday	19	195.82	50.87	94.74	84.21	26.32
+Tuesday	14	150.29	41.45	100	85.71	42.86
+Wednesday	15	163.95	52.29	100	100	20
 
+
+without the weekday split:
+
+WITH eu_first_ticks_agg AS (
+SELECT 
+	*,
+	ts_event::DATE AS trade_date
+FROM nq_data.ticks t 
+WHERE (ts_event AT TIME ZONE 'America/New_York')::time >= '2:00' AND (ts_event AT TIME ZONE 'America/New_York')::time < '9:30'
+),
+eu_levels_aggregation AS (
+SELECT 
+	trade_date,
+	MAX(price) AS eu_high,
+	MIN(price) AS eu_low,
+	MAX(price) - MIN(price) AS eu_range,
+	ROUND(MAX(price) - ((MAX(price) - MIN(price)) / 2), 2) AS eu_midpoint
+FROM eu_first_ticks_agg
+GROUP BY trade_date
+),
+eu_us_joint_agg AS (
+SELECT DISTINCT ON (e.trade_date, e.eu_high)
+	e.trade_date,
+	e.eu_high,
+	e.eu_low,
+	e.eu_midpoint,
+	e.eu_range,
+	d.OPEN AS rth_open,
+	d."close" AS rth_close,
+	d.low AS rth_low,
+	d.high AS rth_high,
+	ROUND((d.OPEN - e.eu_low) / e.eu_range::NUMERIC * 100, 2) AS rth_open_location,
+	CASE WHEN d.low < e.eu_midpoint THEN 1 ELSE 0 END AS reached_eu_midpoint,
+	CASE WHEN d.low < e.eu_low THEN 1 ELSE 0 END AS reached_eu_low,
+	CASE WHEN d.high > e.eu_high THEN 1 ELSE 0 END AS reached_eu_high
+FROM eu_levels_aggregation e
+JOIN nq_data.daily_ohlcv_rth d ON e.trade_date = d.trade_date
+WHERE d."close" < d.OPEN
+)
+SELECT
+	COUNT(*) AS days,
+	ROUND(AVG(eu_range), 2) AS avg_eu_range,
+	ROUND(AVG(rth_open_location), 2) AS avg_rth_open_location,
+	ROUND(SUM(reached_eu_midpoint) / COUNT(*)::NUMERIC * 100, 2) AS pct_undercut_eu_midpoint,
+	ROUND(SUM(reached_eu_low) / COUNT(*)::NUMERIC * 100, 2)pct_undercut_eu_low,
+	ROUND(SUM(reached_eu_high) / COUNT(*)::NUMERIC * 100, 2)pct_reached_eu_high
+FROM eu_us_joint_agg
+
+days	avg_eu_range	avg_rth_open_location	pct_undercut_eu_midpoint	pct_undercut_eu_low	pct_reached_eu_high
+73	190.45	52.28	97.26	87.67	41.1
 
 
 ---
 
 ## Submission Instructions
 
-Paste your query and results. Log query ID: RTH-GLOB-002.
+Paste your queries and results. Log query IDs: RTH-GLOB-003, RTH-GLOB-004, RTH-GLOB-002b.

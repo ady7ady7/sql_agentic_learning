@@ -1071,6 +1071,79 @@ Table `nq_data.news_events` created with columns: `event_date`, `event_time_et`,
   - **Tuesday/Friday:** Roughly 50/50 whether EU low holds — no strong edge either way
 - **Caveat:** Uses full RTH day low (includes the open) rather than post-open low — slightly overstates undercut rates. Thursday 100% based on only 12 days — reconfirm with more data.
 
+### RTH-GLOB-004 — Gap Direction × EU Entry Quality (Bullish RTH Days)
+**Query ID:** RTH-GLOB-004 | Task date: 2026-07-10
+**Method:** Extension of RTH-GLOB-002 — LAG(close)/LAG(open) for prev_close/prev_open. gap_direction = rth_open > prev_close. Filter: bullish RTH days (rth_close > rth_open). 85 bullish days (prev_close IS NOT NULL). Note: same duplicate alias issue as RTH-GLOB-003 (second `avg_eu_range` is pct_undercut_eu_midpoint) — data readable from position.
+
+| Gap Direction | Days | Avg EU Range | Pct Undercut EU Mid | Avg RTH Open Location | Pct Undercut EU Low | Pct Above EU High |
+|---|---|---|---|---|---|---|
+| gap_down | 41 | 217.22 | 85.37% | 43.61% | 60.98% | 80.49% |
+| gap_up | 44 | 180.03 | 63.64% | 62.11% | 34.09% | 95.45% |
+
+**Findings:**
+- **The original hypothesis was WRONG — gap-down bullish days see MORE EU low undercutting (60.98%), not less.** Gap-up bullish days undercut EU low only 34.09%. The relationship is the opposite of what was expected.
+- **Structural explanation for gap-down bullish days (60.98% EU low undercut):** RTH opens at 43.61% of EU range — below the EU midpoint, already deep in the EU range. The EU low is not far below. With RTH opening near the bottom of the EU range on a day that ultimately closes bullish, there is room to dip through the EU low and recover. The EU low gets swept before the rally.
+- **Gap-up bullish days: only 34.09% undercut EU low** — RTH opens at 62.11% of EU range (above EU midpoint, near EU high). The EU low is far below the open — a post-open dip would need to retrace the entire EU range plus more to undercut it. On a bullish day this rarely happens. The EU low holds as support when RTH opens well above it.
+- **95.45% of gap-up bullish days trade above the EU high** — RTH opens near the EU high and continues above it on nearly every bullish gap-up day. EU longs entered during the overnight session near the EU high were immediately underwater as RTH opened at or above and extended further.
+- **80.49% of gap-down bullish days trade above the EU high** — even opening below the EU midpoint, bullish gap-down days rally all the way through the EU high 80% of the time.
+- **EU midpoint undercut splits cleanly: 85.37% gap-down vs 63.64% gap-up** — same direction as EU low. The EU session range is a much better support zone on gap-up bullish days than on gap-down bullish days.
+- **Practical EU entry framework update (combining with RTH-GLOB-002 weekday findings):**
+  - **Gap-up bullish days:** EU low likely holds (34% undercut) — EU long entries near EU low are at or near the optimal price. The EU low is genuine support on gap-up days.
+  - **Gap-down bullish days:** EU low likely gets undercut (61%) — wait for RTH. The opening dip often sweeps the EU low before the rally starts. EU entries are suboptimal.
+  - **Combined signal:** Gap-up + Monday/Wednesday (RTH-GLOB-002: low undercut rates) is the cleanest EU entry setup. Gap-down + Thursday (100% undercut EU mid) is the strongest "never enter EU" signal.
+- **Note:** Gap direction explains more variance in EU low undercut rates (60.98% vs 34.09% = 26.9pp spread) than prior day direction (43.24% vs 50.00% = 6.8pp from RTH-GLOB-003). Gap direction is the more useful pre-RTH filter.
+
+### RTH-GLOB-003 — Prior Day Direction × EU Entry Quality (Bullish RTH Days)
+**Query ID:** RTH-GLOB-003 | Task date: 2026-07-10
+**Method:** Extension of RTH-GLOB-002 — added `prev_close`, `prev_open` via LAG in `eu_us_joint_agg`. `day_direction` = rth_close > rth_open; `prev_day_direction` = prev_close > prev_open. Filter: day_direction = 'bullish'. Note: duplicate alias `avg_eu_range` in SELECT (second column is actually pct_undercut_eu_midpoint) — data readable from position. 85 bullish days (prev_close IS NOT NULL).
+
+| Prev Day Direction | Days | Avg EU Range | Pct Undercut EU Mid | Avg RTH Open Location | Pct Undercut EU Low | Pct Above EU High |
+|---|---|---|---|---|---|---|
+| bearish | 37 | 213.26 | 78.38% | 52.69% | 43.24% | 89.19% |
+| bullish | 48 | 186.19 | 70.83% | 53.56% | 50.00% | 87.50% |
+
+**Findings:**
+- **Prior day direction does NOT meaningfully split EU low undercut rates** — bearish prior day: 43.24% vs bullish prior day: 50.00%. The difference is small (6.7pp) and counterintuitive — a bullish prior day slightly increases the chance of EU low being undercut on the current bullish day, not decreases it.
+- **EU midpoint undercut shows a similar modest split: 78.4% (bearish prior) vs 70.8% (bullish prior)** — 7.6pp difference in the expected direction (bearish prior → RTH dips harder) but both remain very high. The EU midpoint is undercut on bullish days regardless of what happened the day before.
+- **Avg EU range splits by prior direction (213 vs 186 pts)** — bearish prior days produce wider EU ranges, consistent with volatile overnight sessions following a down day.
+- **RTH open location nearly identical (52.7% vs 53.6%)** — prior day direction has essentially no effect on where RTH opens within the EU range. Both open dead center.
+- **Both groups see ~88-89% of bullish RTH days trade above the EU high** — nearly universal, regardless of prior day context.
+- **Conclusion: prior day direction is not a useful pre-EU signal for predicting EU level quality.** The aggregate RTH-GLOB-002 finding (46.5% undercut EU low, 73.3% undercut EU mid) holds across both prior day contexts. Weekday is a much stronger predictor (RTH-GLOB-002: Monday 40% vs Thursday 66.7% EU low undercut) than the prior day direction.
+
+### RTH-GLOB-002b — EU Session Levels vs RTH Price Action on Bearish Days
+**Query ID:** RTH-GLOB-002b | Task date: 2026-07-10
+**Method:** Mirror of RTH-GLOB-002 — filter changed to `close < open` (bearish RTH days). Flags: `reached_eu_midpoint` = `d.low < eu_midpoint` (RTH still drills below EU mid), `reached_eu_low` = `d.low < eu_low`, `reached_eu_high` = `d.high > eu_high` (RTH trades above EU high post-open, offering short entry). 73 bearish days total.
+
+**Aggregate (all bearish RTH days):**
+
+| Days | Avg EU Range | RTH Open Location | Pct Undercut EU Mid | Pct Undercut EU Low | Pct Above EU High |
+|---|---|---|---|---|---|
+| 73 | 190.45 | 52.28% | **97.26%** | **87.67%** | **41.10%** |
+
+**By weekday (bearish RTH days):**
+
+| Weekday | Days | Avg EU Range | Avg RTH Open Location | Pct Undercut EU Mid | Pct Undercut EU Low | Pct Above EU High |
+|---|---|---|---|---|---|---|
+| Friday | 12 | 203.88 | 50.42% | **100%** | 91.67% | 58.33% |
+| Monday | 13 | 244.04 | 67.72% | 92.31% | 76.92% | **69.23%** |
+| Thursday | 19 | 195.82 | 50.87% | 94.74% | 84.21% | **26.32%** |
+| Tuesday | 14 | 150.29 | 41.45% | **100%** | 85.71% | 42.86% |
+| Wednesday | 15 | 163.95 | 52.29% | **100%** | **100%** | **20.00%** |
+
+**Findings:**
+- **97.26% of bearish RTH days undercut the EU midpoint** — near-universal. On a bearish day, RTH nearly always trades below the middle of the EU range regardless of where it opened.
+- **87.67% undercut the EU low** — on almost 9 in 10 bearish days, RTH drills below the EU session's low. EU longs entered during the overnight session were underwater on 88% of bearish days. The mirror of this finding from the bullish side: EU low was undercut 46.5% on bullish days vs 87.67% on bearish days — directional bias is the dominant factor.
+- **Only 41.1% of bearish days trade above the EU high** — the RTH post-open bounce reaches EU high less than half the time on bearish days. This means entering EU shorts near the EU high was at or near the best available price on 59% of bearish days (RTH never offered a better short above EU high).
+- **Wednesday is the most extreme bearish weekday: 100% undercut EU midpoint, 100% undercut EU low, only 20% above EU high** — on every bearish Wednesday in the dataset, RTH traded below both EU midpoint and EU low. EU shorts on Wednesday were optimal — RTH almost never traded above EU high to offer a better short entry.
+- **Monday bearish days: 69.23% trade above EU high** — the highest of any weekday. On bearish Mondays, RTH commonly bounces above the EU high before selling off — giving a better short entry than EU provided. Consistent with Monday's structural open dip (RTH-SESS-008: 100% of Mondays dip below open) — even on bearish Mondays there's an opening bounce that may exceed EU levels.
+- **Thursday bearish days: only 26.32% above EU high** — short entries near EU high during the overnight session were rarely improved upon by RTH on bearish Thursdays. Thursday's structural opening fade (RTH-FH-002: FH sets day HIGH 54.8%) means RTH opens near the high on Thursdays and sells without bouncing above EU levels.
+- **Practical EU short entry framework (bearish day context, known after close):**
+  - **Wednesday:** EU short entries near EU high are optimal — RTH almost never trades above EU high (only 20%). No benefit waiting for RTH.
+  - **Thursday:** EU high entries also good — only 26% chance RTH offers a better short above EU high. Thursday structural fade confirms.
+  - **Monday:** Wait for RTH bounce — 69% of bearish Mondays trade above EU high, offering better short entry than EU session provided. Don't short EU high on Monday bearish days.
+  - **Friday:** 58% trade above EU high — marginal edge to waiting for RTH on bearish Fridays.
+- **Comparison with RTH-GLOB-002 (bullish days):** Bearish days are far more destructive to EU levels (87.67% vs 46.5% undercut EU low) — on a bearish day, the EU session structure means almost nothing as RTH trends through it. On bullish days, EU levels have more relevance as support.
+
 ### RTH-GLOB-001 — Overnight Gap Direction vs RTH Session Direction
 **Query ID:** RTH-GLOB-001 | Task date: 2026-07-08
 **Method:** LAG(close) for prev_close. gap_direction = open vs prev_close. rth_bullish = close > open (intraday). rth_close_above_prev = close > prev_close (net vs prior close). 185 days (first excluded). Flat opens absorbed into gap_down — negligible count.

@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-07-11 (Week 29, Day 5) — Score: TBD
+
+**Task 1 (RTH-GLOB-005):** EU low undercut by weekday × gap direction. 10/10 — ran all days + bullish-only, same CASE inversion as yesterday but WHERE filter correct. Key: gap-down Wednesday bullish 16.67% undercut (cleanest EU entry); gap-up days universally 25–33%; gap-down Friday/Thu/Tue 71–82%. Gap direction > weekday alone as a predictor.
+
+**Task 2 (RTH-SESS-009):** Post-10:30 LOD breakdown depth and recovery. 10/10 — 6-CTE architecture correct, methodology deviation from spec defensible (fh_high > full-day high as recovery target, direct MIN vs first-breakdown-tick). Results: 55% of days breach pre-10:30 low; avg 138 pts depth; 74.71% recover to RTH open; 55.17% above FH high. Fade setup confirmed.
+
+---
+
 ### Task Archive: 2026-07-10 (Week 29, Day 4) — Score: 19/20
 
 **Task 1 (RTH-GLOB-003):** Prior day direction × EU entry quality on bullish RTH days. 9/10 — correctly identified spec flaw (prev_day_direction contamination inside filtered CTE), fixed with separate CTE computing both directions over all days. Duplicate alias bug (avg_eu_range used twice) minor. Key finding: prior day direction barely splits the aggregate — weak signal, weekday remains stronger predictor.

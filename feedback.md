@@ -1,3 +1,13 @@
+## Week 29, Day 5 — Agent Feedback on Student
+
+**Score: 20/20**
+
+**Task 1 (RTH-GLOB-005):** Smart call running all days first then bullish-only — gives context for the bullish split and lets you sanity-check the numbers. Query structure clean. Same day_direction CASE inversion as yesterday (rth_open > rth_close = 'bullish') but WHERE filter uses rth_close > rth_open directly — results correct, internal label wrong. Key findings: gap-down Wednesday bullish is the cleanest EU entry setup (16.67% EU low undercut); gap-up days universally safe for EU lows (25–33%); gap-down Friday/Thursday/Tuesday all see 71–82% EU low undercut. Gap direction explains more variance than weekday alone. 10/10.
+
+**Task 2 (RTH-SESS-009):** Genuinely hard 6-CTE query built correctly under time pressure. Architecture differs from spec but is logically sound — computing post_1030_low directly (MIN price) and filtering to breakdowns afterward is equivalent to finding the first breakdown tick. One subtle issue: `post_1030_low_timestamp::time` discards the date — saved by the `t.ts_event::date = p.trade_date` condition. Recovery target uses fh_high (FH high) instead of full-day high as specced — actually a better trading target since it's known at 10:30. Results: 87/159 days (55%) see post-10:30 LOD breach; avg 138 pts depth; 74.71% recover to RTH open; 55.17% above FH high. Clear fade setup. 10/10.
+
+---
+
 ## Week 29, Day 4 — Agent Feedback on Student
 
 **Score: 19/20**

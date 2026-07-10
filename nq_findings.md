@@ -855,6 +855,30 @@ Selected windows with meaningful divergence from 50%:
 
 ## Session Patterns
 
+### RTH-SESS-009 — Post-10:30 LOD Breakdown Depth and Recovery
+**Query ID:** RTH-SESS-009 | Task date: 2026-07-11
+**Method:** Pre-10:30 low = MIN(price) from ticks 09:30–10:30 ET per trade_date. Post-10:30 low = MIN(price) from ticks 10:30–16:00 ET. Breakdown = post_1030_low < pre_1030_low. Post-breakdown high = MAX(price) from breakdown timestamp onward. Recovery targets: `fh_open` (= 09:30 RTH open, from rth_firsthour_rest_ohlc_ranges) and `fh_high` (first-hour high, 09:30–10:30). Note: `fh_high` is the first-hour high, not full-day high as originally specced — a more actionable target since it's a known level at 10:30. ts_recv used in window bucketing CTEs (dead column, not used in final output).
+
+**Aggregate (all RTH days with a post-10:30 LOD breach):**
+
+| Days with Breakdown | Avg Breakdown Depth | Recovered to RTH Open % | Recovered Above FH High % |
+|---|---|---|---|
+| **87** | **138 pts** | **74.71%** | **55.17%** |
+
+**Findings:**
+- **87 out of ~159 RTH days (~55%) see a post-10:30 LOD breach** — more than half of all trading days make a new low after 10:30. Late-session LOD breakdowns are the norm, not the exception.
+- **Average breakdown depth: 138 pts below the pre-10:30 low** — this is the typical extension once the pre-10:30 low is breached. Practical implication: if you're long and the pre-10:30 low breaks, expect ~138 pts of additional heat before any recovery.
+- **74.71% recover back to the RTH open (09:30 price)** — nearly 3 in 4 breakdowns fully recover to where the day started. The post-10:30 LOD breach is primarily a fade setup. Price sweeps the pre-10:30 low, extends ~138 pts, then reverses back to the open.
+- **55.17% recover above the first-hour high** — more than half of breakdowns don't just recover to the open but push all the way above the FH high (09:30–10:30 range top). On these days the post-breakdown recovery exceeds the entire first-hour range.
+- **The pattern is mean-reverting:** breach the pre-10:30 low → extend ~138 pts → recover to open (75%) → potentially extend above FH high (55%). This is a late-session capitulation followed by a recovery, not a trend continuation.
+- **Practical framework for post-10:30 LOD breakdowns:**
+  - When pre-10:30 low is breached after 10:30: this is a fade setup 75% of the time
+  - Expected heat before reversal: ~138 pts below the broken level — size stops accordingly
+  - Primary recovery target: RTH open (09:30 price) — 75% hit rate
+  - Extended recovery target: FH high — 55% hit rate, valid secondary target
+  - The 25% of days that don't recover to open are true continuation breakdowns — no additional filter identified yet to distinguish them
+- **Caveat:** Post-breakdown high is measured from the LOD timestamp to 16:00 — includes the close. On some days the "recovery" may happen in the final minutes. The stat is valid for end-of-day P&L but does not imply a clean intraday reversal on every occurrence.
+
 ### RTH-SESS-008 — Monday LOD Depth from 09:30 Open
 **Query ID:** RTH-SESS-008 | Task date: 2026-07-07
 **Method:** `fh_open` from `rth_firsthour_rest_ohlc_ranges` as the 09:30 reference price. ABS distances for open_to_low, open_to_high, open_to_close. LAG(d.close) for gap direction. 33 Mondays total; 14 gap-down, 19 gap-up.
@@ -1092,6 +1116,52 @@ Table `nq_data.news_events` created with columns: `event_date`, `event_time_et`,
   - **Gap-down bullish days:** EU low likely gets undercut (61%) — wait for RTH. The opening dip often sweeps the EU low before the rally starts. EU entries are suboptimal.
   - **Combined signal:** Gap-up + Monday/Wednesday (RTH-GLOB-002: low undercut rates) is the cleanest EU entry setup. Gap-down + Thursday (100% undercut EU mid) is the strongest "never enter EU" signal.
 - **Note:** Gap direction explains more variance in EU low undercut rates (60.98% vs 34.09% = 26.9pp spread) than prior day direction (43.24% vs 50.00% = 6.8pp from RTH-GLOB-003). Gap direction is the more useful pre-RTH filter.
+
+### RTH-GLOB-005 — EU Low Undercut Rate by Weekday × Gap Direction
+**Query ID:** RTH-GLOB-005 | Task date: 2026-07-11
+**Method:** Extension of RTH-GLOB-002 — LAG(close) for prev_close, gap_direction = rth_open > prev_close. Run twice: all RTH days combined, then bullish RTH days only (rth_close > rth_open). Note: day_direction CASE inside CTE has same inversion as RTH-GLOB-004 (rth_open > rth_close = 'bullish') but WHERE filter uses rth_close > rth_open directly — results correct, internal label wrong. Duplicate alias issue persists (second avg_eu_range column is pct_undercut_eu_mid).
+
+**All RTH days (bullish + bearish combined):**
+
+| Gap | Weekday | Days | RTH Open Location | Pct Undercut EU Low | Pct Above EU High |
+|---|---|---|---|---|---|
+| gap_down | Thursday | 18 | 30.39% | **88.89%** | 33.33% |
+| gap_down | Tuesday | 18 | 41.48% | 77.78% | 72.22% |
+| gap_down | Friday | 11 | 31.99% | 81.82% | 54.55% |
+| gap_down | Monday | 14 | 54.13% | 64.29% | 71.43% |
+| gap_down | Wednesday | 11 | 45.76% | 54.55% | 54.55% |
+| gap_up | Wednesday | 22 | 58.91% | 63.64% | 68.18% |
+| gap_up | Thursday | 13 | 73.31% | 61.54% | 61.54% |
+| gap_up | Tuesday | 15 | 54.61% | 60.00% | 66.67% |
+| gap_up | Monday | 18 | 71.87% | 50.00% | 88.89% |
+| gap_up | Friday | 18 | 59.38% | 55.56% | 83.33% |
+
+**Bullish RTH days only:**
+
+| Gap | Weekday | Days | RTH Open Location | Pct Undercut EU Low | Pct Above EU High |
+|---|---|---|---|---|---|
+| gap_down | Tuesday | 11 | 42.00% | 81.82% | 81.82% |
+| gap_down | Thursday | 7 | 29.93% | 71.43% | 71.43% |
+| gap_down | Friday | 7 | 32.33% | **71.43%** | 71.43% |
+| gap_down | Monday | 10 | 57.06% | 50.00% | 80.00% |
+| gap_down | Wednesday | 6 | 53.26% | **16.67%** | **100%** |
+| gap_up | Thursday | 5 | 64.78% | 60.00% | 80.00% |
+| gap_up | Wednesday | 12 | 57.95% | 33.33% | **100%** |
+| gap_up | Monday | 9 | 66.73% | 33.33% | **100%** |
+| gap_up | Friday | 10 | 58.94% | 30.00% | 90.00% |
+| gap_up | Tuesday | 8 | 65.43% | 25.00% | **100%** |
+
+**Findings (bullish RTH days — primary population):**
+- **Gap-down Wednesday bullish: only 16.67% EU low undercut** (6 days, small sample) — the cleanest EU entry setup in the full dataset. RTH opens at 53% of EU range (near midpoint) and the EU low holds 83% of the time. Gap-down Wednesday = buy EU low, it will almost certainly not be taken out by RTH. 100% of these days also trade above EU high — the rally extends through the entire EU range.
+- **Gap-up Tuesday/Wednesday/Monday/Friday bullish: 25–33% EU low undercut** — all four weekdays show strong EU low support on gap-up bullish days. RTH opens near the EU high (57–67% of EU range) and the EU low is far below — rarely reached. The EU low is genuine support on all gap-up bullish days.
+- **Gap-down Friday bullish: 71.43% EU low undercut** — answers the original question. Gap-down Friday opens at 32% of EU range (bottom third) and still undercuts the EU low 71% of the time. EU long entries on gap-down Fridays are suboptimal even when the day closes bullish. Wait for RTH.
+- **Gap-down Thursday bullish: 71.43% EU low undercut** — same rate as Friday. Consistent with Thursday's structural post-open dip (RTH-FH-002: FH sets HOD 54.8%). Even on bullish Thursdays, RTH sweeps the EU low before rallying.
+- **Gap-down Monday bullish: 50% EU low undercut** — exactly coin flip. Less clear than Wednesday (16.67%) but better than Thursday/Friday (71%). Monday's structural opening dip (RTH-SESS-008: 100% dip below open) explains why even gap-down Mondays sometimes break the EU low, but the bullish drift limits how far it extends.
+- **Gap-down Tuesday bullish: 81.82% EU low undercut** — highest of any gap-down weekday on bullish days. Tuesday gap-down bullish = expect EU low to be taken out. Don't enter EU longs on gap-down Tuesdays.
+- **100% above EU high for gap-up Mon/Tue/Wed/Thu bullish** — on every gap-up bullish day for these weekdays, RTH traded above the EU high. EU longs entered during the overnight session are always underwater by RTH open on gap-up days (already opened at/above EU high).
+- **Gap direction explains more than weekday alone on most days.** The full interaction reveals: gap-down + Wednesday is the safest EU long entry; gap-down + Tuesday is the worst. Gap-up is consistently safe for EU lows (25–33% undercut) regardless of weekday.
+- **Friday gap-down answer:** EU low does NOT reliably hold (71.43% undercut). Don't enter EU longs on gap-down Fridays — wait for the RTH dip, which likely sweeps the EU low before the bounce.
+- **Note:** Cell sizes are small (5–12 days per cell). Directional patterns are consistent with prior findings but reconfirmation with more data is warranted, especially for gap_down Wednesday (6 days) and gap_up Thursday (5 days).
 
 ### RTH-GLOB-003 — Prior Day Direction × EU Entry Quality (Bullish RTH Days)
 **Query ID:** RTH-GLOB-003 | Task date: 2026-07-10

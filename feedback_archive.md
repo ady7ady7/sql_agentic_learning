@@ -4,6 +4,41 @@ This file contains the permanent history of all daily and weekly feedback exchan
 
 ---
 
+### Feedback Archive: Week 29 (2026-07-07 to 2026-07-11)
+
+## Weekly Summary — Week 29
+
+### Scores
+
+| Day | Focus | Score |
+|---|---|---|
+| Day 1 | Monday LOD depth + range expansion curve by weekday | 18/20 |
+| Day 2 | Overnight gap direction vs RTH direction | 20/20 |
+| Day 3 | EU session levels vs RTH on bullish days | 20/20 |
+| Day 4 | Prior day direction + gap direction × EU entry + bearish mirror | 19/20 |
+| Day 5 | EU low undercut by weekday × gap direction + post-LOD breakdown | 20/20 |
+
+**Week total: 97/100. Najlepszy tydzień w projekcie NQ.**
+
+### Key Wins
+
+- Globex vs RTH framework zbudowany od zera — RTH-GLOB-001 przez RTH-GLOB-005 kompletny system analizy EU session vs RTH.
+- Gap direction > weekday jako predyktor EU level quality — 26.9pp vs 6.8pp wariancji.
+- RTH-SESS-009 — najtrudniejszy query w projekcie zrobiony poprawnie. 55% dni ma post-10:30 LOD breach; avg 138 pts; 74.71% recovery do RTH open.
+- Bug fixing w locie — CASE inversion złapany i poprawiony same session.
+- Samodzielne rozszerzenia queryów ponad spec (RTH-GLOB-002b weekday split, RTH-GLOB-005 all days + bullish only).
+
+### Focus Areas
+
+- **day_direction CASE inversion** — `rth_open > rth_close = 'bullish'` pojawił się 3x w tygodniu. Reguła: bullish = close > open, zawsze.
+- **Duplicate alias** — `avg_eu_range` użyty dwukrotnie w SELECT w kilku queryach. Jeden wynik cicho źle-etykietowany.
+
+### Student Feedback on Questions
+
+Brak formalnego feedbacku — tydzień zakończony.
+
+---
+
 ## Purpose
 - Complete record of all feedback from feedback.md
 - Includes both Agent feedback on Student and Student feedback on questions

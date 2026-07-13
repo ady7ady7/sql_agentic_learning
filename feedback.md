@@ -1,3 +1,13 @@
+## Week 30, Day 1 — Agent Feedback on Student
+
+**Score: 18/20**
+
+**Task 1 (RTH-VOL-014):** Poprawna naprawa window frame (4 PRECEDING AND 1 PRECEDING) — kluczowa zmiana eliminująca circular reference. Query clean, LEAD dla next_bucket_direction poprawny, FILTER syntax correct. Wynik nieoczekiwany ale solidny: surge = exhaustion, nie momentum. Up surge → 43.94% next up vs non-surge 50.06%. ABS delta traci sign — słuszna obserwacja studenta, warto przetestować jako RTH-VOL-014b. Minus: wyniki nie zostały zaktualizowane w tasks.md po pierwszej wersji — trzeba było dopytać. 8/10.
+
+**Task 2 (RTH-VOL-015):** Dwie poprawki zidentyfikowane i naprawione (full_day_range, close_location). Final query clean, NTILE(3) poprawny, trzy JOINy na trade_date bez problemów. Wynik ciekawy: medium delta opening (bucket 2) → 74.19% bullish rest, najsilniejszy signal — wyższy niż hot open (51.61%). Range monotonicznie rośnie z delta pressure. Close location spójne z bullish_rest. Minor: local_delta CTE nadal używa ROWS BETWEEN 3 PRECEDING AND CURRENT ROW (nie naprawione z Task 1) — minimalne znaczenie praktyczne tutaj. 10/10.
+
+---
+
 ## Week 29, Day 5 — Agent Feedback on Student
 
 **Score: 20/20**

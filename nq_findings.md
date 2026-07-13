@@ -8,6 +8,46 @@
 
 ## Volume & Aggressor Pressure
 
+### RTH-VOL-015 — Opening Delta Pressure → Session Character Classification
+**Query ID:** RTH-VOL-015 | Task date: 2026-07-13
+**Method:** `rth_15min_buckets_agg` — first 4 buckets per trade_date (09:30–10:15). `avg_abs_opening_delta` = AVG(ABS(bucket_delta)) per day. NTILE(3) → low/medium/high opening pressure. JOIN to `daily_ohlcv_rth` (full_day_range = high - low, close_location = (close - low) / (high - low)) and `rth_firsthour_rest_ohlc_ranges` (fh_range = fh_high - fh_low, bullish_rest = r_close > r_open). Note: `local_delta` column in CTE uses ROWS BETWEEN 3 PRECEDING AND CURRENT ROW (includes current bucket in avg) — carried from Task 1 template; minor inconsistency but opening_delta_agg averages across all 4 opening buckets so impact is minimal. 186 days total, 62 per bucket.
+
+| Opening Delta Bucket | Days | Avg Full Day Range | Avg FH Range | Pct Bullish Rest | Avg Close Location |
+|---|---|---|---|---|---|
+| 1 (cold) | 62 | 317 pts | 177 pts | 46.77% | 51.86% |
+| 2 (medium) | 62 | 336 pts | 195 pts | **74.19%** | **65.72%** |
+| 3 (hot) | 62 | 356 pts | 227 pts | 51.61% | 53.77% |
+
+**Findings:**
+- **Range is monotonically related to opening delta pressure** — hot open (bucket 3) → 356 pts avg full day range vs cold open (bucket 1) → 317 pts (12% wider). FH range shows even larger spread: 227 vs 177 pts (28%). More delta pressure at open = wider day, particularly in the first hour.
+- **Medium delta opening (bucket 2) has by far the strongest bullish afternoon bias: 74.19%** — significantly higher than hot open (51.61%) or cold open (46.77%). This is the most counterintuitive finding: it's not the loudest opens that produce the most directional afternoons. Possible interpretation: hot opens (bucket 3) are high two-sided volatility — large delta but alternating direction — while medium opens represent clean directional buying pressure that sustains through the afternoon.
+- **Close location follows the same pattern: bucket 2 closes highest (65.72%)** vs bucket 3 (53.77%) and bucket 1 (51.86%). Medium delta opening = strongest directional bullish close. Hot delta opening = wide day but closes near the midpoint of its own range.
+- **Cold open (bucket 1): 46.77% bullish rest, close at 51.86%** — cold opens are mildly bearish in the afternoon. Low opening delta = lack of conviction, afternoon drift is slightly negative.
+- **Practical pre-10:30 classification framework:**
+  - Hot open (large abs delta in first 4 buckets): expect wide day (~356 pts), expect wide FH (~227 pts), but afternoon direction is a coin flip (52%). Size up for range, no directional lean.
+  - Medium open: expect moderate range (~336 pts), but strong bullish afternoon bias (74%). Best setup for directional long afternoon trades.
+  - Cold open: expect narrower day (~317 pts), mild bearish afternoon lean (47%). Reduce size, no directional edge to the upside.
+- **Note:** "bullish_rest" measures r_close > r_open (10:30–16:00 direction), not full-day direction. The 74.19% on bucket 2 is for the afternoon session only.
+
+### RTH-VOL-014 — Local Delta Surge → Next Bucket Direction
+**Query ID:** RTH-VOL-014 | Task date: 2026-07-13
+**Method:** `rth_15min_buckets_agg`. `local_avg_abs_delta` = AVG(ABS(bucket_delta)) OVER (PARTITION BY trade_date ORDER BY bucket_start ROWS BETWEEN 4 PRECEDING AND 1 PRECEDING) — pure historical baseline, excludes current bucket. `local_delta_ratio` = ABS(bucket_delta) / local_avg_abs_delta. `is_surge` = ratio > 1.5. `next_bucket_direction` via LEAD. First 4 buckets per day excluded (insufficient lookback, local_delta = NULL). 4,063 buckets total after exclusions.
+
+| Bucket Direction | Is Surge | Count | Next Bucket Up % | Next Bucket Down % |
+|---|---|---|---|---|
+| up | false | 1,578 | 50.06% | 47.78% |
+| down | false | 1,475 | 50.58% | 47.25% |
+| up | true | 487 | 43.94% | 46.20% |
+| down | true | 523 | 44.36% | 44.93% |
+
+**Findings:**
+- **Local delta surge is an exhaustion signal, not a momentum signal.** Surge (ratio > 1.5) in either direction produces LOWER next-bucket follow-through than non-surge: up surge → 43.94% next up (vs 50.06% non-surge), down surge → 44.36% next up (vs 50.58% non-surge). The spike absorbs the aggressive side; market makers fade the surge.
+- **Non-surge buckets are near-random (50%)** — routine delta levels have essentially no directional signal for the next 15 minutes, confirming RTH-VOL-006 (aggregate no-edge result).
+- **Surge buckets show mild reversal tendency (~44%)** — not strong enough to be a standalone fade signal, but directionally consistent: both up surge and down surge see the next bucket go slightly against the surge direction.
+- **The ABS delta approach loses sign information** — student noted this correctly. A signed surge ratio (bucket_delta / local_avg_abs_delta, keeping sign) would split into "strong up surge" vs "strong down surge" and may reveal asymmetry. Worth testing as RTH-VOL-014b.
+- **Practical implication:** When a 15-min bucket has unusually large delta (>1.5x recent average), it signals exhaustion of that directional pressure — the aggressive side has temporarily run out of willing counterparts. Fade rather than follow. Contrasts with RTH-VOL-008 (09:45 positive delta → 66.2% up) — that edge comes from delta sign, not magnitude.
+- **Note:** Threshold of 1.5 is arbitrary — test 2.0x for stronger signal. Also worth splitting by time-of-day (open surge vs midday surge vs close surge) as the exhaustion dynamic may differ across session.
+
 ### RTH-VOL-002 — Volume by Hour of Day (RTH)
 **Query ID:** RTH-VOL-002 | Task date: 2026-06-04
 

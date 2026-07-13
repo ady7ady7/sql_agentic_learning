@@ -1,5 +1,13 @@
 
-### Task Archive: 2026-07-11 (Week 29, Day 5) — Score: TBD
+### Task Archive: 2026-07-13 (Week 30, Day 1) — Score: 18/20
+
+**Task 1 (RTH-VOL-014):** Local delta surge → next bucket direction. 8/10 — window frame bug (CURRENT ROW included) caught and fixed independently (4 PRECEDING AND 1 PRECEDING). Key finding: surge (>1.5x local avg) = exhaustion signal — next_bucket_up_pct drops to 43-44% vs 50% for non-surge, regardless of direction. ABS delta loses sign — asymmetry between up/down surge worth testing in RTH-VOL-014b with signed ratio.
+
+**Task 2 (RTH-VOL-015):** Opening delta pressure → session character. 10/10 — two bugs fixed (full_day_range used ABS(r_close-fh_open) instead of d.high-d.low; close_location inverted). Final results: NTILE(3) by avg_abs_opening_delta. Key: medium delta (bucket 2) → 74.19% bullish afternoon — strongest signal; hot open (bucket 3) → widest range (356 pts) but coin flip direction (51.61%). Can classify session character before 10:30 using opening delta alone.
+
+---
+
+### Task Archive: 2026-07-11 (Week 29, Day 5) — Score: 20/20
 
 **Task 1 (RTH-GLOB-005):** EU low undercut by weekday × gap direction. 10/10 — ran all days + bullish-only, same CASE inversion as yesterday but WHERE filter correct. Key: gap-down Wednesday bullish 16.67% undercut (cleanest EU entry); gap-up days universally 25–33%; gap-down Friday/Thu/Tue 71–82%. Gap direction > weekday alone as a predictor.
 

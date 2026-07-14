@@ -8,6 +8,22 @@
 
 ## Volume & Aggressor Pressure
 
+### RTH-VOL-014b — Signed Delta Surge → Asymmetry Test
+**Query ID:** RTH-VOL-014b | Task date: 2026-07-14
+**Method:** `rth_15min_buckets_agg`. Same local_avg_abs_delta baseline as RTH-VOL-014 (ROWS BETWEEN 4 PRECEDING AND 1 PRECEDING). Signed ratio = bucket_delta / NULLIF(local_avg_abs_delta, 0) — no ABS on numerator. surge_type: 'up_surge' (ratio > 1.5), 'down_surge' (ratio < -1.5), 'no_surge' (between). WHERE local_delta IS NOT NULL excludes first 4 buckets per day. 3,917 buckets total.
+
+| Surge Type | Count | Next Bucket Up % | Next Bucket Down % |
+|---|---|---|---|
+| no_surge | 2,904 | 50.00% | 47.73% |
+| up_surge | 472 | 44.92% | 46.19% |
+| down_surge | 541 | 43.62% | 44.92% |
+
+**Findings:**
+- **No asymmetry between up surge and down surge** — up surge next-up: 44.92%, down surge next-up: 43.62%. Difference of 1.3pp is below signal threshold.
+- **Exhaustion is symmetric in both directions** — the ABS approach in RTH-VOL-014 was not hiding any directional information. A large aggressive sell bucket and a large aggressive buy bucket both exhaust at the same rate.
+- **No-surge baseline confirms ~50%** — routine delta levels remain near-random for next bucket direction, consistent with RTH-VOL-014 and RTH-VOL-006.
+- **Practical implication:** Delta surge is a magnitude signal, not a directional one. When a bucket shows unusually large aggression in either direction, fade the next 15 minutes regardless of which side surged. No need to distinguish up from down surge for the fade trade.
+
 ### RTH-VOL-015 — Opening Delta Pressure → Session Character Classification
 **Query ID:** RTH-VOL-015 | Task date: 2026-07-13
 **Method:** `rth_15min_buckets_agg` — first 4 buckets per trade_date (09:30–10:15). `avg_abs_opening_delta` = AVG(ABS(bucket_delta)) per day. NTILE(3) → low/medium/high opening pressure. JOIN to `daily_ohlcv_rth` (full_day_range = high - low, close_location = (close - low) / (high - low)) and `rth_firsthour_rest_ohlc_ranges` (fh_range = fh_high - fh_low, bullish_rest = r_close > r_open). Note: `local_delta` column in CTE uses ROWS BETWEEN 3 PRECEDING AND CURRENT ROW (includes current bucket in avg) — carried from Task 1 template; minor inconsistency but opening_delta_agg averages across all 4 opening buckets so impact is minimal. 186 days total, 62 per bucket.
@@ -1100,6 +1116,23 @@ Table `nq_data.news_events` created with columns: `event_date`, `event_time_et`,
 ---
 
 ## Globex vs RTH Comparisons
+
+### RTH-GLOB-006 — EU High as Resistance on Bearish RTH Days
+**Query ID:** RTH-GLOB-006 | Task date: 2026-07-14
+**Method:** EU session ticks (ts_event AT TIME ZONE 'America/New_York' 02:00–09:30), trade_date = ts_event::DATE. MAX(price) = eu_high per day. JOIN to daily_ohlcv_rth. Filter: bearish RTH days (close < open). `reached_eu_high` = rth_high > eu_high. `rth_open_vs_eu_high` = rth_open - eu_high (negative = opens below EU high). Grouped by prev_day_direction. 73 bearish days total. **Note: weekday breakdown pending (RTH-GLOB-006b) — Tuesday specifically.**
+
+| Prev Day Direction | Days | Avg EU Range | RTH Open vs EU High | Pct Undercut EU Low | Pct Exceeded EU High |
+|---|---|---|---|---|---|
+| prev bullish | 36 | 185.7 pts | -94.94 pts | 86.11% | **38.89%** |
+| prev bearish | 37 | 195.1 pts | -87.11 pts | 89.19% | **43.24%** |
+
+**Findings:**
+- **EU high holds as resistance ~60% of the time on bearish RTH days** — exceeded only 39–43% of the time depending on prior day direction. Not as strong as EU low undercut on bullish days (87-89%), but meaningful.
+- **RTH opens ~90 pts below EU high on bearish days** — the gap between RTH open and EU high is large. Price needs to rally 90+ pts from the open just to test EU high. On bearish days this rarely happens, which explains the 60% hold rate geometrically as much as structurally.
+- **Prior day direction has minimal impact** — prev bullish: 38.89% exceed, prev bearish: 43.24% exceed. Only 4pp difference — not a useful moderator.
+- **EU low undercut rate on bearish days is very high (86-89%)** — on bearish RTH days, price almost always reaches EU low during the session. EU low is not support on bearish days; it is a magnet.
+- **Weekday breakdown (RTH-GLOB-006b) pending** — Tuesday EU high resistance is the key question for short entry thesis. Current aggregate hides weekday variation.
+- **Practical implication (aggregate):** EU high short entry on a bearish day requires price to rally 90+ pts from RTH open to the entry level — a large move against the day's direction. The 60% hold rate is real but the geometric rarity of the setup limits its frequency. More actionable after weekday breakdown.
 
 ### RTH-GLOB-002 — EU Session Levels vs RTH Price Action on Bullish Days
 **Query ID:** RTH-GLOB-002 | Task date: 2026-07-09

@@ -1,4 +1,10 @@
 
+### Task Archive: 2026-07-14 (Week 30, Day 2) — Score: TBD
+
+*(tasks in progress)*
+
+---
+
 ### Task Archive: 2026-07-13 (Week 30, Day 1) — Score: 18/20
 
 **Task 1 (RTH-VOL-014):** Local delta surge → next bucket direction. 8/10 — window frame bug (CURRENT ROW included) caught and fixed independently (4 PRECEDING AND 1 PRECEDING). Key finding: surge (>1.5x local avg) = exhaustion signal — next_bucket_up_pct drops to 43-44% vs 50% for non-surge, regardless of direction. ABS delta loses sign — asymmetry between up/down surge worth testing in RTH-VOL-014b with signed ratio.

@@ -1,3 +1,13 @@
+## Week 30, Day 2 — Agent Feedback on Student
+
+**Score: 17/20**
+
+**Task 1 (RTH-VOL-014b):** Signed delta surge ratio — clean refactor, signed ratio correct, WHERE local_delta IS NOT NULL dobrze usuwa pierwsze buckety. Dead column `is_surge` z VOL-014 zostawiony w surge_agg (nieużywany, nie wpływa na wynik). Key finding: symetria — up surge 44.92% vs down surge 43.62% next bucket up. Asymetrii nie ma, ABS w VOL-014 był wystarczający. 9/10.
+
+**Task 2 (RTH-GLOB-006):** EU high jako resistance na bearish dniach — logika EU session poprawna, wyniki sensowne (EU high trzyma 60% czasu, RTH otwiera ~90 pts poniżej EU high). Dwa problemy: duplikat aliasu avg_eu_range (mislabeled kolumna reached_eu_midpoint), brak weekday breakdown który był kluczową częścią pytania (odłożone na jutro jako RTH-GLOB-006b). 8/10.
+
+---
+
 ## Week 30, Day 1 — Agent Feedback on Student
 
 **Score: 18/20**

@@ -1,3 +1,13 @@
+## Week 30, Day 3 — Agent Feedback on Student
+
+**Score: 17/20**
+
+**Task 1 (RTH-GLOB-006b):** Weekday breakdown poprawny — dorzucenie weekday do GROUP BY wystarczyło. Zostawiłeś prev_day_direction w grupowaniu (nie było w specyfikacji) ale daje użyteczny kontekst przy małych sample sizes. Duplikat aliasu avg_eu_range po raz czwarty (reached_eu_midpoint pod złą nazwą). Key finding: Wed/Thu bearish EU high trzyma 73-80%, Tuesday ~62% viable, Monday 69-83% exceeded — czekaj na RTH. 8/10.
+
+**Task 2 (RTH-GLOB-007):** Clean extension — gap_direction CASE poprawny, LAG już był w CTE. Finding mocny: gap direction wyjaśnia 26.5pp spreadu (74% vs 48% hold rate) — identyczna siła jak na bullish side (26.9pp z RTH-GLOB-004). Gap-down bearish: EU high optymalny short 74% czasu. Gap-up bearish: 52% exceeded, czekaj na RTH. Weekday × gap breakdown odłożony jako RTH-GLOB-007b. Duplikat aliasu jedyny minus. 9/10.
+
+---
+
 ## Week 30, Day 2 — Agent Feedback on Student
 
 **Score: 17/20**

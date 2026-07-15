@@ -1,7 +1,17 @@
 
-### Task Archive: 2026-07-14 (Week 30, Day 2) — Score: TBD
+### Task Archive: 2026-07-15 (Week 30, Day 3) — Score: 17/20
 
-*(tasks in progress)*
+**Task 1 (RTH-GLOB-006b):** EU high resistance weekday breakdown. 8/10 — weekday + prev_day_direction grouping (latter unprompted but useful for small cells). Duplicate alias avg_eu_range fourth session in a row. Key: Wed/Thu bearish hold 73-80%, Tuesday ~62% viable short, Monday 69-83% exceeded (wait for RTH).
+
+**Task 2 (RTH-GLOB-007):** Gap direction × bearish day × EU high. 9/10 — clean extension, gap_direction CASE correct. Finding: 26.5pp spread (gap-down 74% hold vs gap-up 48%) — same magnitude as bullish-side finding. Gap-down bearish = EU high is optimal short entry; gap-up bearish = wait for RTH spike. Weekday × gap deferred as RTH-GLOB-007b.
+
+---
+
+### Task Archive: 2026-07-14 (Week 30, Day 2) — Score: 17/20
+
+**Task 1 (RTH-VOL-014b):** Signed delta surge asymmetry test. 9/10 — clean refactor, signed ratio correct, WHERE local_delta IS NOT NULL dobry. Dead column `is_surge` nieużywany w output. Finding: symetria potwierdzona — up surge 44.92% vs down surge 43.62% next-up. ABS w VOL-014 wystarczający.
+
+**Task 2 (RTH-GLOB-006):** EU high resistance on bearish days. 8/10 — logika EU session poprawna, wyniki sensowne (EU high trzyma 60%, RTH otwiera ~90 pts poniżej EU high). Duplikat aliasu avg_eu_range (mislabeled reached_eu_midpoint). Brak weekday breakdown — odłożone na Day 3 jako RTH-GLOB-006b.
 
 ---
 

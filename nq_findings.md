@@ -1117,6 +1117,66 @@ Table `nq_data.news_events` created with columns: `event_date`, `event_time_et`,
 
 ## Globex vs RTH Comparisons
 
+### RTH-GLOB-007 — Gap Direction × Bearish RTH Day × EU High
+**Query ID:** RTH-GLOB-007 | Task date: 2026-07-15
+**Method:** Extension of RTH-GLOB-006 — added `gap_direction` = CASE WHEN rth_open > prev_close THEN 'gap_up' ELSE 'gap_down' END (LAG(close) for prev_close). Filter: bearish RTH days (rth_close < rth_open). 73 bearish days total (31 gap-down, 42 gap-up). Note: duplicate alias avg_eu_range on reached_eu_midpoint column. **Weekday × gap breakdown pending as RTH-GLOB-007b.**
+
+| Gap Direction | Days | RTH Open Location | RTH Open vs EU High | Pct Undercut EU Low | Pct Exceeded EU High |
+|---|---|---|---|---|---|
+| gap_down | 31 | 36.09% | -147 pts | **93.55%** | **25.81%** |
+| gap_up | 42 | 64.24% | -50 pts | 83.33% | **52.38%** |
+
+**Findings:**
+- **Gap direction explains 26.5pp of EU high hold rate variance** — gap-down bearish: EU high holds 74.19% of the time; gap-up bearish: EU high holds only 47.62%. Same magnitude as the bullish-side finding (RTH-GLOB-004: 26.9pp). Gap direction is the dominant predictor of EU level quality on both bullish and bearish days.
+- **Gap-down bearish: EU high trzyma 74% czasu** — RTH opens 147 pts below EU high (bottom third of EU range, 36%). Price almost never recovers to EU high on gap-down bearish days. EU short entered during overnight session near EU high was optimal in 74% of cases — RTH never offered a better entry.
+- **Gap-up bearish: EU high exceeded 52% of the time** — RTH opens only 50 pts below EU high (upper two-thirds of EU range, 64%). On half of gap-up bearish days, RTH spikes above EU high — providing a better short entry than the EU session. Wait for RTH on gap-up bearish days.
+- **EU low undercut asymmetry: gap-down 93.55% vs gap-up 83.33%** — EU low is nearly guaranteed to be reached on gap-down bearish days (93.55%). Even gap-up bearish days see 83% undercut of EU low — EU low is not support on bearish days regardless of gap direction.
+- **Practical EU short framework by gap direction:**
+  - Gap-down bearish: short from EU high during overnight session — optimal entry 74% of time, RTH won't give better
+  - Gap-up bearish: wait for RTH open and early spike above EU high — 52% of days offer a better short above EU high
+- **Note:** Weekday × gap interaction pending as RTH-GLOB-007b — gap-down Tuesday bearish vs gap-up Monday bearish may reveal further structure.
+
+### RTH-GLOB-006b — EU High as Resistance on Bearish Days — Weekday Breakdown
+**Query ID:** RTH-GLOB-006b | Task date: 2026-07-15
+**Method:** RTH-GLOB-006 query with `weekday` added to SELECT and GROUP BY. Also grouped by `prev_day_direction` (not in spec but adds context). Filter: bearish RTH days. 73 bearish days. Note: duplicate alias avg_eu_range persists on reached_eu_midpoint column.
+
+**Combined across prev_day_direction (approximate weekday totals):**
+
+| Weekday | ~Days | Pct Exceeded EU High | Avg RTH Open vs EU High |
+|---|---|---|---|
+| Wednesday | ~15 | **~20%** | -81 pts |
+| Thursday | ~19 | **~27%** | -98 pts |
+| Tuesday | ~14 | **~38%** | -93 pts |
+| Friday | ~12 | **~58%** | -128 pts |
+| Monday | ~13 | **~69%** | -77 pts |
+
+**Raw results by weekday × prev_day_direction:**
+
+| Weekday | Prev Dir | Days | RTH Open vs EU High | Open Location | Pct Undercut EU Low | Pct Exceeded EU High |
+|---|---|---|---|---|---|---|
+| Tuesday | bearish | 5 | -117 pts | 41% | 100% | 20% |
+| Wednesday | bearish | 9 | -67 pts | 58% | 100% | 22% |
+| Thursday | bearish | 9 | -133 pts | 41% | 78% | 33% |
+| Tuesday | bullish | 9 | -70 pts | 41% | 78% | 56% |
+| Thursday | bullish | 10 | -62 pts | 60% | 90% | 20% |
+| Wednesday | bullish | 6 | -95 pts | 43% | 100% | 17% |
+| Friday | bearish | 8 | -89 pts | 55% | 100% | 63% |
+| Monday | bearish | 6 | -21 pts | 90% | 67% | 83% |
+| Friday | bullish | 4 | -168 pts | 41% | 75% | 50% |
+| Monday | bullish | 7 | -132 pts | 48% | 86% | 57% |
+
+**Findings:**
+- **Wednesday and Thursday bearish: EU high holds ~73-80%** — the strongest resistance of any weekday. Consistent with RTH-GLOB-002b aggregate (Wed 20%, Thu 26.32%). Short entries near EU high during the overnight session are optimal on bearish Wed/Thu — RTH almost never provides a better short entry above EU high.
+- **Tuesday bearish: EU high holds ~62%** — viable EU short setup. RTH opens ~93 pts below EU high. On bearish Tuesdays, EU high is a reliable resistance level more than 3 in 5 times. After bearish prior day, Tuesday is even cleaner: only 20% exceed EU high (5 days, small sample).
+- **Monday bearish: EU high exceeded 69-83% of the time** — RTH opens only ~77 pts below EU high (closest of all weekdays, open_location 90% on bearish-prior Monday = opens near EU high). Monday's structural opening bounce (RTH-SESS-008: 100% of Mondays dip below then recover) means even bearish Mondays regularly spike above EU high before reversing. Wait for RTH.
+- **Friday bearish: mixed (50-63% exceeded)** — no clear edge. Prior direction moderates: bearish prior Friday → 63% exceeded (wait for RTH); bullish prior Friday → 50% (marginal).
+- **EU low undercut is near-universal on bearish days across all weekdays** — Wednesday/Tuesday/Friday bearish: 78-100% undercut EU low. Monday is lowest at 67-86% but still high. EU low is a magnet on bearish days regardless of weekday.
+- **Practical EU short entry by weekday (bearish day context):**
+  - **Wednesday/Thursday:** Short EU high — optimal entry, RTH won't improve it
+  - **Tuesday:** Short EU high viable — 62% hold rate, reasonable edge
+  - **Friday:** Marginal — depends on prior direction, no strong rule
+  - **Monday:** Never short EU high — 69-83% chance RTH exceeds it, wait for RTH spike
+
 ### RTH-GLOB-006 — EU High as Resistance on Bearish RTH Days
 **Query ID:** RTH-GLOB-006 | Task date: 2026-07-14
 **Method:** EU session ticks (ts_event AT TIME ZONE 'America/New_York' 02:00–09:30), trade_date = ts_event::DATE. MAX(price) = eu_high per day. JOIN to daily_ohlcv_rth. Filter: bearish RTH days (close < open). `reached_eu_high` = rth_high > eu_high. `rth_open_vs_eu_high` = rth_open - eu_high (negative = opens below EU high). Grouped by prev_day_direction. 73 bearish days total. **Note: weekday breakdown pending (RTH-GLOB-006b) — Tuesday specifically.**

@@ -1,3 +1,15 @@
+## Week 30, Day 4 — Agent Feedback on Student
+
+**Score: 17/20 + bonus Task 3**
+
+**Task 1 (RTH-GLOB-007b):** Weekday × gap breakdown na bearish dniach. 8/10 — query clean, poprawny GROUP BY. Duplikat aliasu avg_eu_range po raz piąty. Key finding: Wednesday gap_down bearish 0% exceeded (najczystszy EU short w datasecie), Thursday gap_down 9.09% — oba prawie gwarantowane. Tuesday gap_down bearish = pułapka (57% exceeded), Tuesday gap_up bearish = zaskakująco czysty (28.57%).
+
+**Task 2 (RTH-VOL-019):** OR delta × FH delta combined signal. 9/10 — clean architecture, dwie oddzielne CTEs, JOIN poprawny. Minor: FH window < '10:45' zamiast < '10:30' (wlicza bucket 10:30 do FH). Finding: agree_bearish 57.97% rest bullish (mean reversion potwierdzona), agree_bullish 60.66% (nie stackuje ponad standalone FH delta 60.3%). Delta nie jest lepszym stacking signal niż price direction.
+
+**Task 3 (RTH-VOL-019b, self-initiated):** Weekday breakdown agree signal — bardzo dobry ruch. Tuesday agree_bearish 75% rest bullish (potwierdza RTH-ORB-006 price direction), Monday agree_bullish 68.75% (najsilniejszy bullish kombination), Friday agree_bearish 42.86% (jedyny weekday gdzie agree_bearish jest bearish). Bonus za inicjatywę.
+
+---
+
 ## Week 30, Day 3 — Agent Feedback on Student
 
 **Score: 17/20**

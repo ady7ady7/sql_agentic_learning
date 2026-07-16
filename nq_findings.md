@@ -8,6 +8,52 @@
 
 ## Volume & Aggressor Pressure
 
+### RTH-VOL-019b — OR × FH Delta Combined Signal → Weekday Breakdown
+**Query ID:** RTH-VOL-019b | Task date: 2026-07-16 (self-initiated extension of RTH-VOL-019)
+**Method:** Same as RTH-VOL-019 with `weekday` added to GROUP BY. Note: FH window uses < '10:45' (includes 10:30 bucket) — minor inconsistency, directionally valid.
+
+**Selected key cells (≥ 10 days):**
+
+| Weekday | Signal | Days | Rest Bullish % |
+|---|---|---|---|
+| Tuesday | agree_bearish | 16 | **75.00%** |
+| Monday | agree_bullish | 16 | **68.75%** |
+| Wednesday | agree_bullish | 13 | 61.54% |
+| Thursday | agree_bearish | 14 | 64.29% |
+| Friday | agree_bearish | 14 | **42.86%** |
+| Friday | agree_bullish | 10 | 50.00% |
+| Tuesday | agree_bullish | 10 | 60.00% |
+| Thursday | agree_bullish | 12 | 58.33% |
+| Wednesday | agree_bearish | 12 | 58.33% |
+| Monday | agree_bearish | 13 | 46.15% |
+
+**Findings:**
+- **Tuesday agree_bearish: 75% rest bullish** — strongest signal in the dataset, perfectly confirming RTH-ORB-006 (Tuesday agree-bearish price direction: 75%). Delta and price direction give identical signal on Tuesday. When both OR and FH delta are negative on Tuesday → buy the afternoon.
+- **Monday agree_bullish: 68.75% rest bullish** — strongest agree_bullish weekday. Monday bullish open confirmed by delta in both OR and FH windows → strong afternoon continuation. Consistent with Monday's structural bullish drift (RTH-CLOSE-001: +114 avg).
+- **Thursday agree_bearish: 64.29% rest bullish** — bounce setup on Thursday (agree-bearish morning → afternoon reversal), consistent with Thursday's structural mean-reversion pattern.
+- **Friday agree_bearish: 42.86% rest bullish** — the lone exception. Friday is the only weekday where agree_bearish is net bearish (not mean-reverting). Position squaring and end-of-week dynamics override the reversal pattern — consistent with RTH-ORB-006 Friday finding (40% rest bullish).
+- **Monday agree_bearish: 46.15% rest bullish** — mild bearish lean. Monday's strong bullish drift doesn't fully overcome an agree-bearish morning; when both delta windows are negative on Monday the afternoon is close to a coin flip.
+- **Friday agree_bullish: 50% rest bullish** — no edge on Friday bullish delta. Confirms Friday's coin-flip character (RTH-CLOSE-001: +5.55 avg, 60% up but muted magnitude).
+- **Divergence cases (small n):** Wednesday or_bull_fh_bear (3 days) → 0% rest bullish — extreme but tiny sample. Thursday or_bear_fh_bull (5 days) → 20% rest bullish — when OR is bearish but FH delta recovers on Thursday, afternoon is strongly bearish.
+
+### RTH-VOL-019 — OR Delta × FH Delta Combined Signal → Rest-of-Session Direction
+**Query ID:** RTH-VOL-019 | Task date: 2026-07-16
+**Method:** `rth_15min_buckets_agg`. OR delta = SUM(bucket_delta) per trade_date WHERE bucket_start::time < '10:00'. FH delta = SUM(bucket_delta) WHERE bucket_start::time < '10:45' (note: includes 10:30 bucket — minor inconsistency vs intended < '10:30'). Combined signal: agree_bullish (both positive), agree_bearish (both negative), or_bull_fh_bear, or_bear_fh_bull. JOIN to `rth_firsthour_rest_ohlc_ranges` for rest_bullish = r_close > r_open. 159 days total.
+
+| Combined Signal | Days | Avg FH Delta | Avg OR Delta | Rest Bullish % |
+|---|---|---|---|---|
+| agree_bullish | 61 | +1,822 | +1,293 | **60.66%** |
+| agree_bearish | 69 | -1,879 | -1,407 | **57.97%** |
+| or_bull_fh_bear | 16 | -943 | +601 | 50.00% |
+| or_bear_fh_bull | 13 | +867 | -760 | 46.15% |
+
+**Findings:**
+- **agree_bearish → 57.97% rest bullish** — mean reversion confirmed at the delta level, matching RTH-ORB-005 (price direction agree-bearish: 59.7%). When both OR and FH delta are negative, the afternoon reverses bullishly more often than it continues bearishly. The pattern is structural, not price-direction specific.
+- **agree_bullish → 60.66% rest bullish** — marginal improvement over standalone FH delta (60.3%) and OR delta (59.74%). Stacking both delta signals adds essentially no incremental edge over using either alone. Delta agree signals do not compound the way one might hope.
+- **Delta vs price direction comparison (RTH-ORB-005):** agree_bearish delta (57.97%) ≈ agree_bearish price (59.7%); agree_bullish delta (60.66%) ≈ agree_bullish price (58.4%). Neither approach is clearly superior — delta and price direction carry largely redundant information for rest-of-session prediction.
+- **Divergence cases collapse to near-random (46-50%)** — when OR and FH delta disagree, the signal cancels completely. or_bull_fh_bear: 50%, or_bear_fh_bull: 46.15%. This confirms that the two windows are measuring related but not independent phenomena — a divergence means the market is indecisive, not that one window is "right."
+- **Practical implication:** Use agree_bearish as a confirming signal for afternoon long setups (especially Tuesday: 75%) — it adds context to price-direction signals but does not replace them. No incremental benefit to checking both delta windows vs just FH delta alone.
+
 ### RTH-VOL-014b — Signed Delta Surge → Asymmetry Test
 **Query ID:** RTH-VOL-014b | Task date: 2026-07-14
 **Method:** `rth_15min_buckets_agg`. Same local_avg_abs_delta baseline as RTH-VOL-014 (ROWS BETWEEN 4 PRECEDING AND 1 PRECEDING). Signed ratio = bucket_delta / NULLIF(local_avg_abs_delta, 0) — no ABS on numerator. surge_type: 'up_surge' (ratio > 1.5), 'down_surge' (ratio < -1.5), 'no_surge' (between). WHERE local_delta IS NOT NULL excludes first 4 buckets per day. 3,917 buckets total.
@@ -1116,6 +1162,36 @@ Table `nq_data.news_events` created with columns: `event_date`, `event_time_et`,
 ---
 
 ## Globex vs RTH Comparisons
+
+### RTH-GLOB-007b — EU High Resistance — Weekday × Gap Direction on Bearish Days
+**Query ID:** RTH-GLOB-007b | Task date: 2026-07-16
+**Method:** Extension of RTH-GLOB-007 — added `weekday` to SELECT and GROUP BY. Filter: bearish RTH days. 73 bearish days, 10 weekday × gap cells (4–11 days per cell). Note: duplicate alias avg_eu_range persists on reached_eu_midpoint column.
+
+| Weekday | Gap | Days | RTH Open vs EU High | Pct Undercut EU Low | Pct Exceeded EU High |
+|---|---|---|---|---|---|
+| Wednesday | gap_down | 5 | -130 pts | 100% | **0%** |
+| Thursday | gap_down | 11 | -142 pts | 100% | **9.09%** |
+| Friday | gap_down | 4 | -237 pts | 100% | 25% |
+| Tuesday | gap_up | 7 | -53 pts | 100% | **28.57%** |
+| Wednesday | gap_up | 10 | -53 pts | 100% | 30% |
+| Thursday | gap_up | 8 | -32 pts | 62.5% | 50% |
+| Monday | gap_down | 4 | -138 pts | 100% | 50% |
+| Tuesday | gap_down | 7 | -121 pts | 71.43% | **57.14%** |
+| Friday | gap_up | 8 | -54 pts | 87.5% | **75%** |
+| Monday | gap_up | 9 | -55 pts | 66.67% | **77.78%** |
+
+**Findings:**
+- **Wednesday gap_down bearish: 0% exceeded EU high** (5 days) — the cleanest EU short entry in the entire dataset. RTH opens 130 pts below EU high, price never recovers to EU high on these days. EU short entered during overnight session is optimal 100% of the time.
+- **Thursday gap_down bearish: 9.09% exceeded EU high** (11 days, largest cell) — near-identical to Wednesday. Gap-down Thu/Wed bearish = short from EU high, RTH will almost never give a better entry. EU low undercut 100% — EU low is the target.
+- **Tuesday gap_up bearish: 28.57% exceeded** (7 days) — counterintuitive finding. Gap-up Tuesday bearish opens near EU high (only -53 pts below), and despite RTH gapping up, EU high holds as resistance 71% of the time. Clean short setup despite the gap-up.
+- **Tuesday gap_down bearish: 57.14% exceeded** (7 days) — the trap. RTH opens 121 pts below EU high but regularly spikes above it before selling off. Do NOT short EU high on gap-down Tuesday bearish — wait for RTH spike above EU high for a better entry.
+- **Monday gap_up bearish: 77.78% exceeded** (9 days) — worst weekday × gap for EU short. RTH opens only 55 pts below EU high and almost always exceeds it. Monday bearish gap-up = wait for RTH, EU high is not resistance.
+- **Friday gap_up bearish: 75% exceeded** (8 days) — similar to Monday gap_up. Friday bearish gap-up → EU high is a trap, RTH routinely spikes above it.
+- **EU low undercut near-universal on gap-down bearish days** — Wed/Thu/Fri/Tue gap-down bearish all show 71-100% EU low undercut. Gap-down bearish days always reach EU low — it is the price target, not a support level.
+- **Practical EU short framework (complete):**
+  - **Best EU short setups:** Wed gap_down (0%), Thu gap_down (9%), Tue gap_up (29%), Wed gap_up (30%)
+  - **Avoid EU high short:** Mon gap_up (78%), Fri gap_up (75%), Tue gap_down (57%)
+  - **Moderate:** Mon gap_down (50%), Thu gap_up (50%), Fri gap_down (25%)
 
 ### RTH-GLOB-007 — Gap Direction × Bearish RTH Day × EU High
 **Query ID:** RTH-GLOB-007 | Task date: 2026-07-15

@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-07-16 (Week 30, Day 4) — Score: 17/20
+
+**Task 1 (RTH-GLOB-007b):** EU high weekday × gap breakdown on bearish days. 8/10 — duplicate alias fifth time. Key: Wed gap_down 0% exceeded (cleanest EU short), Thu gap_down 9.09%, Tue gap_down 57% exceeded (trap), Tue gap_up 28.57% (counterintuitive clean short).
+
+**Task 2 (RTH-VOL-019):** OR delta × FH delta combined signal. 9/10 — FH window < 10:45 instead of < 10:30 (minor). agree_bearish 57.97% rest bullish, agree_bullish 60.66%. Delta doesn't stack better than price direction. Divergence cases collapse to 46-50%.
+
+**Task 3 (RTH-VOL-019b, self-initiated):** Weekday breakdown. Tuesday agree_bearish 75% (confirms RTH-ORB-006), Monday agree_bullish 68.75% (strongest bullish combo), Friday agree_bearish 42.86% (only weekday where agree_bearish is bearish).
+
+---
+
 ### Task Archive: 2026-07-15 (Week 30, Day 3) — Score: 17/20
 
 **Task 1 (RTH-GLOB-006b):** EU high resistance weekday breakdown. 8/10 — weekday + prev_day_direction grouping (latter unprompted but useful for small cells). Duplicate alias avg_eu_range fourth session in a row. Key: Wed/Thu bearish hold 73-80%, Tuesday ~62% viable short, Monday 69-83% exceeded (wait for RTH).

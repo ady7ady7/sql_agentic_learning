@@ -1,3 +1,13 @@
+## Week 30, Day 5 — Agent Feedback on Student
+
+**Score: 17/20 + bonus Friday extension**
+
+**Task 1 (RTH-CLOSE-003):** Close location × gap × day direction × weekday. 9/10 — query architecture clean, ROUND(ABS(...)) pattern correct, FILTER syntax for pct_closed_upper_half correct. Close location formula uses ABS((close - low) / (high - low)) — correct. Key finding: day direction is the near-sole determinant of close location (bullish → 75–84%, bearish → 19–35% universally). Wednesday gap_down bearish exception (43.89%) is the only outlier. Friday gap_down bullish = widest range day in the dataset (428 pts avg). Minus: one more session with the duplicate alias going unmentioned, but query output was correct.
+
+**Task 2 (RTH-FH-007 + self-initiated RTH-FH-007b):** Good self-correction — identified the Friday-only scope mismatch and added both Friday-specific and all-days aggregation without being prompted. The all-days finding (gap_size bucket 3 gap_down → 85.19% rest bullish, avg FH 265 pts) is genuinely new and significant. Friday large gap-down: avg day 492 pts, rest bullish 67%. Student correctly treated the general aggregation as a separate query ID (RTH-FH-007b). Bonus for initiative. 8/10 for architecture (NTILE scope was correct after fix). Note: full Friday sample is small (6 days per large-bucket cell).
+
+---
+
 ## Week 30, Day 4 — Agent Feedback on Student
 
 **Score: 17/20 + bonus Task 3**

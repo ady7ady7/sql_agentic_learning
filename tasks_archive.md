@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-07-17 (Week 30, Day 5) — Score: 17/20
+
+**Task 1 (RTH-CLOSE-003):** Close location × gap × day direction × weekday. 9/10 — query clean, FILTER syntax correct. Key: day direction is near-sole determinant of close location (bullish → 75-84% of range, bearish → 19-35%). Wednesday gap_down bearish = exception at 43.89%. Friday gap_down bullish = widest range avg (428 pts), 100% closed upper half.
+
+**Task 2 (RTH-FH-007 + self-initiated RTH-FH-007b):** 8/10 + bonus for self-initiating the all-days aggregation. Self-corrected the Friday-only NTILE scope. RTH-FH-007 (Friday): large gap-down → avg FH 299 pts, avg day 492 pts, 67% rest bullish. RTH-FH-007b (all days, new finding): large gap-down bucket 3 → 85.19% rest bullish (strongest signal in dataset), avg FH 265 pts, avg day 432 pts. Gap-up large: only 50% rest bullish — direction dominates at high gap magnitudes.
+
+---
+
 ### Task Archive: 2026-07-16 (Week 30, Day 4) — Score: 17/20
 
 **Task 1 (RTH-GLOB-007b):** EU high weekday × gap breakdown on bearish days. 8/10 — duplicate alias fifth time. Key: Wed gap_down 0% exceeded (cleanest EU short), Thu gap_down 9.09%, Tue gap_down 57% exceeded (trap), Tue gap_up 28.57% (counterintuitive clean short).

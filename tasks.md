@@ -1,269 +1,204 @@
-# NQ Project — Week 30 Day 4
+# NQ Project — Week 30 Day 5
 
-**Generated:** 2026-07-16
-**Focus:** EU high resistance weekday × gap breakdown on bearish days (RTH-GLOB-007b) + delta surge at key EU levels vs mid-range (RTH-VOL-016)
-
----
-
-## Task 1: EU High Resistance — Weekday × Gap Direction on Bearish Days
-
-**Scenario:**
-RTH-GLOB-007 showed gap direction explains 26.5pp of EU high hold rate (gap-down bearish: 74% hold, gap-up bearish: 48% hold). RTH-GLOB-006b showed weekday also matters (Wed/Thu ~75% hold, Monday ~31%). Now combine both: which weekday × gap combination is the cleanest EU short entry, and which is the worst? Gap-down Tuesday bearish specifically — is EU high a near-guaranteed resistance level on that setup? **(ID: RTH-GLOB-007b)**
-
-**Architecture:**
-RTH-GLOB-007 query already exists. Add `weekday` to the SELECT and GROUP BY in the final aggregation alongside `gap_direction`. Sample sizes will be small (4–8 days per cell) — report all cells but flag those with < 5 days. Focus on directional patterns not statistical certainty.
-
-Report per weekday × gap_direction:
-- `days`
-- `avg_rth_open_vs_eu_high`
-- `pct_exceeded_eu_high`
-- `pct_undercut_eu_low`
-
-**Finding to answer:** Which specific weekday × gap combinations make EU high a reliable short entry (< 25% exceeded) vs a trap (> 60% exceeded)? Is gap-down Tuesday bearish the cleanest EU short setup? Is gap-up Monday bearish always a "wait for RTH" situation?
-
-**Tables:** `nq_data.ticks`, `nq_data.daily_ohlcv_rth`
-
-**Difficulty Rating:** 2/5
-
-**(ID: RTH-GLOB-007b)**
-
-WITH eu_first_ticks_agg AS (
-SELECT 
-	*,
-	ts_event::DATE AS trade_date
-FROM nq_data.ticks t 
-WHERE (ts_event AT TIME ZONE 'America/New_York')::time >= '2:00' AND (ts_event AT TIME ZONE 'America/New_York')::time < '9:30'
-),
-eu_levels_aggregation AS (
-SELECT 
-	trade_date,
-	MAX(price) AS eu_high,
-	MIN(price) AS eu_low,
-	MAX(price) - MIN(price) AS eu_range,
-	ROUND(MAX(price) - ((MAX(price) - MIN(price)) / 2), 2) AS eu_midpoint
-FROM eu_first_ticks_agg
-GROUP BY trade_date
-),
-eu_us_joint_agg AS (
-SELECT DISTINCT ON (e.trade_date, e.eu_high)
-	e.trade_date,
-	d.weekday,
-	e.eu_high,
-	e.eu_low,
-	e.eu_midpoint,
-	e.eu_range,
-	d.OPEN AS rth_open,
-	d."close" AS rth_close,
-	d.low AS rth_low,
-	d.high AS rth_high,
-	LAG(d."close") OVER (ORDER BY d.trade_date) AS prev_close,
-	LAG(d.open) OVER (ORDER BY d.trade_date) AS prev_open,
-	ROUND((d.OPEN - e.eu_low) / e.eu_range::NUMERIC * 100, 2) AS rth_open_location,
-	ROUND(d.OPEN - e.eu_high, 2) AS rth_open_vs_eu_high,
-	CASE WHEN d.low < e.eu_midpoint THEN 1 ELSE 0 END AS reached_eu_midpoint,
-	CASE WHEN d.low < e.eu_low THEN 1 ELSE 0 END AS reached_eu_low,
-	CASE WHEN d.high > e.eu_high THEN 1 ELSE 0 END AS reached_eu_high
-FROM eu_levels_aggregation e
-JOIN nq_data.daily_ohlcv_rth d ON e.trade_date = d.trade_date
-),
-prev_day_direction_agg AS (
-SELECT 
-	*,
-	CASE WHEN rth_close > rth_open THEN 'bullish' ELSE 'bearish' END AS day_direction,
-	CASE WHEN prev_close > prev_open THEN 'bullish' ELSE 'bearish' END AS prev_day_direction,
-	CASE WHEN rth_open > prev_close THEN 'gap_up' ELSE 'gap_down' END AS gap_direction
-FROM eu_us_joint_agg
-WHERE prev_close IS NOT NULL AND prev_open IS NOT NULL
-)
-SELECT
-	weekday,
-	gap_direction,
-	COUNT(*) AS days,
-	ROUND(AVG(eu_range), 2) AS avg_eu_range,
-	ROUND(AVG(rth_open_vs_eu_high), 2) AS avg_rth_open_vs_eu_high,
-	ROUND(SUM(reached_eu_midpoint)/ COUNT(*)::NUMERIC * 100, 2) AS avg_eu_range,
-	ROUND(AVG(rth_open_location), 2) AS avg_rth_open_location,
-	ROUND(SUM(reached_eu_low)/ COUNT(*)::NUMERIC * 100, 2) AS pct_undercut_eu_low,
-	ROUND(SUM(reached_eu_high)/ COUNT(*)::NUMERIC * 100, 2) AS pct_went_above_eu_high
-FROM prev_day_direction_agg
-WHERE day_direction = 'bearish'
-GROUP BY weekday, gap_direction
-
-
-weekday	gap_direction	days	avg_eu_range	avg_rth_open_vs_eu_high	avg_eu_range	avg_rth_open_location	pct_undercut_eu_low	pct_went_above_eu_high
-Friday	gap_down	4	328.75	-237.38	100	31.39	100	25
-Friday	gap_up	8	141.44	-54.06	100	59.93	87.5	75
-Monday	gap_down	4	216.19	-138.19	100	46.8	100	50
-Monday	gap_up	9	256.42	-55.28	88.89	77.02	66.67	77.78
-Thursday	gap_down	11	195.98	-141.95	100	30.68	100	9.09
-Thursday	gap_up	8	195.59	-32.22	87.5	78.64	62.5	50
-Tuesday	gap_down	7	205.79	-120.68	100	40.67	71.43	57.14
-Tuesday	gap_up	7	94.79	-52.68	100	42.24	100	28.57
-Wednesday	gap_down	5	187	-129.85	100	36.76	100	0
-Wednesday	gap_up	10	152.43	-52.7	100	60.06	100	30
+**Generated:** 2026-07-17
+**Focus:** Close location × gap direction × weekday (RTH-CLOSE-003) + First hour range × gap size on Friday (RTH-FH-007)
 
 ---
 
-## Task 2: OR Delta × FH Delta Combined Signal → Rest-of-Session Direction
+## Task 1: Close Location × Gap Direction × Weekday
 
 **Scenario:**
-RTH-VOL-004 established: positive FH delta (09:30–10:30) → rest bullish 60.3% vs negative → 54.7%. RTH-ORB-004 established: positive OR delta (09:30–10:00) → rest bullish 59.74% vs negative → 51.22%. Both were measured independently. The question: when both agree (OR and FH delta both positive, or both negative), does the edge stack beyond either standalone signal? When they diverge (OR positive but FH net negative, or vice versa), does it cancel to ~50%? This is the delta equivalent of RTH-ORB-005 (price direction version: agree-bearish → 59.7% rest bullish). **(ID: RTH-VOL-019)**
+RTH-CLOSE-002 established close location by weekday (Monday 62%, Thursday 52.5%) but without gap direction. RTH-GAP-003 showed large gap-downs produce bullish close 74% of the time — but where in the day's range does price actually close? A gap-down bullish day that closes at 80% of range is a very different trade than one that closes at 55%. This task adds gap direction to the close location picture and gives concrete exit targets per weekday × gap scenario. **(ID: RTH-CLOSE-003)**
 
 **Architecture:**
-1. CTE 1 — from `rth_15min_buckets_agg`, compute per trade_date:
-   - `or_delta` = SUM(bucket_delta) WHERE TO_CHAR(bucket_start, 'HH24:MI') < '10:00' (09:30 + 09:45 buckets)
-   - `fh_delta` = SUM(bucket_delta) WHERE TO_CHAR(bucket_start, 'HH24:MI') < '10:30' (09:30 + 09:45 + 10:00 + 10:15 buckets)
-2. CTE 2 — classify:
-   - `or_delta_dir` = CASE WHEN or_delta > 0 THEN 'positive' ELSE 'negative' END
-   - `fh_delta_dir` = CASE WHEN fh_delta > 0 THEN 'positive' ELSE 'negative' END
-   - `combined_signal` = CASE: 'agree_bullish' (both positive), 'agree_bearish' (both negative), 'or_bull_fh_bear', 'or_bear_fh_bull'
-3. CTE 3 — JOIN to `rth_firsthour_rest_ohlc_ranges` on trade_date. `rest_bullish` = CASE WHEN r_close > r_open THEN 1 ELSE 0 END
-4. Final SELECT — GROUP BY `combined_signal`:
+1. CTE 1 — from `daily_ohlcv_rth`, compute per trade_date:
+   - `gap_direction` = CASE WHEN open > LAG(close) OVER (ORDER BY trade_date) THEN 'gap_up' ELSE 'gap_down' END
+   - `gap_size` = ABS(open - LAG(close) OVER (ORDER BY trade_date))
+   - `close_location` = ROUND((close - low) / (high - low)::NUMERIC * 100, 2)
+   - `day_direction` = CASE WHEN close > open THEN 'bullish' ELSE 'bearish' END
+2. Final SELECT — GROUP BY `weekday` × `gap_direction` × `day_direction`:
    - `days`
-   - `rest_bullish_pct`
-   - `avg_or_delta`
-   - `avg_fh_delta`
+   - `avg_close_location`
+   - `pct_closed_upper_half` (close_location > 50)
+   - `avg_gap_size`
+   - `avg_full_day_range` = AVG(high - low)
 
-**Finding to answer:** Does agree_bullish (both OR + FH delta positive) beat the standalone signals (>60.3%)? Does agree_bearish produce a bearish lean below 50%? Do divergence cases collapse to ~50%? Is delta a stronger stacking signal than price direction (RTH-ORB-005: agree-bearish 59.7%, agree-bullish 58.4%)?
+**Finding to answer:** On gap-down bullish days, does price close high in range (>65%) — confirming a full reversal? Does this vary by weekday? On gap-down bearish days, does price close near the low (<35%)? Friday gap-down specifically: given 73.3% bullish (N=15), where does it close in range? These numbers become exit targets.
 
-**Tables:** `nq_data.rth_15min_buckets_agg`, `nq_data.rth_firsthour_rest_ohlc_ranges`
+**Tables:** `nq_data.daily_ohlcv_rth`
 
 **Difficulty Rating:** 3/5
 
-**(ID: RTH-VOL-019)**
+**(ID: RTH-CLOSE-003)**
 
-
-WITH or_delta_agg AS (
-SELECT 
-	bucket_start::date AS trade_date,
-	SUM(bucket_delta) AS daily_or_delta
-FROM nq_data.rth_15min_buckets_agg
-WHERE bucket_start::time >= '9:30' AND bucket_start::time < '10:00'
-GROUP BY bucket_start::DATE
-),
-fh_delta_agg AS (
-SELECT 
-	bucket_start::date AS trade_date,
-	SUM(bucket_delta) AS daily_fh_delta
-FROM nq_data.rth_15min_buckets_agg
-WHERE bucket_start::time >= '9:30' AND bucket_start::time < '10:45'
-GROUP BY bucket_start::DATE
-),
-fh_or_combined_signal_agg AS (
-SELECT 
-	f.trade_date,
-	f.daily_fh_delta,
-	o.daily_or_delta,
-	CASE WHEN f.daily_fh_delta > 0 THEN 'positive' ELSE 'negative' END AS fh_delta_direction,
-	CASE WHEN o.daily_or_delta > 0 THEN 'positive' ELSE 'negative' END AS or_delta_direction,
-	CASE 
-		WHEN f.daily_fh_delta > 0 AND o.daily_or_delta > 0 THEN 'agree_bullish' 
-		WHEN f.daily_fh_delta < 0 AND o.daily_or_delta < 0 THEN 'agree_bearish' 
-		WHEN f.daily_fh_delta > 0 AND o.daily_or_delta < 0 THEN 'or_bear_fh_bull' 
-		WHEN f.daily_fh_delta < 0 AND o.daily_or_delta > 0 THEN 'or_bull_fh_bear' 
-	END AS combined_signal
-FROM fh_delta_agg f
-JOIN or_delta_agg o ON f.trade_date = o.trade_date
-),
-pre_final_agg AS (
+WITH daily_agg_gaps AS (
 SELECT 
 	*,
-	CASE WHEN r.r_close > r.r_open THEN 1 ELSE 0 END AS rest_bullish
-FROM fh_or_combined_signal_agg f
-JOIN nq_data.rth_firsthour_rest_ohlc_ranges r ON f.trade_date = r.trade_date
-)
-SELECT 
-	combined_signal,
-	COUNT(*) AS days,
-	ROUND(AVG(daily_fh_delta), 2) AS avg_fh_delta,
-	ROUND(AVG(daily_or_delta), 2) AS avg_or_delta,
-	ROUND(SUM(rest_bullish) / COUNT(*)::NUMERIC * 100, 2) AS rest_bullish_pct
-FROM pre_final_agg
-GROUP BY combined_signal
-
-
-combined_signal	days	avg_fh_delta	avg_or_delta	rest_bullish_pct
-agree_bearish	69	-1,878.67	-1,407.28	57.97
-agree_bullish	61	1,822.25	1,293.08	60.66
-or_bear_fh_bull	13	866.54	-759.69	46.15
-or_bull_fh_bear	16	-942.69	601.31	50
-
-I've also done an extra aggregation by weekday :)) - make sure to chceck it and add/include it in the commit and findings with a proper tag as Task 3 before we move on, tag it as RTH-VOL-019b and include in nq_findings
-
-
-
-WITH or_delta_agg AS (
-SELECT 
-	bucket_start::date AS trade_date,
-	SUM(bucket_delta) AS daily_or_delta
-FROM nq_data.rth_15min_buckets_agg
-WHERE bucket_start::time >= '9:30' AND bucket_start::time < '10:00'
-GROUP BY bucket_start::DATE
-),
-fh_delta_agg AS (
-SELECT 
-	bucket_start::date AS trade_date,
-	SUM(bucket_delta) AS daily_fh_delta
-FROM nq_data.rth_15min_buckets_agg
-WHERE bucket_start::time >= '9:30' AND bucket_start::time < '10:45'
-GROUP BY bucket_start::DATE
-),
-fh_or_combined_signal_agg AS (
-SELECT 
-	f.trade_date,
-	f.daily_fh_delta,
-	o.daily_or_delta,
-	CASE WHEN f.daily_fh_delta > 0 THEN 'positive' ELSE 'negative' END AS fh_delta_direction,
-	CASE WHEN o.daily_or_delta > 0 THEN 'positive' ELSE 'negative' END AS or_delta_direction,
-	CASE 
-		WHEN f.daily_fh_delta > 0 AND o.daily_or_delta > 0 THEN 'agree_bullish' 
-		WHEN f.daily_fh_delta < 0 AND o.daily_or_delta < 0 THEN 'agree_bearish' 
-		WHEN f.daily_fh_delta > 0 AND o.daily_or_delta < 0 THEN 'or_bear_fh_bull' 
-		WHEN f.daily_fh_delta < 0 AND o.daily_or_delta > 0 THEN 'or_bull_fh_bear' 
-	END AS combined_signal
-FROM fh_delta_agg f
-JOIN or_delta_agg o ON f.trade_date = o.trade_date
-),
-pre_final_agg AS (
-SELECT 
-	*,
-	TRIM(TO_CHAR(r.trade_date, 'Day')) AS weekday,
-	CASE WHEN r.r_close > r.r_open THEN 1 ELSE 0 END AS rest_bullish
-FROM fh_or_combined_signal_agg f
-JOIN nq_data.rth_firsthour_rest_ohlc_ranges r ON f.trade_date = r.trade_date
+	high - low AS daily_range,
+	CASE WHEN OPEN > LAG(CLOSE) OVER (ORDER BY trade_date) THEN 'gap_up' ELSE 'gap_down' END AS gap_direction,
+	abs(OPEN - (LAG(CLOSE) OVER (ORDER BY trade_date))) AS gap_size,
+	ROUND(abs((CLOSE - low) / (high - low))::NUMERIC * 100, 2) AS close_location,
+	CASE WHEN CLOSE > OPEN THEN 'bullish' ELSE 'bearish' END AS day_direction
+FROM nq_data.daily_ohlcv_rth
 )
 SELECT 
 	weekday,
-	combined_signal,
-	COUNT(*) AS days,
-	ROUND(AVG(daily_fh_delta), 2) AS avg_fh_delta,
-	ROUND(AVG(daily_or_delta), 2) AS avg_or_delta,
-	ROUND(SUM(rest_bullish) / COUNT(*)::NUMERIC * 100, 2) AS rest_bullish_pct
-FROM pre_final_agg
-GROUP BY combined_signal, weekday
+	gap_direction,
+	day_direction,
+	COUNT(*),
+	ROUND(AVG(gap_size), 2) AS avg_gap_size,
+	ROUND(AVG(close_location), 2) AS avg_close_location,
+	ROUND(COUNT(*) FILTER (WHERE close_location > 50) / COUNT (*)::NUMERIC * 100, 2) AS pct_closed_upper_half,
+	ROUND(AVG(daily_range), 2) AS avg_full_day_range
+FROM daily_agg_gaps
+WHERE gap_size IS NOT NULL
+GROUP BY weekday, gap_direction, day_direction
+
+weekday	gap_direction	day_direction	count	avg_gap_size	avg_close_location	pct_closed_upper_half	avg_full_day_range
+Friday	gap_up	bearish	10	110.98	25.97	0	346.95
+Wednesday	gap_down	bearish	5	66.8	43.89	40	423.8
+Wednesday	gap_down	bullish	7	74.82	72.48	85.71	282.18
+Thursday	gap_up	bearish	12	200.38	41.89	41.67	384.02
+Tuesday	gap_up	bearish	10	76.2	26.36	10	308.43
+Tuesday	gap_down	bearish	7	126.96	25.94	0	296.93
+Tuesday	gap_up	bullish	8	110.25	77.92	87.5	300.41
+Wednesday	gap_up	bullish	12	91.63	76.94	91.67	333.52
+Monday	gap_up	bearish	11	212.75	33.94	18.18	265.16
+Monday	gap_down	bullish	14	198.96	78.66	92.86	353.2
+Friday	gap_down	bullish	11	193.39	75.78	100	428.77
+Tuesday	gap_down	bullish	14	173.39	83.73	100	328.38
+Wednesday	gap_up	bearish	10	194.63	34.89	20	329.05
+Friday	gap_up	bullish	10	110.93	74.8	90	319.05
+Thursday	gap_up	bullish	5	87.75	70.43	60	260.4
+Thursday	gap_down	bullish	10	186.38	78.55	100	397.55
+Friday	gap_down	bearish	4	201.63	19.4	0	398.25
+Monday	gap_down	bearish	4	68	46.39	50	320
+Monday	gap_up	bullish	9	235.42	73.43	88.89	261.17
+Thursday	gap_down	bearish	12	99.35	33.9	25	375.92
+---
+
+## Task 2: First Hour Range × Gap Size on Friday
+
+**Scenario:**
+RTH-VOL-013 showed Friday has the biggest 09:30→10:30 range expansion jump of any weekday (+26.5pp, from 47.7% to 74.2%). RTH-FH-003 shows Friday avg FH range is 215 pts (second highest). The question: is Friday's wide FH driven by large gap days specifically? A big gap-down Friday may produce a wider FH (price explores both sides of the gap) while a flat-open Friday may be tighter. If confirmed, gap size becomes a pre-market predictor of how wide the first hour will be — useful for sizing. **(ID: RTH-FH-007)**
+
+**Architecture:**
+1. CTE 1 — from `daily_ohlcv_rth`, compute per trade_date:
+   - `gap_size` = ABS(open - LAG(close) OVER (ORDER BY trade_date))
+   - `gap_direction` = CASE WHEN open > LAG(close) OVER (ORDER BY trade_date) THEN 'gap_up' ELSE 'gap_down' END
+   - `gap_bucket` = NTILE(3) OVER (ORDER BY ABS(open - LAG(close)...)) — small/medium/large gap
+2. CTE 2 — JOIN to `rth_firsthour_rest_ohlc_ranges` on trade_date:
+   - `fh_range` = fh_high - fh_low
+   - `fh_pct_of_day` = fh_range / (high - low) from daily_ohlcv_rth
+   - `rest_bullish` = r_close > r_open
+3. Final SELECT — filter Friday only, GROUP BY `gap_bucket` × `gap_direction`:
+   - `days`
+   - `avg_gap_size`
+   - `avg_fh_range`
+   - `avg_full_day_range`
+   - `fh_pct_of_day`
+   - `rest_bullish_pct`
+
+**Finding to answer:** Do large gap Fridays produce wider first hours? Is the relationship linear (small gap → tight FH, large gap → wide FH)? Does a large gap-down Friday produce a wider FH than a large gap-up Friday? And does FH direction on a large gap-down Friday predict the afternoon (rest_bullish_pct)?
+
+**Tables:** `nq_data.daily_ohlcv_rth`, `nq_data.rth_firsthour_rest_ohlc_ranges`
+
+**Difficulty Rating:** 3/5
+
+**(ID: RTH-FH-007)**
 
 
-weekday	combined_signal	days	avg_fh_delta	avg_or_delta	rest_bullish_pct
-Friday	agree_bearish	14	-1,670.36	-1,157.07	42.86
-Monday	agree_bearish	13	-1,940.54	-1,211.08	46.15
-Thursday	agree_bearish	14	-2,511.64	-2,064.64	64.29
-Tuesday	agree_bearish	16	-1,490.25	-1,210	75
-Wednesday	agree_bearish	12	-1,834.08	-1,407.83	58.33
-Friday	agree_bullish	10	2,002	1,437.9	50
-Monday	agree_bullish	16	1,745.56	1,170.69	68.75
-Thursday	agree_bullish	12	1,509.92	1,164.17	58.33
-Tuesday	agree_bullish	10	1,709.6	1,347.2	60
-Wednesday	agree_bullish	13	2,153.31	1,409.69	61.54
-Thursday	or_bear_fh_bull	5	563.8	-797.2	20
-Tuesday	or_bear_fh_bull	3	1,614.33	-489.33	66.67
-Wednesday	or_bear_fh_bull	5	720.6	-884.4	60
-Friday	or_bull_fh_bear	5	-958.6	893.2	60
-Monday	or_bull_fh_bear	4	-659.75	443	75
-Tuesday	or_bull_fh_bear	4	-1,730	562.5	50
-Wednesday	or_bull_fh_bear	3	-243.67	377.67	0
+
+WITH daily_agg_gaps AS (
+SELECT 
+	d.trade_date,
+	d.weekday ,
+	d.high - d.low AS daily_range,
+	r.fh_high - r.fh_low AS fh_range,
+	(r.fh_high - r.fh_low) / (d.high - d.low) AS fh_pct_of_day,
+	CASE WHEN r.r_close > r.r_open THEN 1 ELSE 0 END AS rest_bullish,
+	CASE WHEN d.OPEN > LAG(d.CLOSE) OVER (ORDER BY d.trade_date) THEN 'gap_up' ELSE 'gap_down' END AS gap_direction,
+	abs(d.OPEN - (LAG(d.CLOSE) OVER (ORDER BY d.trade_date))) AS gap_size,
+	ROUND(abs((d.CLOSE - d.low) / (d.high - d.low))::NUMERIC * 100, 2) AS close_location,
+	CASE WHEN d.CLOSE > d.OPEN THEN 'bullish' ELSE 'bearish' END AS day_direction
+FROM nq_data.daily_ohlcv_rth d
+JOIN nq_data.rth_firsthour_rest_ohlc_ranges r ON d.trade_date = r.trade_date
+),
+ntile_agg AS (
+SELECT 
+	*,
+	ntile(3) OVER (ORDER BY gap_size) AS gap_bucket
+FROM daily_agg_gaps
+)
+SELECT 
+	gap_bucket,
+	gap_direction,
+	COUNT(*),
+	ROUND(AVG(gap_size), 2) AS avg_gap_size,
+	ROUND(AVG(fh_range), 2) AS avg_fh_range,
+	ROUND(AVG(daily_range), 2) AS avg_full_day_range,
+	ROUND(AVG(fh_pct_of_day), 2) AS avg_fh_pct_of_day,
+	ROUND(COUNT(*) FILTER (WHERE close_location > 50) / COUNT (*)::NUMERIC * 100, 2) AS pct_closed_upper_half,
+	ROUND(sum(rest_bullish) / COUNT(*)::NUMERIC * 100, 2) AS rest_bullish_pct
+FROM ntile_agg
+WHERE gap_size IS NOT NULL
+GROUP BY gap_bucket, gap_direction
+
+gap_bucket	gap_direction	count	avg_gap_size	avg_fh_range	avg_full_day_range	avg_fh_pct_of_day	pct_closed_upper_half	rest_bullish_pct
+2	gap_down	35	117.94	219.65	362.36	0.62	68.57	60
+3	gap_up	34	292.14	186.32	331.91	0.62	44.12	50
+2	gap_up	27	112.92	194.95	327.02	0.63	48.15	48.15
+1	gap_down	26	29.13	176.38	286.35	0.64	61.54	61.54
+1	gap_up	36	34.15	166.98	291.76	0.65	55.56	44.44
+3	gap_down	27	308.74	265.06	431.96	0.63	77.78	85.19
+
+
+WITH daily_agg_gaps AS (
+SELECT 
+	d.trade_date,
+	d.weekday ,
+	d.high - d.low AS daily_range,
+	r.fh_high - r.fh_low AS fh_range,
+	(r.fh_high - r.fh_low) / (d.high - d.low) AS fh_pct_of_day,
+	CASE WHEN r.r_close > r.r_open THEN 1 ELSE 0 END AS rest_bullish,
+	CASE WHEN d.OPEN > LAG(d.CLOSE) OVER (ORDER BY d.trade_date) THEN 'gap_up' ELSE 'gap_down' END AS gap_direction,
+	abs(d.OPEN - (LAG(d.CLOSE) OVER (ORDER BY d.trade_date))) AS gap_size,
+	ROUND(abs((d.CLOSE - d.low) / (d.high - d.low))::NUMERIC * 100, 2) AS close_location,
+	CASE WHEN d.CLOSE > d.OPEN THEN 'bullish' ELSE 'bearish' END AS day_direction
+FROM nq_data.daily_ohlcv_rth d
+JOIN nq_data.rth_firsthour_rest_ohlc_ranges r ON d.trade_date = r.trade_date
+),
+ntile_agg AS (
+SELECT 
+	*,
+	ntile(3) OVER (ORDER BY gap_size) AS gap_bucket
+FROM daily_agg_gaps
+WHERE weekday = 'Friday'
+)
+SELECT 
+	gap_bucket,
+	gap_direction,
+	COUNT(*),
+	ROUND(AVG(gap_size), 2) AS avg_gap_size,
+	ROUND(AVG(fh_range), 2) AS avg_fh_range,
+	ROUND(AVG(daily_range), 2) AS avg_full_day_range,
+	ROUND(AVG(fh_pct_of_day), 2) AS avg_fh_pct_of_day,
+	ROUND(COUNT(*) FILTER (WHERE close_location > 50) / COUNT (*)::NUMERIC * 100, 2) AS pct_closed_upper_half,
+	ROUND(sum(rest_bullish) / COUNT(*)::NUMERIC * 100, 2) AS rest_bullish_pct
+FROM ntile_agg
+WHERE gap_size IS NOT NULL
+GROUP BY gap_bucket, gap_direction
+
+gap_bucket	gap_direction	count	avg_gap_size	avg_fh_range	avg_full_day_range	avg_fh_pct_of_day	pct_closed_upper_half	rest_bullish_pct
+1	gap_down	2	37.25	246.38	350	0.7	100	0
+2	gap_down	7	133.04	247.04	379.5	0.64	71.43	57.14
+1	gap_up	10	39.08	171.98	339.13	0.7	50	40
+3	gap_down	6	321.33	298.75	492.17	0.62	66.67	66.67
+3	gap_up	5	252.8	177.7	315.55	0.58	60	60
+2	gap_up	5	112.85	184.6	338.2	0.56	20	40
 
 ---
 
 ## Submission Instructions
 
-Paste your queries and results. Log query IDs: RTH-GLOB-007b, RTH-VOL-019.
+Paste your queries and results. Log query IDs: RTH-CLOSE-003, RTH-FH-007.

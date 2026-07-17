@@ -387,6 +387,31 @@
 
 ## Close Location in Range
 
+### RTH-CLOSE-003 — Close Location × Gap Direction × Day Direction × Weekday
+**Query ID:** RTH-CLOSE-003 | Task date: 2026-07-17
+**Method:** `daily_ohlcv_rth`. close_location = ROUND(ABS((close - low) / (high - low)) * 100, 2). gap_direction = CASE WHEN open > LAG(close) THEN 'gap_up' ELSE 'gap_down' END. day_direction = CASE WHEN close > open THEN 'bullish' ELSE 'bearish' END. Grouped by weekday, gap_direction, day_direction. WHERE gap_size IS NOT NULL (excludes first day).
+
+**Selected key cells (complete table in tasks.md):**
+
+| Weekday | Gap | Day Dir | N | Avg Close Loc | Pct Upper Half | Avg Full Day Range |
+|---|---|---|---|---|---|---|
+| Friday | gap_down | bullish | 11 | 75.78% | 100% | 428.77 |
+| Friday | gap_down | bearish | 4 | 19.40% | 0% | — |
+| Friday | gap_up | bullish | 10 | 74.80% | 90% | — |
+| Friday | gap_up | bearish | 10 | 25.97% | 0% | — |
+| Tuesday | gap_down | bullish | 14 | 83.73% | 100% | — |
+| Tuesday | gap_down | bearish | 7 | 34.80% | — | — |
+| Monday | gap_down | bullish | 14 | 78.66% | 92.86% | — |
+| Wednesday | gap_down | bearish | 5 | 43.89% | — | — |
+
+**Findings:**
+- **Bullish days universally close at 75–84% of daily range** — regardless of weekday or gap direction. If the day is bullish, it closes high. Tuesday gap_down bullish is the extreme (83.73%, 100% in upper half); Friday gap_down bullish is also very high (75.78%, 100%). There are no bullish outliers — every weekday × gap combination shows 73–84% close location on bullish days.
+- **Bearish days universally close at 19–35% of daily range, 0% in upper half** — equally universal. If the day is bearish, it closes near its low regardless of gap direction or weekday. The exception is Wednesday gap_down bearish at 43.89% — closes near the middle rather than near the low. May reflect FOMC-driven stabilization.
+- **Friday gap_down bullish: N=11, 75.78%, 100% upper half, avg range 428.77 pts** — Friday gap-down that resolves bullish has the widest range in the dataset (~100 pts above the Friday average of 373 pts). When Friday gaps down but closes bullish, it's a high-range reversal day — the gap-down creates the wide range, not an expansion from a tight open.
+- **Wednesday gap_down bearish: N=5, 43.89%** — the lone exception to the bearish close-near-low rule. Gap-down Wednesday bearish days close near the middle, not the low. May indicate indecision after failed gap-down follow-through, possibly FOMC-adjacent.
+- **Practical implication:** Close location is almost entirely determined by day direction, not by weekday or gap. Once you know the day is bullish, target the 75–84% range close as the exit level. Once bearish, expect 19–35% close — except Wednesday gap_down bearish which closes near the midpoint.
+- **Day direction × close location is a near-identity relationship** — this finding is useful for target-setting rather than prediction.
+
 ### RTH-CLOSE-002 — Close Location in Day's Range by Weekday
 **Query ID:** RTH-CLOSE-002 | Task date: 2026-06-09
 
@@ -438,6 +463,54 @@
 - Monday and Tuesday have the most bullish first hours (64%/62%) — Monday's bullish open is consistent with its strong close-to-close drift (+114 avg)
 - Friday and Thursday have the highest avg FH ranges (~215 pts) — more volatile openings, consistent with being the highest full-day range weekdays (RTH-RANGE-001)
 - Monday/Tuesday/Wednesday have nearly identical avg FH ranges (~190 pts) — similar opening volatility despite different directional biases
+
+### RTH-FH-007b — Gap Size Bucket × Gap Direction → FH Range and Day Character (All Days)
+**Query ID:** RTH-FH-007b | Task date: 2026-07-17
+**Method:** Same as RTH-FH-007 but without Friday filter — all RTH days. `daily_agg_gaps` CTE: JOIN `daily_ohlcv_rth` d to `rth_firsthour_rest_ohlc_ranges` r. gap_size = ABS(open - LAG(close)). NTILE(3) OVER (ORDER BY gap_size) = gap_bucket. Output: gap_bucket, gap_direction, count, avg_gap_size, avg_fh_range, avg_full_day_range, avg_fh_pct_of_day, pct_closed_upper_half, rest_bullish_pct.
+
+| Gap Bucket | Gap Dir | N | Avg Gap | Avg FH Range | Avg Day Range | FH % of Day | Pct Upper Half | Rest Bullish |
+|---|---|---|---|---|---|---|---|---|
+| 3 (large) | gap_down | 27 | 309 pts | **265 pts** | **432 pts** | 63% | 77.78% | **85.19%** |
+| 3 (large) | gap_up | 34 | 292 pts | 186 pts | 332 pts | 62% | 44.12% | 50.00% |
+| 2 (medium) | gap_down | 35 | 118 pts | 220 pts | 362 pts | 62% | 68.57% | 60.00% |
+| 2 (medium) | gap_up | 27 | 113 pts | 195 pts | 327 pts | 63% | 48.15% | 48.15% |
+| 1 (small) | gap_down | 26 | 29 pts | 176 pts | 286 pts | 64% | 61.54% | 61.54% |
+| 1 (small) | gap_up | 36 | 34 pts | 167 pts | 292 pts | 65% | 55.56% | 44.44% |
+
+**Bucket thresholds (approx):** small < ~75 pts, medium ~75–180 pts, large > ~180 pts.
+
+**Findings:**
+- **FH range is monotonically related to gap size on gap-down days: large=265, medium=220, small=176 pts** — each bucket adds ~45 pts of FH range. Larger gap-down = wider first hour. The gap energy translates directly into FH volatility.
+- **Gap-down large gap (bucket 3) → 85.19% rest bullish** — the strongest rest-bullish rate in the entire dataset across all stacked combinations. When NQ gaps down hard (avg 309 pts), the morning session is wide (265 pt FH) and the afternoon resolves bullishly 85% of the time. Large gap-down is a buy setup, not a short signal.
+- **Gap-up large gap (bucket 3) → 50.00% rest bullish** — coin flip. Large gap-ups produce tighter FH ranges (186 pts) than large gap-downs despite similar gap magnitude. No afternoon edge. Consistent with RTH-GAP-003 (large gap-up: only 38% bullish close).
+- **Gap direction creates a 35pp spread on large gaps: 85% gap-down vs 50% gap-up** — direction dominates at high gap magnitudes. At small gaps the spread is only ~17pp (62% gap-down vs 44% gap-up).
+- **FH % of day is consistent across all cells (~62–65%)** — gap size and gap direction don't change how much of the day's range the first hour captures. The FH captures ~63% of the day regardless. What changes is the absolute size.
+- **Close location confirms direction:** large gap-down has 77.78% upper half closes; large gap-up only 44.12%. Gap magnitude × direction predicts the day's close location.
+- **Practical pre-open checklist:** Check yesterday's close for gap size bucket. Large gap-down (>180 pts) → expect wide FH (~265 pts), wide day (~432 pts), 85% rest bullish. Large gap-up (>180 pts) → expect tighter FH (~186 pts), narrower day (~332 pts), 50% rest bullish (no edge).
+
+### RTH-FH-007 — Gap Size Bucket × Gap Direction → FH Range and Day Character (Fridays)
+**Query ID:** RTH-FH-007 | Task date: 2026-07-17
+**Method:** Same as RTH-FH-007b, but NTILE(3) computed within Friday-only population (WHERE weekday = 'Friday' in ntile_agg CTE). 30 Friday observations total (after gap_size IS NOT NULL filter).
+
+| Gap Bucket | Gap Dir | N | Avg Gap | Avg FH Range | Avg Day Range | FH % of Day | Pct Upper Half | Rest Bullish |
+|---|---|---|---|---|---|---|---|---|
+| 3 (large) | gap_down | 6 | 321 pts | **299 pts** | **492 pts** | 62% | 66.67% | 66.67% |
+| 2 (medium) | gap_down | 7 | 133 pts | 247 pts | 380 pts | 64% | 71.43% | 57.14% |
+| 1 (small) | gap_down | 2 | 37 pts | 246 pts | 350 pts | 70% | 100% | 0% |
+| 3 (large) | gap_up | 5 | 253 pts | 178 pts | 316 pts | 58% | 60% | 60.00% |
+| 2 (medium) | gap_up | 5 | 113 pts | 185 pts | 338 pts | 56% | 20% | 40.00% |
+| 1 (small) | gap_up | 10 | 39 pts | 172 pts | 339 pts | 70% | 50% | 40.00% |
+
+**Note:** N is small for Friday-only cells (2–10 days). Direction is consistent with the all-days finding but treat with extra caution.
+
+**Findings:**
+- **Friday large gap-down (N=6): avg FH 299 pts, avg day 492 pts** — the widest day profile in the Friday dataset by a large margin (+120 pts above Friday's avg 370 pts). Large Friday gap-downs produce extraordinary range days. The 6 days with avg 321 pt gap-down produce avg 492 pt full sessions — nearly 2 standard deviations above the Friday mean.
+- **Friday gap-down FH range monotonically decreasing: 299 (large) → 247 (medium) → 246 (small)** — same monotonic relationship as the all-days finding, but the levels are higher on Friday than the all-days benchmark (299 vs 265 for large bucket). Fridays amplify the gap→FH range relationship.
+- **Friday large gap-down rest bullish: 66.67% (N=6)** — lower than the all-days 85.19% for the same bucket. Friday's position-squaring dynamics partially offset the mean-reversion tendency. Still a buy setup but with less conviction than Mon-Thu.
+- **Friday small gap-down (N=2): 0% rest bullish** — tiny sample, directionally interesting (small gap-down Fridays don't bounce as reliably), but 2 days is not meaningful.
+- **Friday gap-up (all buckets): rest bullish 40–60%, no strong directional signal** — consistent with Friday's structural coin-flip character (RTH-CLOSE-001: +5.55 avg, 60% up). No gap_up bucket shows clear directional edge on Friday.
+- **Friday medium gap-up (N=5): only 20% closed upper half** — unusual. Medium gap-up Fridays tend to close near the bottom of their range. Small but directionally consistent with gap-up = fade on Fridays.
+- **Friday positioning rule:** Large gap-down Friday = size up for a wide day (avg 492 pts) with a moderate long bias (67% rest bullish). Gap-up Friday regardless of size = no directional edge, prepare for a coin-flip afternoon.
 
 ### RTH-FH-006 — FH Range Size vs Rest-of-Session Range
 **Query ID:** RTH-FH-006 | Task date: 2026-06-30

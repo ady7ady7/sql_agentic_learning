@@ -6,6 +6,125 @@
 
 ---
 
+## Intraday Snapshot Predictability
+
+### RTH-INTRA-001b — Intraday Snapshot Direction → Close Prediction, by Weekday
+**Query ID:** RTH-INTRA-001b | Task date: 2026-07-20
+**Method:** `rth_15min_buckets_agg` joined to `daily_ohlcv_rth` on trade_date. For each bucket: `above_open` = bucket_close > rth_open; `close_above_snapshot` = rth_close > bucket_close; `close_same_dir_pct` = % where close confirmed the snapshot direction (above_open=TRUE → close > snapshot; above_open=FALSE → close < snapshot). Grouped by weekday × bucket_window × above_open. All RTH buckets 10:00–15:30. Note: 15:45 bucket is an artefact (bucket ≈ close price) — excluded from findings.
+
+**How to read:** `close_same_dir_pct` answers "if I know price is above/below the open at time T, how often does close confirm that direction?" Values above 60% = actionable signal. Values below 45% = inverse signal (fade the current direction).
+
+---
+
+**Monday — buy below open, any time before noon**
+
+| Time | Below open: same_dir | Above open: same_dir |
+|---|---|---|
+| 10:00 | 66.67% (N=15) | **75%** (N=24) |
+| 10:30 | 40% | **79.17%** (N=24) |
+| 10:45 | **13.33%** (N=15) | 62.5% |
+| 11:00 | 42.86% | **76%** (N=25) |
+| 11:15–11:30 | 21–28% | 56–60% |
+| 14:00–15:00 | 18–41% | 30–47% |
+
+- **Monday below open at 10:45: only 13.33% same_dir (N=15)** — the strongest mean-reversion cell in the full dataset. When Monday is below its open at 10:45, it closes above the open 87% of the time. `close_above_snapshot` = 86.67% — close also ends up above the 10:45 price 87% of the time. **Buy signal.**
+- **Monday below open at 15:00: 18.18% same_dir (N=11)** — even this late, being below open on Monday almost never confirms as a bearish close. The bullish drift is structural and persistent all session.
+- **Monday above open at 10:00–11:00: 75–79% same_dir** — if Monday opens and stays above the open through the first hour, the close confirms 75–79% of the time. Strong early lock-in on the bullish side.
+- **Afternoon decays:** above-open Monday drops to 30–47% same_dir from 14:00 onwards — Monday direction only "locks in" reliably in the 10:00–11:00 window. After that the signal weakens.
+- **Practical rule: If Monday is below its open at any point between 10:00 and 11:30 — it's a buy. The below-open state on Monday is not a bearish signal; it's a setup for the structural rally.**
+
+---
+
+**Thursday — below open all day, but it mean-reverts**
+
+| Time | Below open: same_dir | Above open: same_dir |
+|---|---|---|
+| 10:00 | 37.04% (N=27) | 41.67% (N=12) |
+| 11:00 | 32.14% (N=28) | 45.45% (N=11) |
+| 13:15 | 39.29% (N=28) | **77.78%** (N=9) |
+| 14:15–14:45 | 37–48% | **80%** (N=10) |
+
+- **Thursday is below the open most of the session** (27 vs 12 days at 10:00, 28 vs 9 at 11:00) — consistent with Thursday's structural fade (FH sets HOD 54.8%). But this bearish intraday state barely confirms at close: same_dir only 32–46% for the below-open arm throughout the day.
+- **`close_above_snapshot` when below open: 54–68%** through 10:00–13:00 — when Thursday is below open, the close still ends up *above the snapshot price* more often than not. Thursday is structurally mean-reverting from intraday lows despite being the weakest close-to-close weekday (-90 avg).
+- **Thursday above open at 13:15–14:45: 77–80% same_dir (N=9–10)** — if Thursday manages to get above its open in early-to-mid afternoon, that direction tends to hold to close. Small samples but consistent.
+- **Practical rule: Thursday below open in the morning is NOT a continuation short — it mean-reverts 54–68% of the time at the snapshot level. If Thursday gets above its open after 13:00, that's a genuine close signal (80%).**
+
+---
+
+**Tuesday — fade the morning, follow the afternoon**
+
+| Time | Below open: same_dir | Above open: same_dir |
+|---|---|---|
+| 10:00–10:30 | 26–35% | 50–58% |
+| 11:00–12:00 | 41–50% | 57–61% |
+| 13:00–14:00 | 56–64% | 43–56% |
+| 14:15–15:15 | 60–64% | 48–54% |
+| 15:30 | 43.75% | **34.78%** |
+
+- **Below-open Tuesday morning (10:00–10:30): 26–35% same_dir** — being below open in the first hour on Tuesday almost never confirms as bearish close. `close_above_snapshot` = 64–73% — closes above the snapshot 2/3 of the time. This is the agree-bearish → afternoon recovery pattern confirmed at the snapshot level (RTH-ORB-006: 75% rest bullish on agree-bearish Tuesday).
+- **Signal reverses after 13:00: below-open same_dir rises to 56–64%** — being below open in the afternoon on Tuesday does tend to stick. **Morning below-open = fade; afternoon below-open = follow.**
+- **Above-open Tuesday late: 15:30 same_dir only 34.78% (N=23)** — being above open at 15:30 on Tuesday doesn't confirm. Late Tuesday selling undercuts intraday highs into close.
+- **Practical rule: Tuesday below open before 11:00 = buy the reversal. Tuesday below open after 13:00 = respect it as bearish. Above open on Tuesday = no strong edge either direction.**
+
+---
+
+**Wednesday — above open is a persistent bullish signal until 14:30**
+
+| Time | Below open: same_dir | Above open: same_dir |
+|---|---|---|
+| 10:30 | 50% | **65%** (N=20) |
+| 11:00 | 52.94% | **76.47%** (N=17) |
+| 11:15 | 46.67% | **68.42%** (N=19) |
+| 13:30 | 29.41% | **62.5%** (N=16) |
+| 14:15 | 29.41% | **62.5%** (N=16) |
+| 15:15 | 46.67% | **33.33%** (N=18) |
+
+- **Wednesday above open at 11:00: 76.47% same_dir (N=17)** — strongest sustained signal on Wednesday. If Wednesday is trading above the open at 11:00, it closes above the open 76% of the time. The bullish confirmation holds from 10:30 all the way through 14:15 (62–76%).
+- **Below-open Wednesday: consistently 29–52%** — no clean signal. Below open on Wednesday doesn't reliably predict a bearish close.
+- **Late collapse: above-open Wednesday at 15:15 drops to 33.33% (N=18)** — direction does NOT lock in in the final 45 minutes on Wednesday. FOMC-day late reversals are the likely driver. Do not count on Wednesday bullish direction holding through the last 45 minutes.
+- **Practical rule: Wednesday above open at 11:00–14:15 = hold longs, 62–76% close confirmation. Exit or take partial before 15:15 — the final hour is unreliable.**
+
+---
+
+**Friday — above open fades, below open holds**
+
+| Time | Below open: same_dir | Above open: same_dir |
+|---|---|---|
+| 10:00 | 58.33% (N=12) | 65.22% (N=23) |
+| 10:30 | **69.23%** (N=13) | 54.55% |
+| 11:15 | **64.29%** (N=14) | 38.10% |
+| 12:00 | **69.23%** (N=13) | 40.91% |
+| 14:30 | **85.71%** (N=14) | 42.11% |
+| 14:45 | **84.62%** (N=13) | 35% |
+| 15:00 | **85.71%** (N=14) | 42.11% |
+
+- **Friday above open by 10:45: same_dir only 39% (N=23)** — being above open on Friday by mid-morning is a fade signal, not a continuation. `close_above_snapshot` = 39% means the close ends up below that price 61% of the time. **The Friday morning rally does not hold.**
+- **Friday below open at 14:30–15:00: 84–86% same_dir (N=13–14)** — the strongest sustained same_dir reading for any weekday × direction combination in the afternoon session. Once Friday is below the open after 14:30, it almost never recovers to close above. Position squaring locks it in.
+- **By 11:00–12:00, below-open Friday same_dir already at 69%** — direction locks in much earlier on the bearish side than the bullish side on Fridays.
+- **Practical rule: If Friday is above its open at 10:30–11:30, that's the short signal (60% chance the close ends up below that price). If Friday is below its open at any point after 10:30, respect it — 64–86% chance it closes below open. The later in the session, the more locked-in the bearish direction is.**
+
+---
+
+### RTH-INTRA-001 — Intraday Snapshot Direction → Close Prediction, All Days Aggregate
+**Query ID:** RTH-INTRA-001 | Task date: 2026-07-20
+**Method:** Same as RTH-INTRA-001b without weekday grouping. 186 trading days, all 15-min buckets 10:00–15:30.
+
+| Zone | above_open=TRUE: same_dir | above_open=FALSE: same_dir |
+|---|---|---|
+| 10:00–10:30 | 58–61% | 41–49% |
+| 11:00–12:00 | 50–65% | 39–47% |
+| 12:00–14:00 | 43–53% | 43–54% |
+| 14:00–15:30 | 45–51% | 44–55% |
+
+**Findings:**
+- **Direction does NOT lock in through the day at the aggregate level.** Predictability peaks at 10:00–10:30 (61%) and never recovers. By 12:00 onward it's near-random (43–53%). There is no "mid-session lock-in" in the aggregate — the concept only exists at the weekday level.
+- **Above-open arm is always stronger than below-open arm** (e.g. 61% vs 41–49% at 10:00) — NQ's bullish bias means being above open has more follow-through than being below open, even when the below-open signal is theoretically symmetric.
+- **14:00 inversion:** `above_open=TRUE` same_dir drops to 43.48% at 14:00 — mid-afternoon being above open is slightly a fade. Midday buyers get squeezed into the close.
+- **The aggregate obscures everything useful.** The weekday-level findings (RTH-INTRA-001b) are where the edge is. At the aggregate level, the only actionable window is 10:00–10:30, and even there the signal (61%) is weaker than the FH/OR series already captured.
+- **Practical implication:** Do not use "price vs open" as a standalone intraday signal without weekday context. The same "above open at 12:00" situation is a hold signal on Wednesday (53% same_dir), a sell signal on Friday (41%), and noise on Tuesday (57%). Weekday is the necessary filter.
+
+---
+
 ## Volume & Aggressor Pressure
 
 ### RTH-VOL-019b — OR × FH Delta Combined Signal → Weekday Breakdown

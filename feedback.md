@@ -1,3 +1,13 @@
+## Week 30, Day 6 — Agent Feedback on Student
+
+**Score: 17/20**
+
+**Task A (RTH-INTRA-001):** Architecture clean — CTE pattern correct, JOIN on `bucket_start::date` correct, FILTER syntax right. Key bug: `HH:MI` instead of `HH24:MI` in TO_CHAR truncated results to 10:00–12:59 only (13:00 formatted as "01:00", filtered out by `>= '10:00'`). Fixed immediately on second run. Finding: aggregate direction does NOT lock in through the day — signal peaks at 10:00–10:30 (61%) and decays to near-random by 12:00. The aggregate hides everything useful. 8/10.
+
+**Task B (RTH-INTRA-001b):** Same fix applied correctly, weekday extension clean. Strong findings: Monday 10:45 below-open = 87% close-above-snapshot (strongest mean-reversion cell in dataset); Friday above-open by 10:30 = fade signal (39–41% same_dir by 10:45–12:00); Wednesday above-open 11:00–14:15 = 62–76% close confirmation; Thursday below-open doesn't confirm (54–68% close above snapshot); Tuesday morning below-open = fade, afternoon below-open = follow. Self-initiated extension with genuine insight. 9/10.
+
+---
+
 ## Week 30, Day 5 — Agent Feedback on Student
 
 **Score: 17/20 + bonus Friday extension**

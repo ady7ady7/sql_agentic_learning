@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-07-20 (Week 30, Day 6) — Score: 17/20
+
+**Task A (RTH-INTRA-001):** Intraday snapshot → close prediction, all days. 8/10 — architecture correct, bug: HH:MI instead of HH24:MI truncated results to 10:00–12:59. Fixed on second run. Key finding: aggregate direction does not lock in through the day — 10:00–10:30 is the only meaningful window (61%), decays to coin flip by midday.
+
+**Task B (RTH-INTRA-001b):** Weekday breakdown. 9/10 — clean extension. Key findings: Monday 10:45 below-open → 87% close above snapshot (strongest mean-reversion cell); Friday above-open by 10:45 → fade (39% same_dir); Wednesday above-open 11:00–14:15 → 62–76% confirmation; Thursday below-open doesn't confirm bearish (54–68% close above snapshot); Tuesday morning below-open = fade, afternoon below-open = follow.
+
+---
+
 ### Task Archive: 2026-07-17 (Week 30, Day 5) — Score: 17/20
 
 **Task 1 (RTH-CLOSE-003):** Close location × gap × day direction × weekday. 9/10 — query clean, FILTER syntax correct. Key: day direction is near-sole determinant of close location (bullish → 75-84% of range, bearish → 19-35%). Wednesday gap_down bearish = exception at 43.89%. Friday gap_down bullish = widest range avg (428 pts), 100% closed upper half.

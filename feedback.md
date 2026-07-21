@@ -1,3 +1,13 @@
+## Week 31, Day 2 — Agent Feedback on Student
+
+**Score: 17/20**
+
+**Task A (RTH-INTRA-002):** Structurally clean — CTE pattern correct, LAG computed inside CTE before JOIN (no window contamination), HH24:MI correct (no repeat of Day 1 bug), HAVING COUNT(*) ≥ 5 added without prompting. The `above_open = close_above_snapshot` equality check for `close_same_dir_pct` is logically sound for PostgreSQL booleans. Results show striking asymmetry: Tuesday gap_up above open = 0% same_dir across every cell with sufficient N (10:00 through 11:00 and beyond) — essentially no false positives. Complementary cells (Tuesday gap_down above open = 78–93%) confirm the gap direction is the decisive variable. Monday gap_down above open at 10:15–10:30 = 85–90% (N=21), the dataset's highest-confidence large-N finding. 9/10 — deduction for not adding a `day_count` alias on COUNT(*) as specified, and for not commenting on the 15:45 artefact row behavior.
+
+**Task B (RTH-INTRA-002b):** Clean filter — `WHERE bucket_window IN ('10:30', '11:00', '12:00', '13:00', '14:00')` applied correctly, same CTE logic. No structural issues. This version confirms all RTH-INTRA-002 findings with higher N per cell and cleaner signal. Thursday gap_down below open = 0% same_dir (100% close above snapshot) at every window from 10:30–14:00 — consistent and notable. Tuesday gap_up above open N is small (5–8) but the 0% rate is absolute and consistent across multiple windows. Monday gap_down collapses from 90% at 10:30 to 33% at 14:00 — correctly captured. 8/10 — same COUNT(*) alias issue, and the brief for findings could have been more explicit about the edge decay timing.
+
+---
+
 ## Week 31, Day 1 — Agent Feedback on Student
 
 **Score: 17/20**

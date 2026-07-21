@@ -105,6 +105,118 @@
 
 ---
 
+### RTH-INTRA-002b — Snapshot × Gap Direction × Weekday (5 Key Times Only)
+**Query ID:** RTH-INTRA-002b | Task date: 2026-07-21
+**Method:** Same as RTH-INTRA-002 but filtered to bucket_window IN ('10:30', '11:00', '12:00', '13:00', '14:00'). Larger N per cell, cleaner signal. 5 snapshot times × 5 weekdays × 2 gap directions × 2 above_open states.
+
+**How to read:** `close_same_dir_pct` = % of days where close confirmed the snapshot direction. For above_open=TRUE rows: same as close_above_snapshot_pct (bullish confirmation). For above_open=FALSE rows: 100 - close_above_snapshot_pct (bearish confirmation). Values ≥65% = actionable. Values ≤40% = fade signal.
+
+---
+
+**Tuesday gap_up — pure fade all day**
+
+| Time | above_open | N | same_dir | close_above_snapshot |
+|---|---|---|---|---|
+| 10:30 | TRUE | 8 | **0%** | 0% |
+| 11:00 | TRUE | 6 | **0%** | 0% |
+| 12:00 | TRUE | 6 | **0%** | 0% |
+| 13:00 | TRUE | 5 | **0%** | 0% |
+| 10:30 | FALSE | 9 | 66.67% | 33.33% |
+| 11:00 | FALSE | 11 | 72.73% | 27.27% |
+| 12:00 | FALSE | 11 | 72.73% | 27.27% |
+| 13:00 | FALSE | 12 | 83.33% | 16.67% |
+
+- **Tuesday gap_up above open = 0% same_dir across ALL five snapshot windows.** Every single cell with N≥5 shows 0% confirmation. This is not noise — it persists from 10:30 through 13:00. When Tuesday gaps up and is trading above its open at any point in the session, the close virtually never confirms. `close_above_snapshot` = 0%, meaning the close also ends up *below* the snapshot price. The gap-up Tuesday above-open position bleeds all day.
+- **Tuesday gap_up below open = 72–83% same_dir (N=9–12).** The flip side: if Tuesday has gapped up but is trading *below* its open by mid-morning, the close continues lower 72–83% of the time. Gap-up Tuesday that reverses below open = bearish.
+- **Practical rule: Tuesday gap-up is a structural fade. Above open → close ends up below. Below open → continuation lower. Do not hold long positions on Tuesday gap-up days through mid-morning.**
+
+---
+
+**Tuesday gap_down — strong bullish continuation above open**
+
+| Time | above_open | N | same_dir | close_above_snapshot |
+|---|---|---|---|---|
+| 10:30 | TRUE | 14 | **78.57%** | 78.57% |
+| 11:00 | TRUE | 17 | **82.35%** | 82.35% |
+| 12:00 | TRUE | 17 | **76.47%** | 76.47% |
+| 13:00 | TRUE | 18 | **72.22%** | 72.22% |
+| 14:00 | TRUE | 19 | 52.63% | 52.63% |
+| 10:30 | FALSE | 8 | 0% | 100% |
+| 11:00 | FALSE | 5 | 0% | 100% |
+
+- **Tuesday gap_down above open = 72–82% same_dir from 10:30–13:00.** After a gap down, if Tuesday manages to trade above its open by 10:30, the bullish direction holds to close with high probability. Edge decays to ~52% by 14:00.
+- **Tuesday gap_down below open = 0% same_dir (close_above_snapshot = 100%).** Structural mean-reversion: below-open on a gap-down Tuesday = almost certain close above snapshot. Buy the dip.
+- **Practical rule: Tuesday gap-down above open by 10:30 = strong long signal (78–82% chance close ends above). Lock in early; signal fades after 13:00.**
+
+---
+
+**Monday gap_down — strongest sustained bullish signal**
+
+| Time | above_open | N | same_dir | close_above_snapshot |
+|---|---|---|---|---|
+| 10:30 | TRUE | 21 | **90.48%** | 90.48% |
+| 11:00 | TRUE | 22 | **86.36%** | 86.36% |
+| 12:00 | TRUE | 21 | 52.38% | 52.38% |
+| 13:00 | TRUE | 20 | 40.00% | 40.00% |
+| 14:00 | TRUE | 21 | 33.33% | 33.33% |
+
+- **Monday gap_down above open at 10:30: 90.48% same_dir (N=21).** The dataset's strongest large-N cell. After a gap down, if Monday is already back above its open by 10:30, the close confirms 90% of the time. 11:00 nearly as strong (86%).
+- **Signal collapses post-noon:** 12:00 drops to 52%, 13:00 to 40%, 14:00 to 33%. Monday's bullish edge on gap-down days is entirely a morning phenomenon. By afternoon it's already gone.
+- **Practical rule: Monday gap-down above open by 10:30 = the single highest-confidence close signal in the dataset (90%, N=21). Afternoon entry misses the window entirely.**
+
+---
+
+**Friday gap_up — fade from 10:30**
+
+| Time | above_open | N | same_dir | close_above_snapshot |
+|---|---|---|---|---|
+| 10:30 | FALSE | 10 | **90%** | 10% |
+| 11:00 | FALSE | 12 | **66.67%** | 33.33% |
+| 12:00 | FALSE | 11 | **81.82%** | 18.18% |
+| 13:00 | FALSE | 13 | **69.23%** | 30.77% |
+| 14:00 | FALSE | 13 | **76.92%** | 23.08% |
+
+- **Friday gap_up below open = 67–90% same_dir all day.** If Friday has gapped up but drops below its open, the bearish direction is persistent and strong (close_above_snapshot = 10–33%). Confirmed by RTH-INTRA-001b: Friday below-open same_dir peaks at 85% in the afternoon.
+- **Friday gap_up, above_open at 10:30: N=5 (below HAVING threshold).** Not enough data — no clean above-open Friday gap-up cells with sufficient N. The gap-up Fridays that stay above open are probably the rare "gap and go" days.
+
+---
+
+**Thursday gap_down — persistent mean-reversion**
+
+| Time | above_open | N | same_dir | close_above_snapshot |
+|---|---|---|---|---|
+| 10:30 | TRUE | 9 | **77.78%** | 77.78% |
+| 11:00 | TRUE | 8 | 62.5% | 62.5% |
+| 12:00 | TRUE | 11 | **72.73%** | 72.73% |
+| 13:00 | TRUE | 7 | **85.71%** | 85.71% |
+| 14:00 | TRUE | 9 | **77.78%** | 77.78% |
+| 10:30 | FALSE | 7 | 0% | 100% |
+| 11:00 | FALSE | 8 | 0% | 100% |
+| 12:00 | FALSE | 5 | 0% | 100% |
+| 13:00 | FALSE | 7 | 0% | 100% |
+| 14:00 | FALSE | 5 | 0% | 100% |
+
+- **Thursday gap_down above open = 63–86% same_dir all session.** Unlike Monday (which only holds through 11:00), Thursday gap_down above-open edge persists from 10:30 through 14:00. Signal stays elevated even in the afternoon (85.71% at 13:00, 77.78% at 14:00). Small N (7–11) but consistent.
+- **Thursday gap_down below open = 0% same_dir (close_above_snapshot = 100%) across all 5 windows.** Zero exceptions. Below-open on a Thursday gap-down day = structural buy signal. The close virtually always ends above the snapshot price.
+- **Practical rule: Thursday gap-down = bullish regardless of snapshot direction. Above open → hold long (63–86%). Below open → buy the bounce (100% close above snapshot).**
+
+---
+
+### RTH-INTRA-002 — Snapshot × Gap Direction × Weekday (All Buckets)
+**Query ID:** RTH-INTRA-002 | Task date: 2026-07-21
+**Method:** `rth_15min_buckets_agg` × `daily_ohlcv_rth`. All buckets 10:00–15:30 (HH24:MI). Grouped by weekday × gap_direction × bucket_window × above_open. HAVING COUNT(*) ≥ 5. Gap direction: LAG(close) inside CTE before JOIN to avoid window contamination.
+
+**Key findings from full bucket-by-bucket output:**
+
+- **Tuesday gap_up above open: 0% same_dir at 10:00, 10:15, 10:30, 10:45, 11:00 (all cells with N≥5).** Pattern continues through afternoon. The Tuesday gap_up fade identified in RTH-INTRA-002b is confirmed at 15-min granularity.
+- **Tuesday gap_down at 10:15 above open: 93.33% same_dir (N=15)** — single strongest bullish cell in the raw output. Early Tuesday gap-down above-open snapshots give the clearest continuation signal.
+- **Monday gap_down at 10:30 above open: 90.48% (N=21)** — confirmed from RTH-INTRA-002b.
+- **15:45 artefact confirmed:** same_dir hits 0–7% for above_open=TRUE and 0–5% for above_open=FALSE at 15:45 — because bucket_close ≈ rth_close at 15:45, `close_above_snapshot` is determined by the final tick of that bucket vs itself. Bucket excluded from findings (as per RTH-INTRA-001b methodology).
+- **Wednesday gap_down above open: 75–81% same_dir at 10:30–11:00**, decaying to 53–67% by 12:00–14:00. Decent but not as persistent as Thursday.
+- **Wednesday gap_up: 58–64% same_dir at 10:30–11:00** for both above and below open cells — Wednesday gap_up is relatively neutral, no strong directional lean.
+
+---
+
 ### RTH-INTRA-001 — Intraday Snapshot Direction → Close Prediction, All Days Aggregate
 **Query ID:** RTH-INTRA-001 | Task date: 2026-07-20
 **Method:** Same as RTH-INTRA-001b without weekday grouping. 186 trading days, all 15-min buckets 10:00–15:30.

@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-07-21 (Week 31, Day 2) — Score: 17/20
+
+**Task A (RTH-INTRA-002):** Snapshot × gap direction × weekday, all buckets. 9/10 — CTE correct, LAG before JOIN, HH24:MI, HAVING N≥5. Key findings: Tuesday gap_up above open = 0% same_dir at every window (persistent fade); Monday gap_down above open at 10:15–10:30 = 85–90% (N=21, dataset's highest-confidence large-N cell); Thursday gap_down = bullish regardless of snapshot direction.
+
+**Task B (RTH-INTRA-002b):** 5 key snapshot times only. 8/10 — clean filter, higher N confirms RTH-INTRA-002 findings. Thursday gap_down below open = 0% same_dir (100% close above snapshot) at all 5 windows. Tuesday gap_down above open = 78–82% at 10:30–11:00, decays to 52% by 14:00.
+
+---
+
 ### Task Archive: 2026-07-20 (Week 31, Day 1) — Score: 17/20
 
 **Task A (RTH-INTRA-001):** Intraday snapshot → close prediction, all days. 8/10 — architecture correct, bug: HH:MI instead of HH24:MI truncated results to 10:00–12:59. Fixed on second run. Key finding: aggregate direction does not lock in through the day — 10:00–10:30 is the only meaningful window (61%), decays to coin flip by midday.

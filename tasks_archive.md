@@ -1,5 +1,5 @@
 
-### Task Archive: 2026-07-20 (Week 30, Day 6) — Score: 17/20
+### Task Archive: 2026-07-20 (Week 31, Day 1) — Score: 17/20
 
 **Task A (RTH-INTRA-001):** Intraday snapshot → close prediction, all days. 8/10 — architecture correct, bug: HH:MI instead of HH24:MI truncated results to 10:00–12:59. Fixed on second run. Key finding: aggregate direction does not lock in through the day — 10:00–10:30 is the only meaningful window (61%), decays to coin flip by midday.
 

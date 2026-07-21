@@ -1,4 +1,4 @@
-# NQ Project — Week 30 Day 6
+# NQ Project — Week 31 Day 1
 
 **Generated:** 2026-07-20
 **Focus:** Intraday snapshot price → close predictability (RTH-INTRA-001 + RTH-INTRA-001b)

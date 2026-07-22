@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-07-22 (Week 31, Day 3) — Score: 17/20
+
+**Task A (RTH-INTRA-003):** Snapshot × OR direction × weekday. 8/10 — dobra architektura, właściwe źródło danych, eliminacja close_same_dir_pct słuszna. Minusy: TO_CHAR zamiast natywnego weekday (naprawione TRIM w drugiej iteracji), HAVING > 5 zamiast >= 5. Findings: Monday bullish OR above open = 75% (N=20); Tuesday bearish OR above open po 13:00 = 14–25% (nowy sygnał); Friday bearish OR below open po 13:00 = 12–37%.
+
+**Task B (RTH-FH-008):** FH high location × close direction. 9/10 — NTILE(3) poprawny, operator bug na close_location naprawiony samodzielnie. Findings: bucket 3 bearish = 0% close_above_open na każdym weekdayu (najczystszy binary signal w FH series); bucket 1 bullish = 88–100%, avg_close_location 0.72–0.85 (slow-burn bullish). Follow-up: fh_high_location = 1.0 / fh_low_location = 0.0 odłożone na jutro.
+
+---
+
 ### Task Archive: 2026-07-21 (Week 31, Day 2) — Score: 17/20
 
 **Task A (RTH-INTRA-002):** Snapshot × gap direction × weekday, all buckets. 9/10 — CTE correct, LAG before JOIN, HH24:MI, HAVING N≥5. Key findings: Tuesday gap_up above open = 0% same_dir at every window (persistent fade); Monday gap_down above open at 10:15–10:30 = 85–90% (N=21, dataset's highest-confidence large-N cell); Thursday gap_down = bullish regardless of snapshot direction.

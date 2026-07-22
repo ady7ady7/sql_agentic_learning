@@ -1,3 +1,13 @@
+## Week 31, Day 3 — Agent Feedback on Student
+
+**Score: 17/20**
+
+**Task A (RTH-INTRA-003):** Dobry wybór źródła — `or_rest_ohlc_ranges` ma `or_open`/`or_close` natywnie, nie trzeba było pullować 10:00 bucket ręcznie. LAG na `r_close` przed JOIN poprawny. Kluczowa poprawa: eliminacja `close_same_dir_pct`, jedna czytelna kolumna `close_above_snapshot_pct`. Dwa minusy: `TO_CHAR(date, 'Day')` zamiast natywnego `weekday` z `daily_ohlcv_rth` (trailing spaces wykryte i naprawione TRIM-em w drugiej iteracji — dobry instynkt); `HAVING COUNT(*) > 5` zamiast `>= 5` w pierwszej wersji. Findings mocne: Monday bullish OR above open = 75% (N=20) najsilniejszy sustained signal; Tuesday bearish OR above open po 13:00 = 14–25% (nowy sygnał niewyławiany przez gap direction); Friday bearish OR below open po 13:00 = 12–37% (czystsze niż INTRA-002b). 8/10.
+
+**Task B (RTH-FH-008):** Dobra struktura CTE. `fh_high_location` i `fh_low_location` poprawne nawiasy od razu. `close_location` — brakujące nawiasy w pierwszej wersji (`CLOSE - low / NULLIF(...)`) dało wartości ~25000 zamiast 0–1, wykryte i naprawione samodzielnie. `NTILE(3)` globalnie poprawne. Findings bardzo mocne: bucket 3 bearish = 0% close_above_open na każdym weekdayu (N=5–14) — najczystszy binary signal w całej serii FH. Bucket 1 bullish = 88–100% close_above_open, avg_close_location 0.72–0.85 — slow-burn bullish dzień. Dobra inicjatywa z follow-up pomysłem (fh_high_location = 1.0 / fh_low_location = 0.0). 9/10.
+
+---
+
 ## Week 31, Day 2 — Agent Feedback on Student
 
 **Score: 17/20**

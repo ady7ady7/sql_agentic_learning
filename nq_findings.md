@@ -217,6 +217,72 @@
 
 ---
 
+### RTH-INTRA-003 — Snapshot Predictability × OR Direction × Weekday
+**Query ID:** RTH-INTRA-003 | Task date: 2026-07-22
+**Method:** Same snapshot framework as RTH-INTRA-002 but conditioning variable = OR direction (or_close > or_open = 'bullish', else 'bearish') from `or_rest_ohlc_ranges`. OR window = 09:30–10:00. All RTH buckets 10:00–15:30. HAVING COUNT(*) ≥ 5. Single output metric: `close_above_snapshot_pct` — % of days where RTH close ended above the snapshot price at time T.
+
+**Note on reading:** For above_open=TRUE rows, high close_above_snapshot_pct = bullish continuation. For above_open=FALSE rows, high close_above_snapshot_pct = bearish fade (close ends above even though snapshot was below open). The two arms are complementary — one metric captures both directions cleanly.
+
+---
+
+**Monday bullish OR — strongest sustained signal in dataset**
+
+| Time | above_open | N | close_above_snapshot |
+|---|---|---|---|
+| 09:45 | TRUE | 22 | **72.73%** |
+| 10:00 | TRUE | 20 | **75%** |
+| 10:30 | TRUE | 20 | **75%** |
+| 10:45 | TRUE | 18 | **61.11%** |
+| 11:00 | TRUE | 19 | **78.95%** |
+
+- **Monday bullish OR + above open = 61–79% close_above_snapshot from 09:45 through 11:00.** Strongest sustained large-N signal in the OR-direction framework. Signal starts before 10:00 and persists through the first 90 minutes.
+- **Monday bearish OR + above open 10:45: 77.78% (N=9)** — even on bearish OR days, if Monday reclaims above the open by 10:45, close_above_snapshot is high. The bullish structure on Monday is resilient to a negative OR.
+- **Monday bearish OR + below open 13:00: 11.11% (N=9)** — strongest bearish Monday cell. Bearish OR + below open past noon = close almost never recovers above snapshot.
+- **Practical rule: Monday bullish OR above open by 10:00 = highest-confidence morning long (75%, N=20). Edge holds through 11:00. Bearish OR Monday below open at 13:00 = the one clean Monday short setup.**
+
+---
+
+**Tuesday bearish OR — new signal vs gap direction**
+
+| Time | above_open | N | close_above_snapshot |
+|---|---|---|---|
+| 13:30 | FALSE | 8 | **87.5%** |
+| 13:15 | FALSE | 8 | **75%** |
+| 10:15 | FALSE | 12 | **75%** |
+| 13:00 | TRUE | 7 | 42.86% |
+| 13:30 | TRUE | 6 | **16.67%** |
+| 13:45 | TRUE | 6 | **16.67%** |
+| 14:00 | TRUE | 7 | **14.29%** |
+| 14:15 | TRUE | 8 | **25%** |
+
+- **Tuesday bearish OR + above open after 13:00 = 14–25% close_above_snapshot.** Close almost always ends up below the snapshot price. This is a new, clean signal that gap direction alone didn't isolate: bearish OR on Tuesday + holding above open into the afternoon = structural fade.
+- **Tuesday bearish OR + below open = 75–87.5% close_above_snapshot (mean reversion).** The below-open Tuesday mean-reversion pattern holds regardless of OR direction.
+- **Practical rule: Tuesday bearish OR + price above open after 13:00 = short signal, 75–86% chance close ends below. Below open on Tuesday bearish OR = buy the dip (75–87%).**
+
+---
+
+**Friday bearish OR — cleanest afternoon bearish cells**
+
+| Time | above_open | N | close_above_snapshot |
+|---|---|---|---|
+| 14:30 | FALSE | 8 | **12.5%** |
+| 14:15 | FALSE | 8 | **25%** |
+| 14:45 | FALSE | 7 | **14.29%** |
+| 13:00–13:45 | FALSE | 8 | **37.5%** |
+
+- **Friday bearish OR + below open from 13:00 onward = 12–37% close_above_snapshot.** Close almost never recovers above snapshot price. Stronger than any Friday bearish cell in RTH-INTRA-002b (gap direction). OR direction is a superior conditioning variable for Friday afternoon shorts.
+- **Practical rule: Friday bearish OR + below open at any point after 13:00 = do not buy the dip. 75–87% chance close ends below that price.**
+
+---
+
+**Wednesday bullish OR — persistent but weakens late**
+
+- Above open 11:00: **71.43%** (N=14), 14:00: **83.33%** (N=6/11), 14:30: **71.43%** (N=7) — bullish OR Wednesday holds direction well through mid-afternoon, even better than gap_down Wednesday from INTRA-002b at those times.
+- Above open 15:15: **41.67%** (N=12) — same late-day collapse as in RTH-INTRA-001b. Exit before 15:15 regardless of OR direction.
+- Bearish OR Wednesday: below open cells 54–72% close_above_snapshot — mean-reverts, no clean short setup.
+
+---
+
 ### RTH-INTRA-001 — Intraday Snapshot Direction → Close Prediction, All Days Aggregate
 **Query ID:** RTH-INTRA-001 | Task date: 2026-07-20
 **Method:** Same as RTH-INTRA-001b without weekday grouping. 186 trading days, all 15-min buckets 10:00–15:30.
@@ -663,6 +729,63 @@
 ---
 
 ## First Hour Analysis
+
+### RTH-FH-008 — First Hour High Location × Close Direction
+**Query ID:** RTH-FH-008 | Task date: 2026-07-22
+**Method:** `rth_firsthour_rest_ohlc_ranges` JOIN `daily_ohlcv_rth`. `fh_high_location` = (fh_high - daily_low) / (daily_high - daily_low) — where in the full day range is the FH high (0=bottom, 1=top). NTILE(3) globally on fh_high_location: bucket 1 = FH high in lower third, bucket 2 = middle, bucket 3 = upper third. `close_location` = (close - daily_low) / (daily_high - daily_low). `close_above_open` = close > open. Grouped by fh_direction × fh_high_location_bucket × weekday. HAVING COUNT(*) ≥ 5.
+
+**How to read:** fh_high_location_bucket=1 means FH set its high low in the day range (early dip, then big rally later). Bucket=3 means FH high is near HOD. Combined with fh_direction (bullish/bearish FH close vs open) this tells you the FH's structural role in the day.
+
+---
+
+**Bucket 3 bearish (FH high near HOD, FH closes bearish) — universal short signal:**
+
+| Weekday | N | avg_close_location | close_above_open |
+|---|---|---|---|
+| Thursday | 14 | 0.42 | **0%** |
+| Monday | 8 | 0.37 | **0%** |
+| Wednesday | 8 | 0.35 | **0%** |
+| Friday | 6 | 0.25 | **0%** |
+| Tuesday | 5 | 0.32 | **0%** |
+
+- **Zero exceptions across every weekday.** When the FH sets its high in the upper third of the day range AND closes bearish (price dropped off the FH high within the first hour), the close is never above the open. `avg_close_location` = 0.25–0.42 — close ends in the lower half of the day range.
+- **This is the strongest binary signal in the FH series.** FH high near HOD + bearish FH = day is structurally bearish, universally. The first hour set the tone and there's no recovery.
+- **Practical rule: If by 10:30 the FH has rallied hard and reversed (FH high in top third, FH close below FH open) — do not buy. The close will be below the open 100% of the time. Look for short entries.**
+
+---
+
+**Bucket 1 bullish (FH high low in day range, FH closes bullish) — universal long signal:**
+
+| Weekday | N | avg_close_location | close_above_open |
+|---|---|---|---|
+| Monday | 15 | **0.85** | **100%** |
+| Wednesday | 10 | **0.75** | **100%** |
+| Tuesday | 9 | **0.82** | **88.89%** |
+| Friday | 10 | **0.72** | **90%** |
+| Thursday | 5 | 0.75 | 80% |
+
+- **Bullish FH + FH high in the lower third of the day range = close almost always above open, and high in the day range (avg 0.72–0.85).** The FH was bullish but didn't extend far — the rest of the day makes up the distance. This is the structural "slow burn" bullish day pattern.
+- **Monday bucket 1 bullish: 100%, avg_close_location 0.85 (N=15)** — the single highest-conviction large-N cell. Monday slow-burn bullish = close ends near HOD.
+- **Practical rule: FH closes bullish but the rally was modest (FH high in lower third of eventual day range) — this is a buy-and-hold day. Close will be above open 88–100% of the time and in the upper 72–85% of the day range.**
+
+---
+
+**Bucket 3 bullish (FH high near HOD, FH closes bullish) — weaker than expected:**
+
+| Weekday | N | avg_close_location | close_above_open |
+|---|---|---|---|
+| Tuesday | 7 | 0.29 | **28.57%** |
+| Friday | 3 | — | 33.33% |
+| Thursday | 5 | 0.46 | 60% |
+
+- **Bullish FH that extends to the top of the day range is NOT a reliable long.** Despite being bullish, when the FH high sits near HOD, the close_above_open rate collapses to 28–60%. The first hour exhausted the upside — rest of day fades.
+- Tuesday bucket 3 bullish avg_close_location = 0.29 — close ends in the *lower* third of the day range despite a bullish FH that nearly tagged HOD. Classic first-hour blow-off pattern.
+
+---
+
+**Follow-up (deferred to next session):** Filter to days where fh_high_location = 1.0 (FH literally sets HOD) and fh_low_location = 0.0 (FH sets LOD) — extreme cases of the above patterns. Binary flag analysis rather than NTILE bucketing.
+
+---
 
 ### RTH-FH-001 — First Hour Direction Bias
 **Query ID:** RTH-FH-001 | Task date: 2026-06-08

@@ -1,3 +1,15 @@
+## Week 31, Day 4 — Agent Feedback on Student
+
+**Score: 18/20**
+
+**Task 1 (product affinity):** 9/10 — self-join poprawny, `>` zamiast `<` na product_id daje tę samą logikę unikalnych par. HAVING, ORDER BY czyste.
+
+**Task 2 (purchase sessions):** 9/10 — dobra architektura gaps-and-islands. Pierwsza wersja miała avg ze średnich — naprawione samodzielnie przez osobną CTE avg_users_dbo liczącą globalnie z users_streak_ids. HAVING >= 2 poprawna interpretacja specyfikacji.
+
+**Task 3 (ticket funnel):** 9/10 — dobra decyzja adaptacyjna przy 30 ticketach (NTILE zamiast stałych progów). Minor: `resolved = 1` bez `closed` lekko zawyża pct_never_resolved.
+
+---
+
 ## Week 31, Day 3 — Agent Feedback on Student
 
 **Score: 17/20**

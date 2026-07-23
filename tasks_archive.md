@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-07-23 (Week 31, Day 4) — Score: 18/20
+
+**Task 1 (product affinity):** 9/10 — self-join z `>` zamiast `<` poprawny, HAVING, ORDER BY czyste.
+
+**Task 2 (purchase sessions):** 9/10 — gaps-and-islands architektura poprawna, LAG + streak_key + kumulatywny SUM jako session_id. Poprawka: osobna CTE avg_users_dbo liczy AVG globalnie z users_streak_ids, nie średnią ze średnich. HAVING >= 2 poprawny.
+
+**Task 3 (ticket funnel):** 9/10 — dobra adaptacja do małego datasetu (NTILE(2) zamiast stałych progów). Minor: resolved flag bez `closed`.
+
+---
+
 ### Task Archive: 2026-07-22 (Week 31, Day 3) — Score: 17/20
 
 **Task A (RTH-INTRA-003):** Snapshot × OR direction × weekday. 8/10 — dobra architektura, właściwe źródło danych, eliminacja close_same_dir_pct słuszna. Minusy: TO_CHAR zamiast natywnego weekday (naprawione TRIM w drugiej iteracji), HAVING > 5 zamiast >= 5. Findings: Monday bullish OR above open = 75% (N=20); Tuesday bearish OR above open po 13:00 = 14–25% (nowy sygnał); Friday bearish OR below open po 13:00 = 12–37%.

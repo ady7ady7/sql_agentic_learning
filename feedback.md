@@ -1,3 +1,13 @@
+## Week 31, Day 5 — Agent Feedback on Student
+
+**Score: 18/20**
+
+**Task 1 (FULL OUTER JOIN):** 9/10 — architektura dwóch CTEs poprawna, FULL JOIN i COALESCE czyste. Bug: `WHERE c.city IS NOT NULL` wycinał miasta tylko po stronie transakcji — naprawione samodzielnie na `COALESCE(c.city, t.city) IS NOT NULL`.
+
+**Task 2 (conditional aggregation):** 9/10 — Version 2 z FILTER czysta i zwięzła, to właściwe podejście. Version 1 działa ale zbędna złożoność. NULL comment niepełny — CASE WHEN z ELSE 0 wciąga NULLe jako 0 i zawyża SUM; FILTER po prostu je ignoruje.
+
+---
+
 ## Week 31, Day 4 — Agent Feedback on Student
 
 **Score: 18/20**

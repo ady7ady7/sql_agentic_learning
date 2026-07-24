@@ -1,129 +1,117 @@
-# SQL Tasks — Week 31 Day 4
+# SQL Tasks — Week 31 Day 5
 
-**Generated:** 2026-07-23
-**Dataset:** crappy_data (users, orders, transactions, products, orders_products, deliveries, chat_tickets, chat_messages)
+**Generated:** 2026-07-24
+**Dataset:** crappy_data
+**Focus:** Filtered aggregation vs CASE WHEN, FULL OUTER JOIN
 
 ---
 
-## Task 1: Product Affinity — Co-purchase Pairs
+## Task 1: City-level Order vs Transaction Activity
 **Difficulty: 3/5**
 
 **Business question:**
-Which product pairs are most frequently bought together in the same order? Return all pairs that appear together in at least 5 orders, with their co-purchase count. Order by frequency descending.
+Compare order activity and transaction activity by city. Some cities have users who ordered but never transacted, some transacted but never ordered, some both. Show the full picture — every city that appears in either source, with total order amount and total transaction amount. Where one side is missing, show 0.
+
+Use a FULL OUTER JOIN. Do not use UNION.
 
 **Expected output columns:**
-`product_id_1, product_id_2, co_purchase_count`
+`city, total_order_amount, total_transaction_amount`
 
 
-WITH orders_products_agg AS (
+WITH cities_orders_amounts AS (
 SELECT 
-	op1.product_id AS pid1,
-	op2.product_id AS pid2
-FROM crappy_data_db.orders_products op1
-JOIN crappy_data_db.orders_products op2 ON op1.order_id = op2.order_id
-AND op1.product_id > op2.product_id
+	u.city,
+	SUM(o.amount) AS total_order_amount
+FROM crappy_data_db.users u
+JOIN crappy_data_db.orders o ON u.id = o.user_id
+WHERE u.city IS NOT NULL
+GROUP BY u.city
+),
+cities_transactions_amounts AS (
+SELECT 
+	u.city,
+	SUM(t.amount) AS total_transaction_amount
+FROM crappy_data_db.users u
+JOIN crappy_data_db.transactions t ON u.id = t.user_id
+WHERE u.city IS NOT NULL
+GROUP BY u.city
 )
 SELECT 
-	pid1,
-	pid2,
-	COUNT(*) AS co_purchase_count
-FROM orders_products_agg
-GROUP BY pid1, pid2
-HAVING COUNT(*) >= 5
-ORDER BY co_purchase_count DESC
-
-
+	c.city,
+	COALESCE(c.total_order_amount, 0) AS total_order_amount,
+	COALESCE(t.total_transaction_amount, 0) AS total_transaction_amount
+FROM  cities_orders_amounts c
+FULL JOIN cities_transactions_amounts t ON c.city = t.city
+WHERE c.city IS NOT NULL
 
 ---
 
-## Task 2: User Purchase Sessions
+## Task 2: Conditional Aggregation — Two Approaches
 **Difficulty: 4/5**
 
 **Business question:**
-Define a "purchase session" as a cluster of orders where consecutive orders (per user) are no more than 7 days apart. Orders separated by more than 7 days start a new session.
+For each transaction type, show: total amount, average amount, and — separately — the count and total amount of transactions above 500. 
 
-For each user with at least 2 orders, return: total number of sessions, the size of their longest session (in orders), and the average number of days between orders across their entire order history.
+Write this query **twice**:
+- Version A: using `CASE WHEN` inside aggregation functions
+- Version B: using `FILTER (WHERE ...)`
 
-**Expected output columns:**
-`user_id, total_sessions, longest_session_orders, avg_days_between_orders`
+Then answer in a comment: is there any difference in how NULLs are handled between the two approaches?
+
+**Expected output columns (both versions):**
+`type, total_amount, avg_amount, count_above_500, total_above_500`
 
 
-WITH orders_users_po AS (
+Version 1 - it's obviously longer, requires more preparation and isn't very convenient - I wouldn't use it with my current skillset
+
+
+WITH transactions_filter AS (
 SELECT 
 	*,
-	LAG(created_at) OVER (PARTITION BY user_id ORDER BY created_at) AS prev_order_created_at
-FROM crappy_data_db.orders o
+	CASE WHEN amount > 500 THEN 1 ELSE 0 END AS above_500
+FROM crappy_data_db.transactions t 
 ),
-orders_streak_keys AS (
-SELECT 
-	*,
-	CASE WHEN prev_order_created_at IS NULL OR ((created_at - prev_order_created_at) > INTERVAL '7' DAY) THEN 1 ELSE 0 END AS streak_key
-FROM orders_users_po
-),
-users_streak_ids AS (
-SELECT 
-	*,
-	COALESCE(ROUND(EXTRACT(EPOCH FROM created_at - prev_order_created_at) / 86400, 0), 0) AS days_between_orders,
-	SUM(streak_key) OVER (PARTITION BY user_id ORDER BY created_at) AS streak_id
-FROM orders_streak_keys
-),
-users_sessions AS (
-SELECT 
-	user_id,
-	streak_id,
-	COUNT(*) AS orders,
-	AVG(days_between_orders) AS avg_days_between_orders
-FROM users_streak_ids
-GROUP BY user_id, streak_id
-ORDER BY user_id
-)
-SELECT 
-	user_id,
-	COUNT(*) AS total_sessions,
-	MAX(orders) AS longest_session_orders,
-	AVG(avg_days_between_orders) AS avg_days_between_orders
-FROM users_sessions
-GROUP BY user_id
-
----
-
-## Task 3: Support Ticket Resolution Funnel
-**Difficulty: 4/5**
-
-**Business question:**
-For each ticket priority level, compute what % of tickets were resolved within 1 day, within 7 days, and what % were never resolved (status never reached `resolved` or `closed`). Base the time calculation on `created_at` and `updated_at`.
-
-**Expected output columns:**
-`priority, total_tickets, pct_resolved_1d, pct_resolved_7d, pct_never_resolved`
-
-
-i'VE slightly modified the logic to check which speed_buckets do they fall in if resolved. That's done because honestly there are only 30 tickets in the database, and your approach wouldn't make sense. I simply added the avg_resolve_time to show some data. I think I've made up for the changes well with ym approach.
-
-
-WITH tickets_agg AS (
-SELECT 
-	*,
-	EXTRACT(EPOCH FROM updated_at - created_at) / 60 AS ticket_update_time_in_minutes,
-	CASE WHEN status = 'resolved' THEN 1 ELSE 0 END AS resolved
-FROM crappy_data_db.chat_tickets ct
-),
-resolve_time_buckets AS (
+above_500_amts AS (
 SELECT
-	*,
-	NTILE(2) OVER (ORDER BY ticket_update_time_in_minutes) AS ticket_resolve_speed_bucket
-FROM tickets_agg
+TYPE,
+SUM(amount) AS total_transactions_amount
+FROM transactions_filter
+WHERE above_500 = 1
+GROUP BY TYPE
 )
-SELECT 
-	priority,
-	COUNT(*) AS total_tickets,
-	AVG(ticket_update_time_in_minutes) FILTER (WHERE resolved = 1) AS avg_resolve_time,
-	ROUND(COUNT(*) FILTER (WHERE ticket_resolve_speed_bucket = 1 AND resolved = 1) / COUNT(*)::NUMERIC * 100, 2) AS pct_resolved_faster,
-	ROUND(COUNT(*) FILTER (WHERE ticket_resolve_speed_bucket = 2 AND resolved = 1) / COUNT(*)::NUMERIC * 100, 2) AS pct_resolved_slower,
-	ROUND(COUNT(*) FILTER (WHERE resolved = 0) / COUNT(*)::NUMERIC * 100, 2) AS pct_never_resolved
-FROM resolve_time_buckets
-GROUP BY priority
+SELECT
+	t.TYPE,
+	COUNT(*) AS total_transactions,
+	SUM(amount) AS total_amount,
+	ROUND(AVG(amount), 2) AS avg_amount,
+	SUM(above_500) AS count_above_500,
+	a.total_transactions_amount AS total_above_500
+FROM transactions_filter t 
+JOIN above_500_amts a ON t.TYPE = a.type
+GROUP BY t.TYPE, a.total_transactions_amount
+
+
+------
+
+Version 2 - smooth and easy
+
+
+SELECT
+	t.TYPE,
+	COUNT(*) AS total_transactions,
+	SUM(amount) AS total_amount,
+	ROUND(AVG(amount), 2) AS avg_amount,
+	COUNT(*) FILTER (WHERE amount > 500) AS count_above_500,
+	SUM(amount) FILTER (WHERE amount > 500) AS total_above_500
+FROM crappy_data_db.transactions t
+GROUP BY t.type
+
+
+Nulls are handled by SUM/AVG etc., but honestly I'm 100% sure there are no nulls here.
+
+
 ---
 
 ## Submission Instructions
 
-Paste your queries and results below each task.
+Paste both queries and results below each task. For Task 2 include your NULL comment.

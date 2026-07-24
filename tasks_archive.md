@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-07-24 (Week 31, Day 5) — Score: 18/20
+
+**Task 1 (FULL OUTER JOIN city activity):** 9/10 — dwie CTEs poprawne, FULL JOIN czysty, COALESCE na 0. Bug: `WHERE c.city IS NOT NULL` niszczył FULL JOIN — naprawione na `WHERE COALESCE(c.city, t.city) IS NOT NULL` samodzielnie.
+
+**Task 2 (conditional aggregation):** 9/10 — Version 1 działa ale niepotrzebnie skomplikowana (CTE + JOIN zamiast inline). Version 2 czysta i zwięzła. NULL comment niepełny — kluczowa różnica: CASE WHEN z ELSE 0 wciąga NULLe jako 0 i zawyża SUM; FILTER ignoruje NULLe naturalnie.
+
+---
+
 ### Task Archive: 2026-07-23 (Week 31, Day 4) — Score: 18/20
 
 **Task 1 (product affinity):** 9/10 — self-join z `>` zamiast `<` poprawny, HAVING, ORDER BY czyste.

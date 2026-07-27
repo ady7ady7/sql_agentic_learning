@@ -1,3 +1,15 @@
+## Week 32, Day 1 — Agent Feedback on Student
+
+**Score: 18/20**
+
+**Task 1 (anti-join):** NOT EXISTS — poprawny wybór, bezpieczny przy NULLach.
+
+**Task 2 (window functions):** 10/10 — PERCENT_RANK, NTILE(4), FIRST_VALUE z odwróconym ORDER BY jako max_in_type. Wszystko w jednym SELECT, czyste.
+
+**Task 3 (retention cohort):** 8/10 — dobra architektura LEFT JOIN + FILTER. Trzy iteracje zanim warunki spójne: progi od month_ → niespójność converted vs pct → finalnie ujednolicone na created_at + INTERVAL days.
+
+---
+
 ## Week 31, Day 5 — Agent Feedback on Student
 
 **Score: 18/20**

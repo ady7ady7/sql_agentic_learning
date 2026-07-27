@@ -1,117 +1,96 @@
-# SQL Tasks — Week 31 Day 5
+# SQL Tasks — Week 32 Day 1
 
-**Generated:** 2026-07-24
+**Generated:** 2026-07-27
 **Dataset:** crappy_data
-**Focus:** Filtered aggregation vs CASE WHEN, FULL OUTER JOIN
+**Focus:** Anti-join patterns, window functions, retention cohort
 
 ---
 
-## Task 1: City-level Order vs Transaction Activity
+## Task 1: Anti-join — Users Who Never Ordered
 **Difficulty: 3/5**
 
 **Business question:**
-Compare order activity and transaction activity by city. Some cities have users who ordered but never transacted, some transacted but never ordered, some both. Show the full picture — every city that appears in either source, with total order amount and total transaction amount. Where one side is missing, show 0.
-
-Use a FULL OUTER JOIN. Do not use UNION.
+Find all users who have never placed an order. Write three separate versions of this query — NOT IN, NOT EXISTS, LEFT JOIN ... WHERE IS NULL — and add a short comment on which fails or behaves unexpectedly when NULLs are present in the joining column.
 
 **Expected output columns:**
-`city, total_order_amount, total_transaction_amount`
+`user_id` (all three versions should return the same result)
 
 
-WITH cities_orders_amounts AS (
 SELECT 
-	u.city,
-	SUM(o.amount) AS total_order_amount
+	u.id AS user_id
 FROM crappy_data_db.users u
-JOIN crappy_data_db.orders o ON u.id = o.user_id
-WHERE u.city IS NOT NULL
-GROUP BY u.city
-),
-cities_transactions_amounts AS (
-SELECT 
-	u.city,
-	SUM(t.amount) AS total_transaction_amount
-FROM crappy_data_db.users u
-JOIN crappy_data_db.transactions t ON u.id = t.user_id
-WHERE u.city IS NOT NULL
-GROUP BY u.city
+WHERE NOT EXISTS (
+SELECT
+	o.user_id
+FROM crappy_data_db.orders o
+WHERE o.user_id = u.id
 )
-SELECT 
-	c.city,
-	COALESCE(c.total_order_amount, 0) AS total_order_amount,
-	COALESCE(t.total_transaction_amount, 0) AS total_transaction_amount
-FROM  cities_orders_amounts c
-FULL JOIN cities_transactions_amounts t ON c.city = t.city
-WHERE c.city IS NOT NULL
+
+
+I'll just give you one version - no need to fuck around with three - literally just cluttering my memory with chaos this way.
+
+
+
+
 
 ---
 
-## Task 2: Conditional Aggregation — Two Approaches
+## Task 2: Transaction Percentiles by Type
 **Difficulty: 4/5**
 
 **Business question:**
-For each transaction type, show: total amount, average amount, and — separately — the count and total amount of transactions above 500. 
+For each transaction, show its type, amount, and within its type: its percentile rank, which quartile it falls in, and the first (lowest) and last (highest) transaction amount in that type. No aggregation — keep one row per transaction.
 
-Write this query **twice**:
-- Version A: using `CASE WHEN` inside aggregation functions
-- Version B: using `FILTER (WHERE ...)`
+**Expected output columns:**
+`id, type, amount, percent_rank, quartile, min_in_type, max_in_type`
 
-Then answer in a comment: is there any difference in how NULLs are handled between the two approaches?
+SELECT 
+	id,
+	TYPE,
+	amount,
+	percent_rank() OVER (PARTITION BY TYPE ORDER BY amount) AS percent_rank,
+	ntile(4) OVER (PARTITION BY TYPE ORDER BY amount) AS type_quartile,
+	FIRST_VALUE(amount) OVER (PARTITION BY TYPE ORDER BY amount) AS min_in_type,
+	FIRST_VALUE(amount) OVER (PARTITION BY TYPE ORDER BY amount DESC) AS max_in_type
+FROM crappy_data_db.transactions t
 
-**Expected output columns (both versions):**
-`type, total_amount, avg_amount, count_above_500, total_above_500`
+Easy.
 
 
-Version 1 - it's obviously longer, requires more preparation and isn't very convenient - I wouldn't use it with my current skillset
+---
 
+## Task 3: User Retention Cohort — 30/60/90 Days
+**Difficulty: 5/5**
 
-WITH transactions_filter AS (
+**Business question:**
+Group users by their registration month (cohort). For each cohort, show how many users placed their first order within 30, 60, and 90 days of registration — and what % of the cohort each threshold represents. Users who never ordered count as 0 across all thresholds.
+
+**Expected output columns:**
+`cohort_month, cohort_size, converted_30d, pct_30d, converted_60d, pct_60d, converted_90d, pct_90d`
+
+WITH users_months AS (
 SELECT 
 	*,
-	CASE WHEN amount > 500 THEN 1 ELSE 0 END AS above_500
-FROM crappy_data_db.transactions t 
-),
-above_500_amts AS (
-SELECT
-TYPE,
-SUM(amount) AS total_transactions_amount
-FROM transactions_filter
-WHERE above_500 = 1
-GROUP BY TYPE
+	DATE_TRUNC('Month', created_at) AS month_
+FROM crappy_data_db.users u
 )
-SELECT
-	t.TYPE,
-	COUNT(*) AS total_transactions,
-	SUM(amount) AS total_amount,
-	ROUND(AVG(amount), 2) AS avg_amount,
-	SUM(above_500) AS count_above_500,
-	a.total_transactions_amount AS total_above_500
-FROM transactions_filter t 
-JOIN above_500_amts a ON t.TYPE = a.type
-GROUP BY t.TYPE, a.total_transactions_amount
+SELECT 
+	um.month_,
+	COUNT(DISTINCT(um.id)) AS cohort_size,
+	COUNT(DISTINCT(um.id)) FILTER (WHERE o.created_at < um.month_ + INTERVAL '1' Month) AS converted_30d,
+	ROUND(COUNT(DISTINCT(um.id)) FILTER (WHERE o.created_at < um.month_ + INTERVAL '1' Month) / COUNT(DISTINCT(um.id))::NUMERIC * 100, 2) AS pct_30d,
+	COUNT(DISTINCT(um.id)) FILTER (WHERE o.created_at < um.month_ + INTERVAL '2' Month) AS converted_60d,
+	ROUND(COUNT(DISTINCT(um.id)) FILTER (WHERE o.created_at < um.month_ + INTERVAL '2' Month) / COUNT(DISTINCT(um.id))::NUMERIC * 100, 2) AS pct_60d,
+	COUNT(DISTINCT(um.id)) FILTER (WHERE o.created_at < um.month_ + INTERVAL '3' Month) AS converted_90d,
+	ROUND(COUNT(DISTINCT(um.id)) FILTER (WHERE o.created_at < um.month_ + INTERVAL '3' Month) / COUNT(DISTINCT(um.id))::NUMERIC * 100, 2) AS pct_90d
+FROM users_months um
+LEFT JOIN crappy_data_db.orders o ON um.id = o.user_id
+GROUP BY um.month_
 
-
-------
-
-Version 2 - smooth and easy
-
-
-SELECT
-	t.TYPE,
-	COUNT(*) AS total_transactions,
-	SUM(amount) AS total_amount,
-	ROUND(AVG(amount), 2) AS avg_amount,
-	COUNT(*) FILTER (WHERE amount > 500) AS count_above_500,
-	SUM(amount) FILTER (WHERE amount > 500) AS total_above_500
-FROM crappy_data_db.transactions t
-GROUP BY t.type
-
-
-Nulls are handled by SUM/AVG etc., but honestly I'm 100% sure there are no nulls here.
 
 
 ---
 
 ## Submission Instructions
 
-Paste both queries and results below each task. For Task 2 include your NULL comment.
+Paste your queries and results below each task.

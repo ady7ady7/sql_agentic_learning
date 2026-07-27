@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-07-27 (Week 32, Day 1) — Score: 18/20
+
+**Task 1 (anti-join):** NOT EXISTS — poprawna i bezpieczna przy NULLach.
+
+**Task 2 (window functions):** 10/10 — PERCENT_RANK, NTILE(4), FIRST_VALUE z odwróconym ORDER BY jako max_in_type. Czyste.
+
+**Task 3 (retention cohort):** 8/10 — LEFT JOIN poprawny, FILTER syntax czysty. Trzy iteracje: najpierw progi od month_ zamiast created_at, potem niespójność między converted_* i pct_*, finalnie ujednolicone na created_at + INTERVAL days.
+
+---
+
 ### Task Archive: 2026-07-24 (Week 31, Day 5) — Score: 18/20
 
 **Task 1 (FULL OUTER JOIN city activity):** 9/10 — dwie CTEs poprawne, FULL JOIN czysty, COALESCE na 0. Bug: `WHERE c.city IS NOT NULL` niszczył FULL JOIN — naprawione na `WHERE COALESCE(c.city, t.city) IS NOT NULL` samodzielnie.

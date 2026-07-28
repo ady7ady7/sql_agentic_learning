@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-07-28 (Week 32, Day 2) — Score: 18/20
+
+**Task 1 (activity streaks):** 8/10 — gaps-and-islands architektura poprawna, DISTINCT ON na końcu właściwe rozwiązanie przy tie-breaku. Minus: brak filtra `count_sessions > 0` — dni z zerowymi sesjami wliczają się do streaka.
+
+**Task 2 (running total z resetem):** 10/10 — elegancki trick: kumulatywny SUM(is_withdrawal) jako withdrawal_id, potem PARTITION BY user_id, withdrawal_id. Czyste i bez pętli.
+
+**Task 3 (percentile filter):** 10/10 — dwie wersje: PERCENT_RANK oraz PERCENTILE_CONT z CROSS JOIN. Druga precyzyjna i produkcyjna.
+
+---
+
 ### Task Archive: 2026-07-27 (Week 32, Day 1) — Score: 18/20
 
 **Task 1 (anti-join):** NOT EXISTS — poprawna i bezpieczna przy NULLach.

@@ -1,93 +1,136 @@
-# SQL Tasks — Week 32 Day 1
+# SQL Tasks — Week 32 Day 2
 
-**Generated:** 2026-07-27
+**Generated:** 2026-07-28
 **Dataset:** crappy_data
-**Focus:** Anti-join patterns, window functions, retention cohort
+**Focus:** Gaps-and-islands, running total with reset, percentile filter
 
 ---
 
-## Task 1: Anti-join — Users Who Never Ordered
-**Difficulty: 3/5**
-
-**Business question:**
-Find all users who have never placed an order. Write three separate versions of this query — NOT IN, NOT EXISTS, LEFT JOIN ... WHERE IS NULL — and add a short comment on which fails or behaves unexpectedly when NULLs are present in the joining column.
-
-**Expected output columns:**
-`user_id` (all three versions should return the same result)
-
-
-SELECT 
-	u.id AS user_id
-FROM crappy_data_db.users u
-WHERE NOT EXISTS (
-SELECT
-	o.user_id
-FROM crappy_data_db.orders o
-WHERE o.user_id = u.id
-)
-
-
-I'll just give you one version - no need to fuck around with three - literally just cluttering my memory with chaos this way.
-
-
-
-
-
----
-
-## Task 2: Transaction Percentiles by Type
+## Task 1: User Activity Streaks
 **Difficulty: 4/5**
 
 **Business question:**
-For each transaction, show its type, amount, and within its type: its percentile rank, which quartile it falls in, and the first (lowest) and last (highest) transaction amount in that type. No aggregation — keep one row per transaction.
+A "streak" is a consecutive sequence of days where a user had at least one session (count_sessions > 0). A streak ends when there's a day with 0 sessions or a gap in dates. For each user, find their longest streak (in days) and the start and end date of that streak.
 
 **Expected output columns:**
-`id, type, amount, percent_rank, quartile, min_in_type, max_in_type`
+`user_id, longest_streak_days, streak_start, streak_end`
 
+
+
+WITH users_sessions AS (
+	SELECT 
+		*,
+		LAG(date) OVER (PARTITION BY user_id ORDER BY date) AS prev_session_date,
+		date - LAG(date) OVER (PARTITION BY user_id ORDER BY date) AS days_diff
+	FROM crappy_data_db.user_sessions_daily usd 
+),
+users_streak_keys AS (
 SELECT 
-	id,
-	TYPE,
-	amount,
-	percent_rank() OVER (PARTITION BY TYPE ORDER BY amount) AS percent_rank,
-	ntile(4) OVER (PARTITION BY TYPE ORDER BY amount) AS type_quartile,
-	FIRST_VALUE(amount) OVER (PARTITION BY TYPE ORDER BY amount) AS min_in_type,
-	FIRST_VALUE(amount) OVER (PARTITION BY TYPE ORDER BY amount DESC) AS max_in_type
-FROM crappy_data_db.transactions t
+	*,
+	CASE WHEN days_diff IS NULL OR days_diff = 1 THEN 0 ELSE 1 END AS streak_key
+FROM users_sessions
+),
+users_streak_ids AS (
+SELECT 
+	*,
+	SUM(streak_key) OVER (PARTITION BY user_id ORDER BY date) AS streak_id
+FROM users_streak_keys 
+),
+users_streaks AS (
+SELECT 
+	user_id,
+	streak_id,
+	COUNT(*) AS streak_days,
+	MIN(date) AS streak_start,
+	MAX(date) AS streak_end
+FROM users_streak_ids
+GROUP BY user_id, streak_id
+),
+longest_streaks AS (
+SELECT 
+	user_id,
+	MAX(streak_days) AS longest_streak_days
+FROM users_streaks
+GROUP BY user_id
+)
+SELECT DISTINCT ON (l.user_id)
+	l.user_id,
+	l.longest_streak_days,
+	u.streak_start,
+	u.streak_end
+FROM longest_streaks l
+JOIN users_streaks u ON l.user_id = u.user_id AND u.streak_days = l.longest_streak_days
+ORDER BY l.user_id
 
-Easy.
+Not sure if this is not overengineered, but it works just as you expected.
 
 
 ---
 
-## Task 3: User Retention Cohort — 30/60/90 Days
+## Task 2: Running Transaction Total with Reset on Withdrawal
 **Difficulty: 5/5**
 
 **Business question:**
-Group users by their registration month (cohort). For each cohort, show how many users placed their first order within 30, 60, and 90 days of registration — and what % of the cohort each threshold represents. Users who never ordered count as 0 across all thresholds.
+For each user, compute a running total of transaction amounts — but reset the counter to 0 every time a `withdrawal` transaction appears. Show every transaction row with its running total at that point.
 
 **Expected output columns:**
-`cohort_month, cohort_size, converted_30d, pct_30d, converted_60d, pct_60d, converted_90d, pct_90d`
+`id, user_id, created_at, type, amount, running_total`
 
-WITH users_months AS (
+Actually not that difficult tbh, works just fine :)).
+
+WITH users_transactions AS (
 SELECT 
 	*,
-	DATE_TRUNC('Month', created_at) AS month_
-FROM crappy_data_db.users u
+	CASE WHEN TYPE = 'withdrawal' THEN 1 ELSE 0 END AS is_withdrawal
+FROM crappy_data_db.transactions t
+),
+users_withdrawals AS (
+SELECT 
+	*,
+	SUM(is_withdrawal) OVER (PARTITION BY user_id ORDER BY created_at) AS withdrawal_id
+FROM users_transactions
 )
 SELECT 
-	um.month_,
-	COUNT(DISTINCT(um.id)) AS cohort_size,
-	COUNT(DISTINCT(um.id)) FILTER (WHERE o.created_at < um.month_ + INTERVAL '1' Month) AS converted_30d,
-	ROUND(COUNT(DISTINCT(um.id)) FILTER (WHERE o.created_at < um.month_ + INTERVAL '1' Month) / COUNT(DISTINCT(um.id))::NUMERIC * 100, 2) AS pct_30d,
-	COUNT(DISTINCT(um.id)) FILTER (WHERE o.created_at < um.month_ + INTERVAL '2' Month) AS converted_60d,
-	ROUND(COUNT(DISTINCT(um.id)) FILTER (WHERE o.created_at < um.month_ + INTERVAL '2' Month) / COUNT(DISTINCT(um.id))::NUMERIC * 100, 2) AS pct_60d,
-	COUNT(DISTINCT(um.id)) FILTER (WHERE o.created_at < um.month_ + INTERVAL '3' Month) AS converted_90d,
-	ROUND(COUNT(DISTINCT(um.id)) FILTER (WHERE o.created_at < um.month_ + INTERVAL '3' Month) / COUNT(DISTINCT(um.id))::NUMERIC * 100, 2) AS pct_90d
-FROM users_months um
-LEFT JOIN crappy_data_db.orders o ON um.id = o.user_id
-GROUP BY um.month_
+	id,
+	user_id,
+	created_at,
+	TYPE,
+	amount,
+	SUM(amount) OVER (PARTITION BY user_id, withdrawal_id ORDER BY created_at) AS running_total
+FROM users_withdrawals
 
 
+
+---
+
+## Task 3: Users Above 75th Percentile Average Order Value
+**Difficulty: 3/5**
+
+**Business question:**
+Find all users whose average order amount is above the 75th percentile of average order amounts across all users. Do not use a subquery in the WHERE clause.
+
+**Expected output columns:**
+`user_id, avg_order_amount`
+
+dONE, EASY ASF.
+I could do it with PERCENTILE_CONT as well, but I decided to do the perecentile_rank
+
+
+WITH users_avg_orders AS (
+SELECT 
+	o.user_id,
+	ROUND(AVG(o.amount)::NUMERIC, 2) AS avg_order_amt
+FROM crappy_data_db.orders o
+GROUP BY o.user_id
+),
+users_percentile_ranks AS (
+SELECT 
+	*,
+	percent_rank() OVER (ORDER BY avg_order_amt) AS percentile_rank
+FROM users_avg_orders
+)
+SELECT * FROM users_percentile_ranks
+WHERE percentile_rank >= 0.75
 
 ---
 

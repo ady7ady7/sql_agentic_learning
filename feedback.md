@@ -1,3 +1,15 @@
+## Week 32, Day 2 — Agent Feedback on Student
+
+**Score: 18/20**
+
+**Task 1 (activity streaks):** 8/10 — gaps-and-islands poprawna, DISTINCT ON na końcu właściwe. Minus: brak filtra count_sessions > 0 — dni z zerowymi sesjami wliczają się do streaka.
+
+**Task 2 (running total z resetem):** 10/10 — kumulatywny SUM(is_withdrawal) jako withdrawal_id, PARTITION BY user_id, withdrawal_id. Elegancki, czyste rozwiązanie bez pętli.
+
+**Task 3 (percentile filter):** 10/10 — dwie wersje dostarczone. PERCENTILE_CONT z CROSS JOIN precyzyjna i produkcyjna.
+
+---
+
 ## Week 32, Day 1 — Agent Feedback on Student
 
 **Score: 18/20**

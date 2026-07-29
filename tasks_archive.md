@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-07-29 (Week 32, Day 3) — Score: 27/30
+
+**Task 1 (agent response time):** 8/10 — dobra architektura, EXTRACT(EPOCH) poprawny, słuszna decyzja o pominięciu HAVING gdy max tickets per agent = 2. Minus: pierwsza CTE (`authors_ticket_cnt`) martwa — wyliczona i nieużywana. `COUNT(DISTINCT(ticket_id))` — DISTINCT to klauzula, nie funkcja.
+
+**Task 2 (avg order per category — dirty data):** 9/10 — inne podejście niż zamierzone (price × quantity zamiast orders.amount), ale poprawne i uzasadnione dla pytania o wartość per kategoria. NULLIF nie pojawił się, ale zadanie było źle skalibrowane pod ten dataset — nie ma tu problemu który wymagał NULLIF w tej formie.
+
+**Task 3 (deposit after withdrawal):** 10/10 — eleganckie użycie LAG do złapania poprzedniej transakcji, WHERE na typ i czas zwięzłe. Literówka 76400 zamiast 86400 — nie błąd logiczny. LAG łapie tylko bezpośrednio poprzednią transakcję (pomija pary z transakcją pomiędzy), ale to kwestia zakresu zadania, nie błąd.
+
+---
+
 ### Task Archive: 2026-07-28 (Week 32, Day 2) — Score: 18/20
 
 **Task 1 (activity streaks):** 8/10 — gaps-and-islands architektura poprawna, DISTINCT ON na końcu właściwe rozwiązanie przy tie-breaku. Minus: brak filtra `count_sessions > 0` — dni z zerowymi sesjami wliczają się do streaka.

@@ -1,3 +1,15 @@
+## Week 32, Day 3 — Agent Feedback on Student
+
+**Score: 27/30**
+
+**Task 1 (agent response time):** 8/10 — dobra architektura, EXTRACT(EPOCH) poprawny. Pierwsza CTE martwa i nieużywana. Słuszna decyzja o pominięciu HAVING gdy max per agent = 2 tickety.
+
+**Task 2 (avg order per category):** 9/10 — użył price × quantity zamiast orders.amount, ale podejście poprawne i faktycznie dokładniejsze dla kategoryzacji. Zadanie źle skalibrowane pod NULLIF w tym datasecie.
+
+**Task 3 (deposit after withdrawal):** 10/10 — LAG trick czysty i zwięzły, logika poprawna. Literówka 76400 zamiast 86400 to nie błąd logiczny.
+
+---
+
 ## Week 32, Day 2 — Agent Feedback on Student
 
 **Score: 18/20**

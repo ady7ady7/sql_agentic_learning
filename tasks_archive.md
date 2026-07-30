@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-07-30 (Week 32, Day 4) — Score: 26/30
+
+**Task 1 (rolling 7-day sum):** 7/10 — użył ROWS BETWEEN 1 PRECEDING AND CURRENT ROW zamiast RANGE INTERVAL — okno 2-wierszowe zamiast 7-dniowego. Kluczowy niuans: ROWS liczy fizyczne wiersze, RANGE z interwałem działa po wartościach czasowych. Poprawka dostarczona po podpowiedzi: `RANGE BETWEEN INTERVAL '6 days' PRECEDING AND CURRENT ROW`.
+
+**Task 2 (monthly active users z date spine):** 9/10 — date spine poprawny, LEFT JOIN czysty, COALESCE zbędny (COUNT(DISTINCT) naturalnie zwraca 0 po LEFT JOIN, nie NULL) ale nieszkodliwy.
+
+**Task 3 (top 3 per kategoria):** 10/10 — RANK() + PARTITION BY category_name, ORDER BY DESC, WHERE rank <= 3 obsługuje remisy automatycznie. Czyste i zwięzłe.
+
+---
+
 ### Task Archive: 2026-07-29 (Week 32, Day 3) — Score: 27/30
 
 **Task 1 (agent response time):** 8/10 — dobra architektura, EXTRACT(EPOCH) poprawny, słuszna decyzja o pominięciu HAVING gdy max tickets per agent = 2. Minus: pierwsza CTE (`authors_ticket_cnt`) martwa — wyliczona i nieużywana. `COUNT(DISTINCT(ticket_id))` — DISTINCT to klauzula, nie funkcja.

@@ -1,3 +1,15 @@
+## Week 32, Day 4 — Agent Feedback on Student
+
+**Score: 26/30**
+
+**Task 1 (rolling 7-day sum):** 7/10 — ROWS BETWEEN 1 PRECEDING zamiast RANGE INTERVAL — okno 2-wierszowe zamiast czasowego. Poprawka po podpowiedzi. Do utrwalenia jutro.
+
+**Task 2 (date spine):** 9/10 — poprawne, COALESCE zbędny ale nieszkodliwy.
+
+**Task 3 (top 3 per kategoria):** 10/10 — RANK + PARTITION + WHERE rank <= 3 czyste, remisy obsłużone automatycznie.
+
+---
+
 ## Week 32, Day 3 — Agent Feedback on Student
 
 **Score: 27/30**

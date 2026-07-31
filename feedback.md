@@ -1,3 +1,13 @@
+## Week 32, Day 5 — Agent Feedback on Student
+
+**Score: 18/20**
+
+**Task A (RTH-GLOB-008):** 9/10 — eu_rth_session_agg view dobrze wykorzystany, wszystkie 4 metryki w jednym query eleganckie. Błąd znaku `rth_high < eu_high` naprawiony samodzielnie.
+
+**Task B (RTH-GLOB-009):** 9/10 — architektura poprawna, filtr holiday gaps elegancki. Syntax error: przecinek po ostatnim CASE w CTE.
+
+---
+
 ## Week 32, Day 4 — Agent Feedback on Student
 
 **Score: 26/30**

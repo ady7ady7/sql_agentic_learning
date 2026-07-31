@@ -1590,6 +1590,80 @@ Table `nq_data.news_events` created with columns: `event_date`, `event_time_et`,
 
 ## Globex vs RTH Comparisons
 
+### RTH-GLOB-009 — Friday Behavior After Bullish vs Bearish Thursday
+**Query ID:** RTH-GLOB-009 | Task date: 2026-07-31
+**Method:** `eu_rth_session_agg` view. LAG(weekday) + LAG(day_direction) to tag prior Thursday direction. Filter: weekday = 'Friday' AND prev_day = 'Thursday' (excludes Fridays after holidays). N=28 Fridays total.
+
+| Prior Thursday | N | Pct Gap Up | Avg Gap Size | Pct Friday Bullish | Avg RTH Range |
+|---|---|---|---|---|---|
+| bearish | 19 | 57.89% | 129 pts | 57.89% | 408 pts |
+| bullish | 9 | 66.67% | 143 pts | 66.67% | 282 pts |
+
+**Findings:**
+- **Bullish Thursday → Friday (N=9): 66.67% gap_up, 66.67% bullish, avg range 282 pts** — calmer, more directional Friday. Bullish Thursday compresses Friday's range by ~30% vs bearish Thursday. When Thursday closes strong, Friday tends to continue quietly higher.
+- **Bearish Thursday → Friday (N=19): 57.89% gap_up, 57.89% bullish, avg range 408 pts** — wider, choppier day. Despite modest bullish bias (57.89%), the wide range means more intraday noise. Bearish Thursday selloff creates Friday uncertainty and volatility.
+- **Gap up bias persists regardless of Thursday direction** (57–67%) — consistent with RTH-GAP-004 (Friday gaps up 57.1% overall). Thursday direction shifts the magnitude, not the direction.
+- **Practical rule:** After bullish Thursday — expect tighter Friday, bullish bias, smaller range (~282 pts). After bearish Thursday — wider range (~408 pts), still modestly bullish but more volatile and harder to trade. Today's context: check Thursday's close direction before sizing Friday positions.
+
+---
+
+### RTH-GLOB-008 — EU Levels vs RTH: Bullish Days (EU Mid + EU Low Undercut) & Bearish Days (EU High Exceeded) × Weekday × Gap Direction
+**Query ID:** RTH-GLOB-008 | Task date: 2026-07-31
+**Method:** `eu_rth_session_agg` materialized view (EU session 02:00–09:30 ET, eu_high/eu_low/eu_mid/eu_range). LAG(rth_close) for prev_close → gap_direction. Flags: `rth_low < eu_low` = eu_low_undercut; `rth_high > eu_high` = eu_high_exceeded; `rth_low < eu_midpoint` = eu_mid_undercut; `rth_high > eu_midpoint` = eu_mid_exceeded. All weekdays × gap directions. No HAVING filter — small N cells flagged in findings.
+
+| Weekday | Gap | Day Dir | N | Pct Undercut EU Mid | Pct Exceeded EU Mid | Pct Undercut EU Low | Pct Exceeded EU High |
+|---|---|---|---|---|---|---|---|
+| Friday | gap_down | bearish | 4 | 100% | 75% | 100% | 25% |
+| Friday | gap_down | bullish | 7 | 85.71% | 85.71% | 71.43% | 71.43% |
+| Friday | gap_up | bearish | 8 | 100% | 87.5% | 87.5% | 75% |
+| Friday | gap_up | bullish | 10 | 70% | 100% | 30% | 90% |
+| Monday | gap_down | bearish | 4 | 100% | 75% | 100% | 50% |
+| Monday | gap_down | bullish | 10 | 70% | 100% | 50% | 80% |
+| Monday | gap_up | bearish | 9 | 88.89% | 100% | 66.67% | 77.78% |
+| Monday | gap_up | bullish | 9 | 44.44% | 100% | 33.33% | 100% |
+| Thursday | gap_down | bearish | 11 | 100% | 45.45% | 100% | 9.09% |
+| Thursday | gap_down | bullish | 7 | 100% | 100% | 71.43% | 71.43% |
+| Thursday | gap_up | bearish | 8 | 87.5% | 100% | 62.5% | 50% |
+| Thursday | gap_up | bullish | 5 | 100% | 100% | 60% | 80% |
+| Tuesday | gap_down | bearish | 7 | 100% | 100% | 71.43% | 57.14% |
+| Tuesday | gap_down | bullish | 11 | 100% | 100% | 81.82% | 81.82% |
+| Tuesday | gap_up | bearish | 7 | 100% | 71.43% | 100% | 28.57% |
+| Tuesday | gap_up | bullish | 8 | 37.5% | 100% | 25% | 100% |
+| Wednesday | gap_down | bearish | 5 | 100% | 60% | 100% | 0% |
+| Wednesday | gap_down | bullish | 6 | 66.67% | 100% | 16.67% | 100% |
+| Wednesday | gap_up | bearish | 10 | 100% | 100% | 100% | 30% |
+| Wednesday | gap_up | bullish | 12 | 75% | 100% | 33.33% | 100% |
+
+**Findings — Bullish days (EU low undercut = "RTH will give better long entry than EU low"):**
+- **Wednesday gap_down bullish (N=6): 16.67% EU low undercut** — cleanest EU long entry in the dataset. On bullish Wednesday with gap-down, RTH almost never undercuts EU low. EU low entered overnight = near-optimal entry 83% of the time.
+- **Tuesday gap_up bullish (N=8): 25% EU low undercut** — second cleanest. Gap-up Tuesday bullish rarely revisits EU low. EU low = viable long entry.
+- **Wednesday gap_up bullish (N=12): 33.33% EU low undercut** — still good. EU low holds as support 67% of the time on bullish Wednesday regardless of gap direction.
+- **Friday gap_up bullish (N=10): 30% EU low undercut, 90% EU high exceeded** — RTH almost always trades above EU high (90%), EU low rarely tested (30%). EU long from EU low overnight = viable; RTH opens above EU high so you're immediately in profit.
+- **Friday gap_down bullish (N=7): 71.43% EU low undercut** — warning. Bullish Friday with gap-down still undercuts EU low 71% of the time. Wait for RTH on gap-down bullish Fridays.
+- **Thursday bullish (any gap): 60–71% EU low undercut** — confirmed: never enter EU longs on Thursday. RTH always gives better price.
+- **Monday gap_up bullish (N=9): 33.33% EU low undercut, 100% EU high exceeded** — EU low viable as entry, and 100% above EU high by RTH — gap-up Monday bullish = EU long is the right call.
+- **Monday gap_down bullish (N=10): 50% EU low undercut** — coin flip. Less reliable than gap-up Monday.
+- **Tuesday gap_down bullish (N=11): 81.82% EU low undercut** — trap. Gap-down Tuesday bullish almost always undercuts EU low before rallying. Wait for RTH dip.
+
+**Findings — Bearish days (EU high exceeded = "RTH gave better short entry above EU high"):**
+- **Wednesday gap_down bearish (N=5): 0% EU high exceeded** — confirmed from RTH-GLOB-007b. Perfect short from EU high overnight, RTH never trades above it.
+- **Thursday gap_down bearish (N=11): 9.09% EU high exceeded** — confirmed. Near-identical to Wednesday gap_down.
+- **Tuesday gap_up bearish (N=7): 28.57% EU high exceeded** — EU high holds as resistance 71% of time despite gap-up. Clean short setup.
+- **Wednesday gap_up bearish (N=10): 30% EU high exceeded** — EU high holds 70% on bearish Wednesday regardless of gap direction.
+- **Friday gap_up bearish (N=8): 75% EU high exceeded** — confirmed trap from RTH-GLOB-007b. Do not short EU high on bearish Friday gap-up.
+- **Monday gap_up bearish (N=9): 77.78% EU high exceeded** — worst weekday for EU short. RTH always spikes above EU high on bearish Monday gap-up.
+- **Tuesday gap_down bearish (N=7): 57.14% EU high exceeded** — also a trap on bearish days.
+
+**Complete EU entry framework (updated from RTH-GLOB-007b):**
+
+Bullish days — EU low as long entry (lower % undercut = better entry):
+- Best: Wed gap_down (17%), Tue gap_up (25%), Fri gap_up (30%), Wed gap_up (33%), Mon gap_up (33%)
+- Avoid: Thu any gap (60–71%), Fri gap_down (71%), Tue gap_down (82%), Mon gap_down (50% = coin flip)
+
+Bearish days — EU high as short entry (lower % exceeded = better entry):
+- Best: Wed gap_down (0%), Thu gap_down (9%), Tue gap_up (29%), Wed gap_up (30%)
+- Avoid: Mon gap_up (78%), Fri gap_up (75%), Tue gap_down (57%)
+
 ### RTH-GLOB-007b — EU High Resistance — Weekday × Gap Direction on Bearish Days
 **Query ID:** RTH-GLOB-007b | Task date: 2026-07-16
 **Method:** Extension of RTH-GLOB-007 — added `weekday` to SELECT and GROUP BY. Filter: bearish RTH days. 73 bearish days, 10 weekday × gap cells (4–11 days per cell). Note: duplicate alias avg_eu_range persists on reached_eu_midpoint column.

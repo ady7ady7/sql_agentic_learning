@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-07-31 (Week 32, Day 5) — Score: 18/20
+
+**Task A (RTH-GLOB-008):** 9/10 — wszystkie 4 metryki w jednym query, dobra architektura z eu_rth_session_agg view. Błąd znaku: `rth_high < eu_high` zamiast `>` — naprawiony samodzielnie po uwadze. Wyniki poprawne po korekcie.
+
+**Task B (RTH-GLOB-009):** 9/10 — LAG na weekday + day_direction czysty, filtr `prev_day = 'Thursday'` eliminuje holiday gaps elegancko. Syntax error: przecinek po ostatnim CASE w eu_agg_final. Findings: bullish Thursday → piątek 282 pts range, 67% bullish; bearish Thursday → 408 pts, 58% bullish.
+
+---
+
 ### Task Archive: 2026-07-30 (Week 32, Day 4) — Score: 26/30
 
 **Task 1 (rolling 7-day sum):** 7/10 — użył ROWS BETWEEN 1 PRECEDING AND CURRENT ROW zamiast RANGE INTERVAL — okno 2-wierszowe zamiast 7-dniowego. Kluczowy niuans: ROWS liczy fizyczne wiersze, RANGE z interwałem działa po wartościach czasowych. Poprawka dostarczona po podpowiedzi: `RANGE BETWEEN INTERVAL '6 days' PRECEDING AND CURRENT ROW`.

@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-08-03 (Week 33, Day 1) — Score: 30/30
+
+**Task 1 (LAG offset 3):** 10/10 — LAG(amount, 3) poprawny, podwójne wyliczenie w jednej CTE efektywne (optimizer składa okno), filtr IS NOT NULL w outer query czysty.
+
+**Task 2 (Dominant type):** 10/10 — ROW_NUMBER świadomy wybór (jeden dominant type per user, nie obsługa remisów). GROUP BY user+type → RANK pattern poprawny. Part A i B z jednej CTE chain.
+
+**Task 3 (NOT EXISTS + NULL trap):** 10/10 — NULL trap wyjaśniony poprawnie (NOT IN zwraca pusty zbiór gdy podzbior zawiera NULL). NOT EXISTS czyste. Rozszerzenie: CTE jako filtr + JOIN z warunkiem type='deposit' w ON clause.
+
+---
+
 ### Task Archive: 2026-07-31 (Week 32, Day 5) — Score: 18/20
 
 **Task A (RTH-GLOB-008):** 9/10 — wszystkie 4 metryki w jednym query, dobra architektura z eu_rth_session_agg view. Błąd znaku: `rth_high < eu_high` zamiast `>` — naprawiony samodzielnie po uwadze. Wyniki poprawne po korekcie.

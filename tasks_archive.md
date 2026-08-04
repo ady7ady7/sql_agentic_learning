@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-08-04 (Week 33, Day 2) — Score: 25/30
+
+**Task 1 (STDDEV outliers):** 7/10 — architektura poprawna, błąd w z-score: `total_amount / stddev` zamiast `(total_amount - mean) / stddev`.
+
+**Task 2 (FIRST_VALUE baseline):** 8/10 — FIRST_VALUE poprawny, rzutowanie ::NUMERIC słuszne. Filtr `amount != first_amount` zamiast `ROW_NUMBER > 1` — działa dla tego datasetu, logicznie nieprecyzyjny. Brak ORDER BY w final SELECT.
+
+**Task 3 (FILTER pivot):** 10/10 — FILTER pivot czysty, HAVING COUNT(DISTINCT type) >= 3 eleganckie. COALESCE zbędny przy COUNT ale nieszkodliwy.
+
+---
+
 ### Task Archive: 2026-08-03 (Week 33, Day 1) — Score: 30/30
 
 **Task 1 (LAG offset 3):** 10/10 — LAG(amount, 3) poprawny, podwójne wyliczenie w jednej CTE efektywne (optimizer składa okno), filtr IS NOT NULL w outer query czysty.

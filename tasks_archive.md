@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-08-05 (Week 33, Day 3) — Score: 28/30
+
+**Task 1 (Cohort retention):** 8/10 — architektura poprawna, FILTER w final SELECT eleganckie. Literówka: m3 = m1 (INTERVAL '1 Month' zamiast '3 Month') — m2 zawsze 0, m3 = m1 w wynikach. WHERE user_id IS NOT NULL niszczy LEFT JOIN i wyklucza userów bez zamówień.
+
+**Task 2 (Type co-occurrence):** 10/10 — self-join z t1.type > t2.type eliminuje duplikaty par, dwuetapowa agregacja poprawna.
+
+**Task 3 (ROWS vs RANGE):** 10/10 — zadanie źle skrojone (pre-agregacja eliminuje różnicę między ROWS i RANGE), student napisał poprawny i czysty kod.
+
+---
+
 ### Task Archive: 2026-08-04 (Week 33, Day 2) — Score: 25/30
 
 **Task 1 (STDDEV outliers):** 7/10 — architektura poprawna, błąd w z-score: `total_amount / stddev` zamiast `(total_amount - mean) / stddev`.

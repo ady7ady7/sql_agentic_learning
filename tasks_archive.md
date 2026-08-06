@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-08-06 (Week 33, Day 4) — Score: 25/30
+
+**Task 1 (ROWS vs RANGE):** 10/10 — RANGE frame correct via default frame spec, comment concise and accurate.
+
+**Task 2 (YoY revenue):** 8/10 — COALESCE+WHERE combo eliminated first 12 months instead of showing NULLs. pct_change formula divided by total_revenue instead of prev_year_revenue.
+
+**Task 3 (Conversion funnel):** 7/10 — missing buyers_no_delivery stage. delivered_ counted only status='delivered' instead of any delivery record.
+
+---
+
 ### Task Archive: 2026-08-05 (Week 33, Day 3) — Score: 28/30
 
 **Task 1 (Cohort retention):** 8/10 — architektura poprawna, FILTER w final SELECT eleganckie. Literówka: m3 = m1 (INTERVAL '1 Month' zamiast '3 Month') — m2 zawsze 0, m3 = m1 w wynikach. WHERE user_id IS NOT NULL niszczy LEFT JOIN i wyklucza userów bez zamówień.

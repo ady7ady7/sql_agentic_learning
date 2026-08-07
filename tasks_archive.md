@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-08-07 (Week 33, Day 5) — Score: 27/30
+
+**Task 1 (Recursive CTE):** 9/10 — pre-agg CTE approach correct and elegant. Missing explicit WHERE h.level < 3 termination condition — relies on LEFT JOIN NULLs instead, works here but fragile on deeper hierarchies.
+
+**Task 2 (Running total with reset):** 10/10 — FLOOR(running_total / 1000) as group_id clean and mathematically sound. Three-step CTE chain correct.
+
+**Task 3 (Date spine):** 8/10 — LEFT JOIN + same WHERE condition = de facto INNER JOIN, LEFT JOIN redundant. > and < instead of >= and <= cuts first and last month from range.
+
+---
+
 ### Task Archive: 2026-08-06 (Week 33, Day 4) — Score: 25/30
 
 **Task 1 (ROWS vs RANGE):** 10/10 — RANGE frame correct via default frame spec, comment concise and accurate.

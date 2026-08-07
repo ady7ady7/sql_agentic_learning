@@ -1,150 +1,189 @@
-# SQL Tasks — 2026-08-06 (Week 33, Day 4)
+# SQL Tasks — 2026-08-07 (Week 33, Day 5)
 
-**Dataset:** orders / transactions / users  
-**Focus:** ROWS vs RANGE (real case) · YoY comparison · Funnel analysis
-
----
-
-## Task 1 — End-of-Day Running Total with RANGE
-**Difficulty: 5/5**
-
-**Business question:**  
-For each user, for each transaction, show the cumulative sum of all transactions up to and including **the end of that calendar day** — meaning every transaction on the same day gets the same "end of day" running total, regardless of the order they appear within the day.
-
-Do NOT pre-aggregate by day. Work directly from `transactions`, one row per transaction. Use `created_at::date` as the sort key in the window so that all transactions on the same day are treated as a peer group.
-
-Then, in a comment above your query, explain in 2–3 sentences: what would happen if you used `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW` instead — how would the output differ for a user with 3 transactions on the same day?
-
-**Expected output columns:**  
-`user_id, id, created_at, amount, end_of_day_running_total`
-
-Order by `user_id`, `created_at::date`, `id`.
-
-**Difficulty: 5/5**
-
-SELECT 
-	user_id,
-	id,
-	created_at,
-	amount,
-	SUM(amount) OVER (PARTITION BY user_id ORDER BY t.created_at::date) AS end_of_day_running_total
-FROM crappy_data_db.transactions t
-ORDER BY user_id, created_at::date, id
-
-If I used ROWS BETWEEN I'd simply get the running total UP TO THE CURRENT transaction, not all the transactions from that given day, easy as that. For the needs of this exercise it would skew the results.
-
-
-
+**Dataset:** orders / transactions / users / product_categories / products / orders_products  
+**Focus:** Recursive CTE (Type A) · Window with conditional reset · Date spine
 
 ---
 
-## Task 2 — Year-over-Year Revenue
+## Task 1 — Category → Product → Order Revenue Hierarchy
 **Difficulty: 4/5**
 
 **Business question:**  
-For each month, compute total order revenue and compare it to the same month one year prior. Show the absolute difference and the percentage change.
+Build a 3-level revenue rollup:
+- **Level 1:** Total revenue per product category
+- **Level 2:** Total revenue per product (within its category)
+- **Level 3:** Total revenue per individual order line (quantity × price, within its product)
 
-If there is no data for the prior year month, show NULLs for the comparison columns — do not exclude the row.
+Show all three levels in a single result set with a `level` column (1, 2, or 3), a `label` column (category name / product name / order_id as text), a `parent_label` (NULL for level 1, category name for level 2, product name for level 3), and `revenue`.
+
+Order by `level`, `revenue DESC`.
+
+**Scaffold — recursive CTE structure to fill in:**
+
+```sql
+WITH RECURSIVE hierarchy AS (
+
+    -- Anchor: Level 1 — category totals
+    SELECT
+        1 AS level,
+        pc.name AS label,
+        NULL::text AS parent_label,
+        SUM(???) AS revenue          -- fill in the revenue formula
+    FROM ???                          -- fill in the tables and joins
+    GROUP BY pc.name
+
+    UNION ALL
+
+    -- Recursive step: Level 2 — product totals, Level 3 — order line totals
+    SELECT
+        h.level + 1,
+        ???,                          -- label for this level
+        h.label AS parent_label,
+        ???                           -- revenue for this level
+    FROM hierarchy h
+    JOIN ???                          -- join to get next level down
+    WHERE h.level < 3
+
+)
+SELECT * FROM hierarchy
+ORDER BY level, revenue DESC;
+```
+
+Note: revenue at level 3 = `quantity × price` from `orders_products` joined to `products`.
 
 **Expected output columns:**  
-`order_month, total_revenue, prev_year_revenue, yoy_diff, yoy_pct_change`
+`level, label, parent_label, revenue`
 
-Where:
-- `order_month` = DATE_TRUNC('month', created_at)
-- `yoy_diff` = total_revenue − prev_year_revenue
-- `yoy_pct_change` = ROUND((yoy_diff / prev_year_revenue) * 100, 2)
+**Difficulty: 4/5**
+
+WITH RECURSIVE product_revenues AS (
+SELECT
+	p.name::TEXT,
+	p.id,
+	pc.name::TEXT AS category_name,
+	SUM(op.quantity * p.price) AS product_revenue
+FROM crappy_data_db.orders_products op 
+JOIN crappy_data_db.products p  ON op.product_id = p.id
+JOIN crappy_data_db.product_categories pc ON p.category_id = pc.id
+GROUP BY p.name, pc.name, p.id
+),
+orders_revenues AS (
+SELECT
+	p.name,
+	p.id,
+	op.order_id,
+	SUM(op.quantity * p.price) AS order_revenue
+FROM crappy_data_db.orders_products op 
+JOIN crappy_data_db.products p  ON op.product_id = p.id
+JOIN crappy_data_db.product_categories pc ON p.category_id = pc.id
+GROUP BY p.name, p.id, op.order_id
+),
+HIERARCHY AS (
+SELECT 
+	1 AS LEVEL,
+	pc.name::text AS LABEL,
+	NULL::TEXT AS parent_label,
+	SUM(p.price * op.quantity) AS revenue
+FROM crappy_data_db.orders_products op 
+JOIN crappy_data_db.products p  ON op.product_id = p.id
+JOIN crappy_data_db.product_categories pc ON p.category_id = pc.id
+GROUP BY pc.name
+UNION ALL 
+SELECT
+	h.LEVEL + 1,
+	COALESCE(p.name::TEXT, o.order_id::TEXT),
+	h.LABEL,
+	COALESCE(p.product_revenue, o.order_revenue)
+FROM hierarchy h
+LEFT JOIN product_revenues p ON h.LABEL = p.category_name AND h.LEVEL = 1
+LEFT JOIN orders_revenues o ON h.LABEL = o."name" AND h.LEVEL = 2
+GROUP BY p.name, o.order_id, o.order_revenue, h.LEVEL, h.LABEL, p.product_revenue
+)
+SELECT * FROM hierarchy
+
+
+Mamy to, trochębyło z tym pierdolenia, szczególnie że dawno tego nie robiłem i zapomniałem, żę joiny oba mają być już na pierwszym UNION ALLU, ale dałem radę
+
+---
+
+## Task 2 — Running Total with Reset
+**Difficulty: 5/5**
+
+**Business question:**  
+For each user, compute a running total of transaction `amount` ordered by `created_at`. Every time the running total **exceeds 1000**, reset it back to 0 and start accumulating again from the next transaction.
+
+Show each transaction with its `group_id` (which "cycle" it belongs to, starting at 1 per user) and the running total within that cycle.
+
+Hint: the trick is identifying group boundaries using a cumulative sum of a reset flag, then using that as a partition key for the inner running total.
+
+**Expected output columns:**  
+`user_id, id, created_at, amount, group_id, running_total_in_group`
+
+Order by `user_id`, `created_at`, `id`.
+
+**Difficulty: 5/5**
+
+WITH first_agg AS (
+SELECT 
+	*,
+	SUM(t.amount) OVER (PARTITION BY user_id ORDER BY created_at) AS running_total
+FROM crappy_data_db.transactions t
+),
+totals_ids AS (
+SELECT 
+	*,
+	FLOOR(running_total / 1000) AS group_id
+FROM first_agg
+)
+SELECT 
+	*,
+	SUM(amount) OVER (PARTITION BY user_id, group_id ORDER BY created_at) AS running_total_in_group
+FROM  totals_ids
+
+Ogarnięte z twoją pomocą - w sumie teraz nie wydaje siętakie trudne, ale nie pomyślałem wcześniej o tym FLOOR(running_total/1000)
+
+
+---
+
+## Task 3 — Months with No Orders (Date Spine)
+**Difficulty: 3/5**
+
+**Business question:**  
+Using the `dates` table as a calendar spine, find every month between the first and last order date where **no orders were placed at all**. Show the month and a `order_count` of 0.
+
+Then extend the query: for months that DO have orders, show the month and the actual order count. The final result should cover every month in the range with either the real count or 0.
+
+**Expected output columns:**  
+`order_month, order_count`
 
 Order by `order_month`.
 
-**Difficulty: 4/5**
-
+**Difficulty: 3/5**
 
 WITH orders_months AS (
 SELECT 
-	*,
-	DATE_TRUNC('Month', created_at) AS month_
-FROM crappy_data_db.orders o
-),
-monthly_revs AS (
-SELECT
-	month_,
-	SUM(amount) AS total_revenue
-FROM orders_months
-GROUP BY month_
+	DATE_TRUNC('Month', d."date") AS month_,
+	COALESCE(COUNT(o.id), 0) AS order_count
+FROM crappy_data_db.dates d
+LEFT JOIN crappy_data_db.orders o ON d."date" = DATE_TRUNC('Month', o.created_at)
+GROUP BY DATE_TRUNC('Month', d."date")
 ORDER BY month_
 ),
-prev_year_revs AS (
-SELECT 
-	*,
-	COALESCE(LAG(total_revenue, 12) OVER (ORDER BY month_), 0) AS prev_year_revenue
-FROM monthly_revs
-)
-SELECT 
-	*,
-	total_revenue - prev_year_revenue AS yoy_diff,
-	ROUND((total_revenue - prev_year_revenue)::numeric / total_revenue::NUMERIC * 100, 2) AS yoy_pct_change
-FROM prev_year_revs
-WHERE prev_year_revenue > 0
-
-
-
-Everything done as you wanted.
-
-
-
----
-
-## Task 3 — Conversion Funnel
-**Difficulty: 4/5**
-
-**Business question:**  
-Measure the conversion funnel across three stages:
-1. **All users** — total registered users
-2. **Buyers** — users who placed at least one order
-3. **Delivered** — users who have at least one order with a delivery record of any status
-
-For each stage show the count and the percentage relative to the top of the funnel (all users).
-
-Then add a fourth row showing the **drop-off between buyers and delivered** — what % of buyers have no delivery record at all.
-
-**Expected output columns:**  
-`stage, user_count, pct_of_total`
-
-Stages in order: `all_users`, `buyers`, `delivered`, `buyers_no_delivery`.
-
-**Difficulty: 4/5**
-
-
-WITH users_orders_deliveries AS (
-SELECT 
-	u.id AS user_id,
-	COUNT(o.id) AS ordered_,
-	COUNT(d.id) FILTER (WHERE d.status = 'delivered') AS delivered_
-FROM crappy_data_db.users u
-LEFT JOIN crappy_data_db.orders o ON u.id = o.user_id
-LEFT JOIN crappy_data_db.deliveries d ON d.order_id = o.id
-GROUP BY u.id
+fl_order_dates AS (
+SELECT	
+	MIN(created_at) AS first_order,
+	MAX(created_at) AS last_order
+FROM crappy_data_db.orders o
 )
 SELECT
-	'all_users' AS stage,
-	COUNT(user_id) AS user_count,
-	100.0 AS pct_of_total
-FROM users_orders_deliveries
-UNION ALL
-SELECT
-	'buyers',
-	COUNT(*) FILTER (WHERE ordered_ > 0),
-	ROUND(COUNT(*) FILTER (WHERE ordered_ > 0) / COUNT(user_id)::NUMERIC * 100, 2)
-FROM users_orders_deliveries
-UNION ALL
-SELECT
-	'delivered',
-	COUNT(*) FILTER (WHERE delivered_ > 0),
-	ROUND(COUNT(*) FILTER (WHERE delivered_ > 0) / COUNT(user_id)::NUMERIC * 100, 2)
-FROM users_orders_deliveries
+	om.month_,
+	om.order_count
+FROM orders_months om
+LEFT JOIN fl_order_dates od ON om.month_ > od.first_order AND om.month_ < od.last_order
+WHERE om.month_ > od.first_order AND om.month_ < od.last_order
 
 ---
 
 ## Submission Instructions
 
-Paste your queries below each task. For Task 1, include the comments — they're part of the answer.
+Paste your queries below each task.

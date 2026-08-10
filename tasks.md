@@ -1,186 +1,156 @@
-# SQL Tasks — 2026-08-07 (Week 33, Day 5)
+# SQL Tasks — 2026-08-10 (Week 34, Day 1)
 
-**Dataset:** orders / transactions / users / product_categories / products / orders_products  
-**Focus:** Recursive CTE (Type A) · Window with conditional reset · Date spine
-
----
-
-## Task 1 — Category → Product → Order Revenue Hierarchy
-**Difficulty: 4/5**
-
-**Business question:**  
-Build a 3-level revenue rollup:
-- **Level 1:** Total revenue per product category
-- **Level 2:** Total revenue per product (within its category)
-- **Level 3:** Total revenue per individual order line (quantity × price, within its product)
-
-Show all three levels in a single result set with a `level` column (1, 2, or 3), a `label` column (category name / product name / order_id as text), a `parent_label` (NULL for level 1, category name for level 2, product name for level 3), and `revenue`.
-
-Order by `level`, `revenue DESC`.
-
-**Scaffold — recursive CTE structure to fill in:**
-
-```sql
-WITH RECURSIVE hierarchy AS (
-
-    -- Anchor: Level 1 — category totals
-    SELECT
-        1 AS level,
-        pc.name AS label,
-        NULL::text AS parent_label,
-        SUM(???) AS revenue          -- fill in the revenue formula
-    FROM ???                          -- fill in the tables and joins
-    GROUP BY pc.name
-
-    UNION ALL
-
-    -- Recursive step: Level 2 — product totals, Level 3 — order line totals
-    SELECT
-        h.level + 1,
-        ???,                          -- label for this level
-        h.label AS parent_label,
-        ???                           -- revenue for this level
-    FROM hierarchy h
-    JOIN ???                          -- join to get next level down
-    WHERE h.level < 3
-
-)
-SELECT * FROM hierarchy
-ORDER BY level, revenue DESC;
-```
-
-Note: revenue at level 3 = `quantity × price` from `orders_products` joined to `products`.
-
-**Expected output columns:**  
-`level, label, parent_label, revenue`
-
-**Difficulty: 4/5**
-
-WITH RECURSIVE product_revenues AS (
-SELECT
-	p.name::TEXT,
-	p.id,
-	pc.name::TEXT AS category_name,
-	SUM(op.quantity * p.price) AS product_revenue
-FROM crappy_data_db.orders_products op 
-JOIN crappy_data_db.products p  ON op.product_id = p.id
-JOIN crappy_data_db.product_categories pc ON p.category_id = pc.id
-GROUP BY p.name, pc.name, p.id
-),
-orders_revenues AS (
-SELECT
-	p.name,
-	p.id,
-	op.order_id,
-	SUM(op.quantity * p.price) AS order_revenue
-FROM crappy_data_db.orders_products op 
-JOIN crappy_data_db.products p  ON op.product_id = p.id
-JOIN crappy_data_db.product_categories pc ON p.category_id = pc.id
-GROUP BY p.name, p.id, op.order_id
-),
-HIERARCHY AS (
-SELECT 
-	1 AS LEVEL,
-	pc.name::text AS LABEL,
-	NULL::TEXT AS parent_label,
-	SUM(p.price * op.quantity) AS revenue
-FROM crappy_data_db.orders_products op 
-JOIN crappy_data_db.products p  ON op.product_id = p.id
-JOIN crappy_data_db.product_categories pc ON p.category_id = pc.id
-GROUP BY pc.name
-UNION ALL 
-SELECT
-	h.LEVEL + 1,
-	COALESCE(p.name::TEXT, o.order_id::TEXT),
-	h.LABEL,
-	COALESCE(p.product_revenue, o.order_revenue)
-FROM hierarchy h
-LEFT JOIN product_revenues p ON h.LABEL = p.category_name AND h.LEVEL = 1
-LEFT JOIN orders_revenues o ON h.LABEL = o."name" AND h.LEVEL = 2
-GROUP BY p.name, o.order_id, o.order_revenue, h.LEVEL, h.LABEL, p.product_revenue
-)
-SELECT * FROM hierarchy
-
-
-Mamy to, trochębyło z tym pierdolenia, szczególnie że dawno tego nie robiłem i zapomniałem, żę joiny oba mają być już na pierwszym UNION ALLU, ale dałem radę
+**Dataset:** orders / transactions / users  
+**Focus:** NTILE quartile analysis · Self-join with multi-condition HAVING · PERCENT_RANK
 
 ---
 
-## Task 2 — Running Total with Reset
-**Difficulty: 5/5**
+## Task 1 — Spending Quartiles
+**Difficulty: 3/5**
 
 **Business question:**  
-For each user, compute a running total of transaction `amount` ordered by `created_at`. Every time the running total **exceeds 1000**, reset it back to 0 and start accumulating again from the next transaction.
+Divide users into 4 spending quartiles based on their total transaction amount. For each quartile show:
+- The quartile number (1 = lowest, 4 = highest)
+- Number of users in that quartile
+- Average total spending per user
+- Min and max total spending in that quartile
 
-Show each transaction with its `group_id` (which "cycle" it belongs to, starting at 1 per user) and the running total within that cycle.
+Then add a second part: for each user in the **top quartile (4)**, show their `user_id` and total spending, ordered by spending DESC.
 
-Hint: the trick is identifying group boundaries using a cumulative sum of a reset flag, then using that as a partition key for the inner running total.
+**Expected output columns:**
 
-**Expected output columns:**  
-`user_id, id, created_at, amount, group_id, running_total_in_group`
+Part A: `quartile, user_count, avg_spending, min_spending, max_spending`
 
-Order by `user_id`, `created_at`, `id`.
+Part B: `user_id, total_spending`
 
-**Difficulty: 5/5**
+**Difficulty: 3/5**
 
-WITH first_agg AS (
-SELECT 
-	*,
-	SUM(t.amount) OVER (PARTITION BY user_id ORDER BY created_at) AS running_total
+
+WITH users_totals AS (
+SELECT
+	user_id,
+	SUM(amount) AS total_amount
 FROM crappy_data_db.transactions t
+GROUP BY user_id
 ),
-totals_ids AS (
+users_quartiles AS (
 SELECT 
 	*,
-	FLOOR(running_total / 1000) AS group_id
-FROM first_agg
+	NTILE(4) OVER (ORDER BY total_amount) AS quartile
+FROM users_totals
+),
+quartiles AS (
+SELECT 
+	quartile,
+	COUNT(*) AS user_count,
+	AVG(total_amount) AS avg_spending,
+	MIN(total_amount) AS min_spending,
+	MAX(total_amount) AS max_spending
+FROM users_quartiles
+GROUP BY quartile
 )
 SELECT 
-	*,
-	SUM(amount) OVER (PARTITION BY user_id, group_id ORDER BY created_at) AS running_total_in_group
-FROM  totals_ids
-
-Ogarnięte z twoją pomocą - w sumie teraz nie wydaje siętakie trudne, ale nie pomyślałem wcześniej o tym FLOOR(running_total/1000)
+	user_id,
+	total_amount
+FROM users_quartiles
+WHERE quartile = 4
+ORDER BY total_amount DESC
 
 
 ---
 
-## Task 3 — Months with No Orders (Date Spine)
-**Difficulty: 3/5**
+## Task 2 — Same-City Same-Month Pairs
+**Difficulty: 4/5**
 
 **Business question:**  
-Using the `dates` table as a calendar spine, find every month between the first and last order date where **no orders were placed at all**. Show the month and a `order_count` of 0.
+Find pairs of users from the **same city** who both placed at least one order in the **same calendar month**. For each such pair, show the city, the month, and how many orders each user placed that month.
 
-Then extend the query: for months that DO have orders, show the month and the actual order count. The final result should cover every month in the range with either the real count or 0.
+Only include pairs where both users placed at least 2 orders in that shared month. Each pair should appear once (use `u1.id < u2.id`). Exclude users with NULL city.
 
 **Expected output columns:**  
-`order_month, order_count`
+`city, order_month, user_id_1, orders_u1, user_id_2, orders_u2`
 
-Order by `order_month`.
+Order by `city`, `order_month`.
 
-**Difficulty: 3/5**
+**Difficulty: 4/5**
 
-WITH orders_months AS (
+
+WITH uo_months AS (
 SELECT 
-	DATE_TRUNC('Month', d."date") AS month_,
-	COALESCE(COUNT(o.id), 0) AS order_count
-FROM crappy_data_db.dates d
-LEFT JOIN crappy_data_db.orders o ON d."date" = DATE_TRUNC('Month', o.created_at)
-GROUP BY DATE_TRUNC('Month', d."date")
-ORDER BY month_
+	*,
+	o.id AS order_id,
+	DATE_TRUNC('Month', o.created_at) AS order_month
+FROM crappy_data_db.users u
+JOIN crappy_data_db.orders o ON u.id = o.user_id
 ),
-fl_order_dates AS (
-SELECT	
-	MIN(created_at) AS first_order,
-	MAX(created_at) AS last_order
-FROM crappy_data_db.orders o
-)
+users_order_months AS (
+SELECT 
+	user_id AS user_id,
+	city,
+	order_month,
+	order_id
+FROM uo_months
+WHERE city IS NOT NULL
+),
+users_monthly_agg AS (
 SELECT
-	om.month_,
-	om.order_count
-FROM orders_months om
-LEFT JOIN fl_order_dates od ON om.month_ > od.first_order AND om.month_ < od.last_order
-WHERE om.month_ > od.first_order AND om.month_ < od.last_order
+	user_id,
+	city,
+	order_month,
+	COUNT(*) AS user_orders_month
+FROM users_order_months 
+GROUP BY user_id, order_month, city
+)
+SELECT 
+	u1.city,
+	u1.order_month,
+	u1.user_id AS user_id_1,
+	u1.user_orders_month AS orders_u1,
+	u2.user_id AS user_id_2,
+	u2.user_orders_month AS orders_u2
+FROM users_monthly_agg u1
+JOIN users_monthly_agg u2 ON u1.city = u2.city AND u1.order_month = u2.order_month
+WHERE u1.user_id > u2.user_id AND u1.user_orders_month >= 2 AND u2.user_orders_month >= 2
+ORDER BY city, order_month
+
+---
+
+## Task 3 — Transaction Amount Percentile Rank
+**Difficulty: 5/5**
+
+**Business question:**  
+For each transaction, compute its `PERCENT_RANK` among all transactions **of the same type** — i.e. how does this transaction's amount rank relative to all other transactions of that type?
+
+Then filter to only show transactions in the **top 10%** of their type (percent_rank >= 0.90).
+
+Finally, for each type, show how many transactions made it into the top 10% and what their average amount is.
+
+Two-part output:
+
+**Part A:** Per transaction  
+`id, user_id, type, amount, percent_rank`  
+(only top 10% per type, ordered by type, percent_rank DESC)
+
+**Part B:** Summary per type  
+`type, top10_count, avg_top10_amount`  
+(ordered by avg_top10_amount DESC)
+
+**Difficulty: 5/5**
+
+WITH transactions_perc_ranks AS (
+SELECT
+	*,
+	PERCENT_RANK() OVER (PARTITION BY TYPE ORDER BY amount) AS percent_rank
+FROM crappy_data_db.transactions t
+)
+SELECT 
+	TYPE,
+	COUNT(*) AS top_10_count,
+	ROUND(AVG(amount), 2) AS avg_top10_amount
+FROM transactions_perc_ranks 
+WHERE percent_rank >= 0.9
+GROUP BY TYPE
+ORDER BY avg_top10_amount DESC
 
 ---
 

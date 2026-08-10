@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-08-10 (Week 34, Day 1) — Score: 30/30
+
+**Task 1 (NTILE quartiles):** 10/10 — NTILE(4) poprawny, pre-agregacja czysta, Part A i B z jednej CTE chain.
+
+**Task 2 (Same-city pairs):** 10/10 — pre-agregacja przed self-joinem poprawna, u1.user_id > u2.user_id eliminuje duplikaty par, HAVING w WHERE po agregacji czyste.
+
+**Task 3 (PERCENT_RANK):** 10/10 — PERCENT_RANK PARTITION BY type poprawny, filtr >= 0.90 przez CTE, Part B agregacja czysta.
+
+---
+
 ### Task Archive: 2026-08-07 (Week 33, Day 5) — Score: 27/30
 
 **Task 1 (Recursive CTE):** 9/10 — pre-agg CTE approach correct and elegant. Missing explicit WHERE h.level < 3 termination condition — relies on LEFT JOIN NULLs instead, works here but fragile on deeper hierarchies.

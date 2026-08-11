@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-08-11 (Week 34, Day 2) — Score: 20/20
+
+**Task 1 (Top 3 per category):** 10/10 — RANK() PARTITION BY category, revenue pre-agg clean, filtr WHERE rank <= 3.
+
+**Task 2 (Inactive users):** 10/10 — NOT EXISTS poprawny, poprawka LEFT JOIN na transactions i last_tx_date żeby złapać userów bez transakcji. CROSS JOIN on last_tx_date byłby czytelniejszy ale logika poprawna.
+
+---
+
 ### Task Archive: 2026-08-10 (Week 34, Day 1) — Score: 30/30
 
 **Task 1 (NTILE quartiles):** 10/10 — NTILE(4) poprawny, pre-agregacja czysta, Part A i B z jednej CTE chain.

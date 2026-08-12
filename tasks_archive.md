@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-08-12 (Week 34, Day 3) — Score: 30/30
+
+**Task 1 (Pivot seniority × platforma):** 10/10 — FILTER pivot clean, single SELECT without CTE, correct approach.
+
+**Task 2 (Dominant tech per platforma):** 10/10 — UNION ALL unpivot + RANK() PARTITION BY platform elegant, Part A and B both correct.
+
+**Task 3 (Platform ranking per miasto):** 10/10 — RANK() PARTITION BY miasto correct, offer_count >= 3 filter matches task spec exactly.
+
+---
+
 ### Task Archive: 2026-08-11 (Week 34, Day 2) — Score: 20/20
 
 **Task 1 (Top 3 per category):** 10/10 — RANK() PARTITION BY category, revenue pre-agg clean, filtr WHERE rank <= 3.

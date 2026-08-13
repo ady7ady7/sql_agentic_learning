@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-08-13 (Week 34, Day 4) — Score: 29/30
+
+**Task 1 (Monthly streak):** 9/10 — gaps-and-islands monthly correct, EPOCH/86400 < 32 threshold clever. WHERE prev_month IS NOT NULL drops first month of each streak — first month excluded from streak_length.
+
+**Task 2 (Funnel + conversion time):** 10/10 — CTE chain logical, LEFT JOIN correct, AVG ignores NULLs naturally, COALESCE on COUNT harmless.
+
+**Task 3 (Z-score):** 10/10 — (total - mean) / stddev formula correct, CROSS JOIN on single-row CTE elegant.
+
+---
+
 ### Task Archive: 2026-08-12 (Week 34, Day 3) — Score: 30/30
 
 **Task 1 (Pivot seniority × platforma):** 10/10 — FILTER pivot clean, single SELECT without CTE, correct approach.

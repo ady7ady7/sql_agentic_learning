@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-08-14 (Week 34, Day 5) — Score: 19/20
+
+**Task 1 (Monthly pivot):** 10/10 — RANK() per user for relative month ranking, FILTER pivot clean. Ambiguous task wording — per-user interpretation valid.
+
+**Task 2 (First/last transaction per month):** 9/10 — FIRST_VALUE with reversed ORDER BY correct, DISTINCT ON elegant, missing HAVING tx_count >= 2.
+
+---
+
 ### Task Archive: 2026-08-13 (Week 34, Day 4) — Score: 29/30
 
 **Task 1 (Monthly streak):** 9/10 — gaps-and-islands monthly correct, EPOCH/86400 < 32 threshold clever. WHERE prev_month IS NOT NULL drops first month of each streak — first month excluded from streak_length.

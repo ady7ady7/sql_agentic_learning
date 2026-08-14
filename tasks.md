@@ -1,192 +1,108 @@
-# SQL Tasks — 2026-08-13 (Week 34, Day 4)
+# SQL Tasks — 2026-08-14 (Week 34, Day 5)
 
-**Dataset:** user_sessions_daily / orders / users / transactions  
-**Focus:** Gaps-and-islands (monthly) · Funnel with conversion time · STDDEV z-score
+**Dataset:** transactions / users / orders  
+**Focus:** Pivot z FILTER · FIRST_VALUE + LAST_VALUE per window
 
 ---
 
-## Task 1 — Longest Monthly Activity Streak
+## Task 1 — Monthly Transaction Pivot per User
+**Difficulty: 3/5**
+
+**Business question:**  
+For each user, show their total transaction amount broken down by month as separate columns — one column per month from the data. Use only the 4 most recent distinct months in the dataset.
+
+Show users who had at least one transaction in any of those 4 months. Use conditional aggregation with `FILTER`.
+
+**Expected output columns:**  
+`user_id, month_1, month_2, month_3, month_4`
+
+Where `month_1` is the oldest of the 4 and `month_4` is the most recent. Column names can reflect the actual month (e.g. `m_2025_06`). NULL if no transactions that month.
+
+Order by `user_id`.
+
+**Difficulty: 3/5**
+
+
+WITH transactions_months AS (
+SELECT 
+	*,
+	DATE_TRUNC('Month', created_at) AS month
+FROM crappy_data_db.transactions t
+),
+users_months AS (
+SELECT 
+	*,
+	RANK() OVER (PARTITION BY USER_ID ORDER BY month DESC) AS user_month
+FROM transactions_months
+)
+SELECT
+	user_id,
+	SUM(amount) FILTER (WHERE user_month = 1) AS month_1,
+	SUM(amount) FILTER (WHERE user_month = 2) AS month_2,
+	SUM(amount) FILTER (WHERE user_month = 3) AS month_3,
+	SUM(amount) FILTER (WHERE user_month = 4) AS month_4
+FROM users_months
+GROUP BY user_id
+ORDER BY user_id
+
+
+
+
+---
+
+## Task 2 — First and Last Transaction per User per Month
 **Difficulty: 4/5**
 
 **Business question:**  
-Using `user_sessions_daily`, find the longest consecutive-month streak for each user — where a "streak" is an unbroken sequence of months in which the user had at least one session (`count_sessions > 0`).
+For each user, for each month they were active, show:
+- Their first transaction amount that month (`first_amount`)
+- Their last transaction amount that month (`last_amount`)
+- The difference between last and first (`change`)
+- How many transactions they had that month (`tx_count`)
 
-Show each user's longest streak length (in months). Only include users with a streak of at least 2 months.
+Only include user-months with at least 2 transactions.
 
 **Expected output columns:**  
-`user_id, longest_streak`
+`user_id, tx_month, first_amount, last_amount, change, tx_count`
 
-Order by `longest_streak DESC`, `user_id`.
+Order by `user_id`, `tx_month`.
 
-**Hint:** The gaps-and-islands trick works differently at month granularity — you can't subtract row numbers from dates directly. Instead: assign a month number to each active month per user, then subtract a `ROW_NUMBER()` from it. Consecutive months will have the same difference.
+**Hint:** Use `FIRST_VALUE(amount ORDER BY created_at)` and `FIRST_VALUE(amount ORDER BY created_at DESC)` — both within `PARTITION BY user_id, tx_month`. Avoid LAST_VALUE without an explicit frame.
+
+**Difficulty: 4/5**
 
 
-
-WITH sessions_months AS (
-SELECT
-	*,
-	DATE_TRUNC('Month', date) AS month
-FROM crappy_data_db.user_sessions_daily usd
-),
-users_sessions_months AS (
+WITH users_months AS (
 SELECT 
-	USER_ID,
+	*,
+	DATE_TRUNC('Month', created_at) AS month
+FROM crappy_data_db.transactions t
+),
+users_months_summary AS (
+SELECT
+	user_id,
 	MONTH,
-	SUM(count_sessions)
-FROM sessions_months
+	COUNT(*) AS tx_month
+FROM users_months
 GROUP BY user_id, MONTH
 ORDER BY user_id
 ),
-users_pm AS (
+first_last_tx AS (
 SELECT 
 	*,
-	LAG(month) OVER (PARTITION BY USER_ID ORDER BY MONTH) AS prev_month
-FROM users_sessions_months
-),
-users_streak_keys AS (
-SELECT 
-	*,
-	CASE WHEN EXTRACT(EPOCH FROM MONTH - prev_month) / 86400 < 32 THEN 0 ELSE 1 END AS streak_key
-FROM users_pm
-WHERE prev_month IS NOT NULL
-),
-users_streak_ids AS (
-SELECT 
-	*,
-	sum(streak_key) OVER (PARTITION BY user_id ORDER BY month) AS streak_id
-FROM users_streak_keys
-),
-users_streaks AS (
-SELECT
-	user_id,
-	streak_id,
-	MIN(month) AS streak_start,
-	MAX(month) AS streak_end,
-	COUNT(*) AS streak_length
-FROM users_streak_ids
-GROUP BY user_id, streak_id
+	FIRST_VALUE(amount) OVER (PARTITION BY user_id, MONTH ORDER BY created_at) AS first_tx,
+	FIRST_VALUE(amount) OVER (PARTITION BY user_id, MONTH ORDER BY created_at DESC) AS last_tx
+FROM users_months
 )
-SELECT 
-	user_id,
-	MAX(streak_length) AS longest_streak
-FROM users_streaks
-GROUP BY user_id
-ORDER BY longest_streak DESC
-
-
-Rather a long CTE query, but I've managed to do it my way and IMO it works perfectly fine
-
-
-
-
-
-**Difficulty: 4/5**
-
----
-
-## Task 2 — Funnel with Time to First Order
-**Difficulty: 4/5**
-
-**Business question:**  
-Build a monthly registration cohort funnel. For each cohort (month of `users.created_at`), show:
-- Total users registered that month (`cohort_size`)
-- How many placed at least one order ever (`buyers`)
-- Conversion rate: buyers / cohort_size
-- Average days from registration to first order (only for users who ordered)
-
-**Expected output columns:**  
-`cohort_month, cohort_size, buyers, conversion_pct, avg_days_to_first_order`
-
-Order by `cohort_month`.
-
-**Difficulty: 4/5**
-
-It was pretty long as well but I think I've handled it smoothly
-
-WITH users_orders AS (
-SELECT 
-	*,
-	DATE_TRUNC('Month', u.created_at) AS cohort_month
-FROM crappy_data_db.users u
-),
-users_register_cohorts AS (
-SELECT 
-	cohort_month,
-	COUNT(*) AS cohort_size
-FROM users_orders
-GROUP BY cohort_month
-),
-cohorts_orders_cnts AS (
-SELECT 
-	uo.id AS user_id,
-	uo.created_at AS registration_time,
-	cohort_month,
-	MIN(o.created_at) AS first_order,
-	COALESCE(COUNT(o.created_at), 0) AS orders_cnt
-FROM users_orders uo
-LEFT JOIN crappy_data_db.orders o ON uo.id = o.user_id 
-GROUP BY uo.id, uo.created_at, cohort_month
-),
-cohorts_days_to_first_order AS (
-SELECT 
-	*,
-	EXTRACT(EPOCH FROM first_order - coc.registration_time) / 86400 AS days_to_first_order
-FROM cohorts_orders_cnts coc
-)
-SELECT 
-	c.cohort_month,
-	u.cohort_size,
-	COUNT(*) FILTER (WHERE first_order IS NOT NULL) AS buyers,
-	ROUND(COUNT(*) FILTER (WHERE first_order IS NOT NULL) / u.cohort_size::NUMERIC * 100, 2) AS conversion_pct,
-	ROUND(AVG(days_to_first_order), 2) AS avg_days_to_first_order
-FROM cohorts_days_to_first_order c
-JOIN users_register_cohorts u ON c.cohort_month = u.cohort_month
-GROUP BY c.cohort_month, u.cohort_size
-ORDER BY COHORT_MONTH
-
-
----
-
-## Task 3 — Spending Outliers (Z-Score Corrected)
-**Difficulty: 3/5**
-
-**Business question:**  
-Find users whose total transaction amount is more than 2 standard deviations above the mean across all users.
-
-Show each outlier's `user_id`, their total spending, and how many standard deviations above the mean they are (z-score).
-
-Z-score formula: `(total_amount - mean) / stddev`
-
-**Expected output columns:**  
-`user_id, total_amount, z_score`
-
-Order by `z_score DESC`.
-
-**Difficulty: 3/5**
-
-WITH USERS_spendings AS (
-SELECT 
-	user_id,
-	SUM(amount) AS total_amount
-FROM crappy_data_db.transactions t
-GROUP BY user_id
-),
-mean_avg AS (
-SELECT 
-	round(STDDEV(total_amount), 2) AS STDEV,
-	round(AVG(total_amount), 2) AS mean
-FROM users_spendings
-)
-SELECT 
+SELECT DISTINCT ON (u.user_id, u.month)
 	u.user_id,
-	u.total_amount,
-	ROUND((u.total_amount - m.mean) / m.stdev, 2) AS z_score
-FROM users_spendings U
-CROSS JOIN mean_avg m
-ORDER BY z_score DESC
-
-
-
+	u.MONTH AS tx_month,
+	f.first_tx AS first_amount,
+	f.last_tx AS last_amount,
+	f.last_tx - f.first_tx AS diff,
+	u.tx_month AS tx_count
+FROM users_months_summary u
+LEFT JOIN first_last_tx f ON u.user_id = f.user_id AND u."month" = f."month"
 
 ---
 

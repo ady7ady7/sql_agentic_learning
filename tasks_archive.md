@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-08-25 (Week 35, Day 1) — Score: 18/20
+
+**Task 1 (Running total):** 9/10 — window SUM correct, missing HAVING >= 3 transactions filter.
+
+**Task 2 (Top 3 cities):** 9/10 — RANK() clean, LEFT JOIN + WHERE IS NOT NULL = de facto INNER JOIN.
+
+---
+
 ### Task Archive: 2026-08-14 (Week 34, Day 5) — Score: 19/20
 
 **Task 1 (Monthly pivot):** 10/10 — RANK() per user for relative month ranking, FILTER pivot clean. Ambiguous task wording — per-user interpretation valid.

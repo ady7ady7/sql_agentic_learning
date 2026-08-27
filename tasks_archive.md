@@ -1,5 +1,15 @@
 
-### Task Archive: 2026-08-26 (Week 35, Day 2) — archived before session start
+### Task Archive: 2026-08-27 (Week 35, Day 3) — archived before session start
+
+---
+
+### Task Archive: 2026-08-26 (Week 35, Day 2) — Score: 27/30
+
+**Task 1 (YoY revenue):** 9/10 — LAG(12) correct, formula initially divided by current instead of prev year. Corrected. Style note: LAG computed 3x in same SELECT instead of a wrapping CTE.
+
+**Task 2 (Self-join affinity):** 10/10 — t1.TYPE > t2.TYPE clean dedup, COUNT(DISTINCT user_id) correct.
+
+**Task 3 (job_db rolling avg):** 10/10 — two-CTE layering, ROWS BETWEEN 2 PRECEDING AND CURRENT ROW, PARTITION BY platform_name — all correct.
 
 ---
 

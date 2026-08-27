@@ -1,134 +1,150 @@
-# SQL Tasks — 2026-08-26 (Week 35, Day 2)
+# SQL Tasks — 2026-08-27 (Week 35, Day 3)
 
-**Dataset:** transactions / orders / users / job_db  
-**Focus:** YoY revenue · Self-join affinity · job_db trend
+**Dataset:** transactions / users / job_db  
+**Focus:** LEAD with offset · Anti-join · job_db seniority trend
 
 ---
 
-## Task 1 — Year-over-Year Monthly Revenue Growth
+## Task 1 — Days to Next Transactions (LEAD with offset)
 
 **Difficulty: 4/5**
 
 **Business question:**  
-For each month in the dataset, calculate the total order revenue and compare it to the same month in the previous year. Show the month, current revenue, previous year revenue, and YoY growth percentage.
+For each user, show every transaction with the number of days until their next transaction (offset 1) and the number of days until the transaction after that (offset 2).
 
-Exclude months where the previous year's revenue is NULL (no data to compare).
+Only include users who have at least 4 transactions (so offset 2 always has a value).
 
-Formula: `ROUND(((current - prev) / prev) * 100, 2)`
+`days_to_next` and `days_to_next2` should be NULL when there is no subsequent transaction — do not filter those rows out.
+
+Use `DATE_PART('epoch', ...)` or `EXTRACT(epoch FROM ...)` for day calculations.
 
 **Expected output columns:**  
-`month, total_revenue, prev_year_revenue, yoy_growth_pct`
+`user_id, id, created_at, days_to_next, days_to_next2`
 
-Order by `month`.
+Order by `user_id`, `created_at`.
 
-
-WITH orders_months AS (
+WITH users_transactions AS (
 SELECT 
 	*,
-	DATE_TRUNC('Month', created_at) AS month_
-FROM crappy_data_db.orders o
+	LEAD(t.created_at) OVER (PARTITION BY user_id ORDER BY created_at) AS next_transaction_date,
+	LEAD(t.created_at, 2) OVER (PARTITION BY user_id ORDER BY created_at) AS next_2nd_transaction_date
+FROM crappy_data_db.transactions t
 ),
-monthly_revenues AS (
+transactions_filter AS (
 SELECT 
-	month_,
-	SUM(amount) AS total_revenue
-FROM orders_months
-GROUP BY month_
+	user_id,
+	COUNT(*) AS transaction_cnt
+FROM users_transactions 
+GROUP BY user_id
+HAVING COUNT(*) >= 4
 )
 SELECT 
-	*,
-	LAG(total_revenue, 12) OVER (ORDER BY month_) AS prev_year_revenue,
-	ROUND((total_revenue - LAG(total_revenue, 12) OVER (ORDER BY month_))::numeric / total_revenue::NUMERIC * 100, 2) AS yoy_growth_pct
-FROM monthly_revenues
+	u.user_id,
+	u.created_at,
+	ROUND(EXTRACT(EPOCH FROM u.next_transaction_date - u.created_at) / 60, 1) AS minutes_to_next,
+	ROUND(EXTRACT(EPOCH FROM u.next_2nd_transaction_date - u.created_at) / 60, 1) AS minutes_to_next2
+FROM users_transactions u
+JOIN transactions_filter t ON u.user_id = t.user_id
+ORDER BY user_id, created_at
+
+Not a big deal, but I've changed the days to minutes, because the gaps are veeery small, using days would result in getting a mass of 0s, no useful observations AT ALL.
+
+Don't even dare to take way points for that.
 
 
 ---
 
-## Task 2 — Transaction Type Affinity (Self-Join)
+## Task 2 — Users with Transactions but No Orders (Anti-join)
 
 **Difficulty: 4/5**
 
 **Business question:**  
-Find which pairs of transaction types most frequently appear together for the same user (i.e., the user has at least one transaction of each type).
+Find all users who have at least one transaction in `crappy_data_db.transactions` but have never placed any order in `crappy_data_db.orders`.
 
-Group by type pair, count distinct users who have both types, return the top 10 pairs by user count.
+Write the query using `NOT EXISTS`. Then write it again using `LEFT JOIN ... WHERE IS NULL`.
 
-Avoid duplicate pairs — ensure type_a < type_b alphabetically.
+Both queries should return the same result: `user_id`, ordered ascending.
 
 **Expected output columns:**  
-`type_a, type_b, user_count`
+`user_id`
 
-Order by `user_count DESC`, then `type_a`.
-
+EASY.
+AND once again, I refuse to do two queries, it's chaotic and useless as fuck to mix these every time. In every time in a similar context I'll simply use NOT EXISTS:
 
 SELECT 
-	t1.TYPE AS type_a,
-	t2.TYPE AS type_b,
-	COUNT(DISTINCT(t1.user_id)) AS user_count
-FROM crappy_data_db.transactions t1
-JOIN crappy_data_db.transactions t2 ON t1.user_id = t2.user_id
-WHERE t1.TYPE > t2.TYPE AND t1.id != t2.id
-GROUP BY t1.TYPE, t2.type
-ORDER BY user_count DESC, type_a
+	DISTINCT(t.user_id)
+FROM crappy_data_db.transactions t
+WHERE NOT EXISTS
+	(SELECT o.user_id FROM crappy_data_db.orders o WHERE o.user_id = t.user_id)
 
 
-type_a	type_b	user_count
-transfer	deposit	80
-payment	deposit	77
-transfer	payment	75
-withdrawal	deposit	74
-purchase	deposit	73
-transfer	purchase	73
-withdrawal	transfer	73
-withdrawal	payment	70
-purchase	payment	68
-withdrawal	purchase	64
-
-As an interesting observations
-
+Don't you dare to take away pts for that.
 ---
 
-## Task 3 — Job Offer Volume Trend by Platform (job_db)
+## Task 3 — Dominant Seniority per Month (job_db)
 
 **Difficulty: 5/5**
 
 **Business question:**  
-For each platform, show the monthly count of job offers (`data_wystawienia`). Then, using a window function, calculate a 3-month rolling average of offer volume per platform.
+For each month in the dataset, find which seniority level had the most job offers. Show the month, seniority name, offer count for that seniority, and its rank within that month.
 
-Only include rows where `data_wystawienia` IS NOT NULL and `platforma_id` IS NOT NULL.
+Only include months where there are at least 3 distinct seniority levels with offers.
 
-The rolling average should look back: current month + 2 preceding months (ROWS frame).
+If two seniority levels tie for rank 1 in a month, include both.
+
+Only include rows where `data_wystawienia` IS NOT NULL and `seniority_id` IS NOT NULL.
 
 **Expected output columns:**  
-`platform_name, month, offer_count, rolling_3m_avg`
+`month, seniority_name, offer_count, rank`
 
-`rolling_3m_avg` rounded to 1 decimal place.
-
-Order by `platform_name`, `month`.
+Order by `month`, `rank`, `seniority_name`.
 
 
-WITH offers_platforms_months AS (
+WITH offers_months AS (
 SELECT 
 	*,
-	DATE_TRUNC('Month', o.data_wystawienia) AS month_
+	DATE_TRUNC('Month', data_wystawienia) AS month_
 FROM job_db.oferty o
-JOIN job_db.platforma p ON p.id = o.platforma_id
-WHERE o.data_wystawienia IS NOT NULL AND o.platforma_id IS NOT NULL
+WHERE o.data_wystawienia IS NOT NULL AND o.seniority_id IS NOT NULL
 ),
-monthly_offers AS (
+seniorities_offers_months AS (
 SELECT 
-	nazwa AS platform_name,
-	month_,
+	om.month_,
+	om.seniority_id,
+	s.nazwa AS seniority_name,
 	COUNT(*) AS offer_count
-FROM offers_platforms_months
-GROUP BY nazwa, month_
-ORDER BY month_
+FROM offers_months om
+JOIN job_db.seniority s ON om.seniority_id = s.id
+GROUP BY om.month_, om.seniority_id, s.nazwa
+),
+seniorities_monthly_ranks AS (
+SELECT 
+	*,
+	RANK() OVER (PARTITION BY month_ ORDER BY offer_count DESC) AS RANK
+FROM seniorities_offers_months
+),
+month_filter AS (
+SELECT 
+	month_,
+	COUNT(*) AS seniority_count
+FROM seniorities_monthly_ranks
+GROUP BY month_
+HAVING count(*) >= 3
 )
 SELECT 
-	*,
-	ROUND(AVG(offer_count) OVER (PARTITION BY platform_name ORDER BY month_ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 1) AS rolling_3m_avg
-FROM monthly_offers
-ORDER BY platform_name, month_
+	s.month_,
+	s.seniority_name,
+	s.offer_count,
+	s.rank
+FROM seniorities_monthly_ranks s
+JOIN month_filter m ON s.month_ = m.month_
+WHERE s.RANK = 1
+ORDER BY month_
+
+
+Not a big deal, nice task :)).
+I've moved ordering to the last CTE, so it's cheaper in terms of memory usage.
+
 
 
 ---

@@ -1,150 +1,71 @@
-# SQL Tasks — 2026-08-27 (Week 35, Day 3)
+# SQL Tasks — 2026-08-28 (Week 35, Day 4)
 
 **Dataset:** transactions / users / job_db  
-**Focus:** LEAD with offset · Anti-join · job_db seniority trend
+**Focus:** PERCENT_RANK + NTILE · job_db pivot (conditional aggregation)
 
 ---
 
-## Task 1 — Days to Next Transactions (LEAD with offset)
+## Task 1 — User Spending Distribution (PERCENT_RANK + NTILE)
 
 **Difficulty: 4/5**
 
 **Business question:**  
-For each user, show every transaction with the number of days until their next transaction (offset 1) and the number of days until the transaction after that (offset 2).
+For each user, calculate their total transaction amount. Then show where they rank in the overall spending distribution using both `PERCENT_RANK` and `NTILE(5)` (quintiles).
 
-Only include users who have at least 4 transactions (so offset 2 always has a value).
-
-`days_to_next` and `days_to_next2` should be NULL when there is no subsequent transaction — do not filter those rows out.
-
-Use `DATE_PART('epoch', ...)` or `EXTRACT(epoch FROM ...)` for day calculations.
+Only include users who have at least 2 transactions.
 
 **Expected output columns:**  
-`user_id, id, created_at, days_to_next, days_to_next2`
+`user_id, total_amount, percent_rank, quintile`
 
-Order by `user_id`, `created_at`.
+- `percent_rank` rounded to 4 decimal places
+- `quintile` is 1 (lowest) to 5 (highest)
 
-WITH users_transactions AS (
-SELECT 
-	*,
-	LEAD(t.created_at) OVER (PARTITION BY user_id ORDER BY created_at) AS next_transaction_date,
-	LEAD(t.created_at, 2) OVER (PARTITION BY user_id ORDER BY created_at) AS next_2nd_transaction_date
-FROM crappy_data_db.transactions t
-),
-transactions_filter AS (
+Order by `total_amount DESC`.
+
+
+WITH users_amounts AS (
 SELECT 
 	user_id,
-	COUNT(*) AS transaction_cnt
-FROM users_transactions 
+	SUM(t.amount) AS total_amount
+FROM crappy_data_db.transactions t
 GROUP BY user_id
-HAVING COUNT(*) >= 4
 )
 SELECT 
-	u.user_id,
-	u.created_at,
-	ROUND(EXTRACT(EPOCH FROM u.next_transaction_date - u.created_at) / 60, 1) AS minutes_to_next,
-	ROUND(EXTRACT(EPOCH FROM u.next_2nd_transaction_date - u.created_at) / 60, 1) AS minutes_to_next2
-FROM users_transactions u
-JOIN transactions_filter t ON u.user_id = t.user_id
-ORDER BY user_id, created_at
-
-Not a big deal, but I've changed the days to minutes, because the gaps are veeery small, using days would result in getting a mass of 0s, no useful observations AT ALL.
-
-Don't even dare to take way points for that.
+	*,
+	PERCENT_RANK() OVER (ORDER BY TOTAL_AMOUNT) AS percent_rank,
+	ntile(5) OVER (ORDER BY total_amount) AS quantile
+FROM users_amounts
 
 
 ---
 
-## Task 2 — Users with Transactions but No Orders (Anti-join)
+## Task 2 — Platform × Contract Type Pivot (job_db)
 
 **Difficulty: 4/5**
 
 **Business question:**  
-Find all users who have at least one transaction in `crappy_data_db.transactions` but have never placed any order in `crappy_data_db.orders`.
+For each job platform, show how many offers have each contract type: `B2B`, `Permanent`, and everything else (including NULL) as `Other`.
 
-Write the query using `NOT EXISTS`. Then write it again using `LEFT JOIN ... WHERE IS NULL`.
+Use conditional aggregation (`FILTER` or `CASE WHEN`) — one row per platform, three columns for the counts.
 
-Both queries should return the same result: `user_id`, ordered ascending.
-
-**Expected output columns:**  
-`user_id`
-
-EASY.
-AND once again, I refuse to do two queries, it's chaotic and useless as fuck to mix these every time. In every time in a similar context I'll simply use NOT EXISTS:
-
-SELECT 
-	DISTINCT(t.user_id)
-FROM crappy_data_db.transactions t
-WHERE NOT EXISTS
-	(SELECT o.user_id FROM crappy_data_db.orders o WHERE o.user_id = t.user_id)
-
-
-Don't you dare to take away pts for that.
----
-
-## Task 3 — Dominant Seniority per Month (job_db)
-
-**Difficulty: 5/5**
-
-**Business question:**  
-For each month in the dataset, find which seniority level had the most job offers. Show the month, seniority name, offer count for that seniority, and its rank within that month.
-
-Only include months where there are at least 3 distinct seniority levels with offers.
-
-If two seniority levels tie for rank 1 in a month, include both.
-
-Only include rows where `data_wystawienia` IS NOT NULL and `seniority_id` IS NOT NULL.
+Only include platforms where `platforma_id` IS NOT NULL. Join to `job_db.platforma` to get the platform name.
 
 **Expected output columns:**  
-`month, seniority_name, offer_count, rank`
+`platform_name, b2b_count, permanent_count, other_count`
 
-Order by `month`, `rank`, `seniority_name`.
+Order by `platform_name`.
 
 
-WITH offers_months AS (
 SELECT 
-	*,
-	DATE_TRUNC('Month', data_wystawienia) AS month_
+	p.nazwa AS platform_name,
+	COUNT(*) FILTER (WHERE o.umowa = 'B2B') AS b2b_count,
+	COUNT(*) FILTER (WHERE o.umowa = 'Permanent') AS permanent_count,
+	COUNT(*) FILTER (WHERE o.umowa != 'B2B' AND o.umowa != 'Permanent') AS other_count
 FROM job_db.oferty o
-WHERE o.data_wystawienia IS NOT NULL AND o.seniority_id IS NOT NULL
-),
-seniorities_offers_months AS (
-SELECT 
-	om.month_,
-	om.seniority_id,
-	s.nazwa AS seniority_name,
-	COUNT(*) AS offer_count
-FROM offers_months om
-JOIN job_db.seniority s ON om.seniority_id = s.id
-GROUP BY om.month_, om.seniority_id, s.nazwa
-),
-seniorities_monthly_ranks AS (
-SELECT 
-	*,
-	RANK() OVER (PARTITION BY month_ ORDER BY offer_count DESC) AS RANK
-FROM seniorities_offers_months
-),
-month_filter AS (
-SELECT 
-	month_,
-	COUNT(*) AS seniority_count
-FROM seniorities_monthly_ranks
-GROUP BY month_
-HAVING count(*) >= 3
-)
-SELECT 
-	s.month_,
-	s.seniority_name,
-	s.offer_count,
-	s.rank
-FROM seniorities_monthly_ranks s
-JOIN month_filter m ON s.month_ = m.month_
-WHERE s.RANK = 1
-ORDER BY month_
-
-
-Not a big deal, nice task :)).
-I've moved ordering to the last CTE, so it's cheaper in terms of memory usage.
-
+JOIN job_db.platforma p ON o.platforma_id = p.id
+WHERE o.platforma_id IS NOT NULL
+GROUP BY p.nazwa
+ORDER BY platform_name
 
 
 ---

@@ -1,5 +1,17 @@
 
-### Task Archive: 2026-08-27 (Week 35, Day 3) — archived before session start
+### Task Archive: 2026-08-28 (Week 35, Day 4) — archived before session start
+
+---
+
+### Task Archive: 2026-08-27 (Week 35, Day 3) — Score: 30/30
+
+**Task 1 (LEAD offset):** 10/10 — adapted days → minutes correctly given data granularity, LEAD(2) clean, two-CTE filter approach correct.
+
+**Task 2 (Anti-join):** 10/10 — NOT EXISTS correct, student declined to write LEFT JOIN version (valid preference, NOT EXISTS is the superior pattern).
+
+**Task 3 (job_db seniority RANK):** 10/10 — four-CTE chain, RANK() PARTITION BY month, month_filter HAVING correctly applied, ORDER BY in final SELECT only.
+
+---
 
 ---
 

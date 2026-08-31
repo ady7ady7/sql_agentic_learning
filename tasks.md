@@ -1,71 +1,136 @@
-# SQL Tasks — 2026-08-28 (Week 35, Day 4)
+# SQL Tasks — 2026-09-01 (Week 36, Day 1)
 
-**Dataset:** transactions / users / job_db  
-**Focus:** PERCENT_RANK + NTILE · job_db pivot (conditional aggregation)
+**Dataset:** transactions / users  
+**Focus:** Gaps-and-islands (session-based) · Z-score outliers · ROWS vs RANGE
 
 ---
 
-## Task 1 — User Spending Distribution (PERCENT_RANK + NTILE)
+## Task 1 — Transaction Sessions per User (Gaps-and-Islands, Time-Based)
 
-**Difficulty: 4/5**
+**Difficulty: 5/5**
 
 **Business question:**  
-For each user, calculate their total transaction amount. Then show where they rank in the overall spending distribution using both `PERCENT_RANK` and `NTILE(5)` (quintiles).
+Group each user's transactions into "sessions". A new session starts whenever the gap between two consecutive transactions (for the same user) exceeds 60 minutes.
 
-Only include users who have at least 2 transactions.
+For each transaction, show the user, the transaction id, created_at, and the session number (1, 2, 3, ...) within that user.
+
+**Hint:** Use LAG to get the previous transaction timestamp, compute the gap in minutes, flag where a new session starts (gap > 60 or no previous = new session), then use a cumulative SUM of that flag as the session number.
+
+Only include users with at least 3 transactions.
 
 **Expected output columns:**  
-`user_id, total_amount, percent_rank, quintile`
+`user_id, id, created_at, session_number`
 
-- `percent_rank` rounded to 4 decimal places
-- `quintile` is 1 (lowest) to 5 (highest)
-
-Order by `total_amount DESC`.
+Order by `user_id`, `created_at`.
 
 
-WITH users_amounts AS (
-SELECT 
-	user_id,
-	SUM(t.amount) AS total_amount
-FROM crappy_data_db.transactions t
-GROUP BY user_id
-)
+WITH users_transactions AS (
 SELECT 
 	*,
-	PERCENT_RANK() OVER (ORDER BY TOTAL_AMOUNT) AS percent_rank,
-	ntile(5) OVER (ORDER BY total_amount) AS quantile
-FROM users_amounts
+	LAG(created_at) OVER (PARTITION BY user_id ORDER BY created_at) prev_transaction 
+FROM crappy_data_db.transactions t
+),
+prev_transaction_diff AS (
+SELECT 
+	*,
+	ROUND(EXTRACT(EPOCH FROM created_at - prev_transaction) / 60, 0) AS mins_from_prev_transaction
+FROM users_transactions sers_transactions
+WHERE prev_transaction IS NOT NULL
+),
+transactions_streak_keys AS (
+SELECT 
+	*,
+	COUNT(id) OVER (PARTITION BY user_id) AS transaction_cnt,
+	CASE WHEN mins_from_prev_transaction <= 60 THEN 0 ELSE 1 END AS streak_key
+FROM prev_transaction_diff
+)
+SELECT
+	user_Id,
+	id,
+	created_at,
+	SUM(streak_key) OVER (PARTITION BY user_id ORDER BY created_at) AS session_number
+FROM transactions_streak_keys
+WHERE transaction_cnt >= 3
+
+
 
 
 ---
 
-## Task 2 — Platform × Contract Type Pivot (job_db)
+## Task 2 — Z-Score Outlier Transactions per User
 
 **Difficulty: 4/5**
 
 **Business question:**  
-For each job platform, show how many offers have each contract type: `B2B`, `Permanent`, and everything else (including NULL) as `Other`.
+For each user, calculate the mean and standard deviation of their transaction amounts. Then for each transaction, compute the z-score: `(amount - mean) / stddev`.
 
-Use conditional aggregation (`FILTER` or `CASE WHEN`) — one row per platform, three columns for the counts.
+Return only transactions where the absolute z-score exceeds 2.0 — these are statistical outliers.
 
-Only include platforms where `platforma_id` IS NOT NULL. Join to `job_db.platforma` to get the platform name.
+Exclude users where `stddev = 0` or `stddev IS NULL` (users with identical amounts or fewer than 2 transactions).
 
 **Expected output columns:**  
-`platform_name, b2b_count, permanent_count, other_count`
+`user_id, id, amount, mean_amount, stddev_amount, z_score`
 
-Order by `platform_name`.
+All float columns rounded to 2 decimal places. Order by `ABS(z_score) DESC`.
 
-
+WITH users_transactions AS (
 SELECT 
-	p.nazwa AS platform_name,
-	COUNT(*) FILTER (WHERE o.umowa = 'B2B') AS b2b_count,
-	COUNT(*) FILTER (WHERE o.umowa = 'Permanent') AS permanent_count,
-	COUNT(*) FILTER (WHERE o.umowa != 'B2B' AND o.umowa != 'Permanent') AS other_count
-FROM job_db.oferty o
-JOIN job_db.platforma p ON o.platforma_id = p.id
-WHERE o.platforma_id IS NOT NULL
-GROUP BY p.nazwa
-ORDER BY platform_name
+	user_id,
+	id,
+	amount,
+	AVG(amount) OVER (PARTITION BY t.user_id) AS mean_amount,
+	STDDEV(amount) OVER (PARTITION BY t.user_id) AS stddev_amount
+FROM crappy_data_db.transactions t
+),
+transactions_zscores AS (
+SELECT 
+	*,
+	ROUND((amount - mean_amount) / stddev_amount, 2) AS z_score
+FROM users_transactions
+)
+SELECT * FROM transactions_zscores
+WHERE z_score >= 2.0
+ORDER BY z_score DESC 
+
+
+---
+
+## Task 3 — ROWS vs RANGE: Cumulative Daily Amount
+
+**Difficulty: 4/5**
+
+**Business question:**  
+For each transaction in `crappy_data_db.transactions`, compute two running totals of `amount` ordered by `created_at`, partitioned by `user_id`:
+
+- `running_rows`: uses `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
+- `running_range`: uses `RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
+
+Show both side by side. Find at least one user where the two columns differ — this happens when multiple transactions share the exact same `created_at` timestamp.
+
+**Expected output columns:**  
+`user_id, id, created_at, amount, running_rows, running_range`
+
+Order by `user_id`, `created_at`, `id`.
+
+**Note:** After writing the query, add a short comment (2–3 sentences) explaining WHY the two columns differ for ties.
+
+
+
+WITH users_transactions AS (
+SELECT 
+	*,
+	SUM(amount) OVER (PARTITION BY user_id ORDER BY created_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_rows_amount,
+	SUM(amount) OVER (PARTITION BY user_id ORDER BY created_at RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_range_amount
+FROM crappy_data_db.transactions t
+)
+SELECT * FROM users_transactions
+ORDER BY user_id, created_at, id
+
+Z czapy to query.
+Ja ogólnie kumam różnicę między RANGE/ROWS - szczególnie w kontekście danego interwału czasu vs danej liczby operacji ma sense używanie jednego lub drugiego. Obecnie w tym zadaniu daje to NIC, bo nie zauważyłem ani jednej transakcji, która by się różniła.
+
+Inaczej mówiąc zadanie jest na siłę zrobione, a nie tak żeby faktycnzie był sens tego używać. 
+
 
 
 ---

@@ -1,5 +1,15 @@
 
-### Task Archive: 2026-08-28 (Week 35, Day 4) — archived before session start
+### Task Archive: 2026-09-01 (Week 36, Day 1) — archived before session start
+
+---
+
+### Task Archive: 2026-08-28 (Week 35, Day 4) — Score: 18/20
+
+**Task 1 (PERCENT_RANK + NTILE):** 9/10 — window functions correct, missing HAVING >= 2 transactions filter.
+
+**Task 2 (job_db platform pivot):** 9/10 — FILTER pivot clean, other_count missed NULL values (umowa != 'B2B' excludes NULLs in SQL).
+
+---
 
 ---
 

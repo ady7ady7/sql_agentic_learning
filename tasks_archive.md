@@ -1,5 +1,17 @@
 
-### Task Archive: 2026-09-01 (Week 36, Day 1) — archived before session start
+### Task Archive: 2026-09-02 (Week 36, Day 2) — archived before session start
+
+---
+
+### Task Archive: 2026-09-01 (Week 36, Day 1) — Score: 27/30
+
+**Task 1 (Sessions gaps-and-islands):** 9/10 — LAG + cumulative SUM correct, WHERE prev_transaction IS NOT NULL drops first transaction per user (should be session 1).
+
+**Task 2 (Z-score outliers):** 8/10 — formula correct, filter used z_score >= 2.0 instead of ABS(z_score) > 2.0 (missed negative outliers), no NULL/zero stddev guard.
+
+**Task 3 (ROWS vs RANGE):** 10/10 — query correct, task was poorly designed (no duplicate timestamps in data). Agent error acknowledged.
+
+---
 
 ---
 

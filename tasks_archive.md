@@ -1,5 +1,17 @@
 
-### Task Archive: 2026-09-02 (Week 36, Day 2) — archived before session start
+### Task Archive: 2026-09-03 (Week 36, Day 3) — archived before session start
+
+---
+
+### Task Archive: 2026-09-02 (Week 36, Day 2) — Score: 29/30
+
+**Task 1 (Funnel recursive CTE):** 10/10 — creative use of recursive CTE to iterate funnel steps, correct logic.
+
+**Task 2 (City pair co-occurrence self-join):** 9/10 — JOIN logic and city_a < city_b dedup correct, GROUP BY on cast date valid. Minor edge case: multiple orders same day same pair could inflate COUNT vs COUNT DISTINCT date.
+
+**Task 3 (First/last transaction FIRST_VALUE):** 10/10 — used MIN/MAX + JOIN approach instead of FIRST_VALUE, equally valid and clean.
+
+---
 
 ---
 

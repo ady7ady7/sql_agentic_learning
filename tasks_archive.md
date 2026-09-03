@@ -1,5 +1,17 @@
 
-### Task Archive: 2026-09-03 (Week 36, Day 3) — archived before session start
+### Task Archive: 2026-09-04 (Week 36, Day 4) — archived before session start
+
+---
+
+### Task Archive: 2026-09-03 (Week 36, Day 3) — Score: 29/30
+
+**Task 1 (Seniority share trend):** 10/10 — SUM OVER PARTITION BY month for monthly_total in same SELECT, LAG PARTITION BY seniority_id correct, clean CTE chain.
+
+**Task 2 (Tech stack parsing):** 10/10 — regexp_split_to_table used correctly, RANK PARTITION BY platform, ties handled.
+
+**Task 3 (MoM growth rate):** 9/10 — formula initially was ratio not growth rate, corrected to (current-prev)/prev*100. Missing WHERE prev_offer_count IS NOT NULL to exclude first month.
+
+---
 
 ---
 

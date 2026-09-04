@@ -1,313 +1,125 @@
-# SQL Tasks — 2026-09-04 (Week 36, Day 4)
+# SQL Tasks — 2026-09-04 (Week 36, Day 5)
 
-**Dataset:** nq_data.ticks (real NQ futures tick data, 56M rows)  
-**Focus:** VWAP per session · Largest single-print trades
-
----
-
-## Task 1 — Daily VWAP vs Session Close
-
-**Difficulty: 5/5**
-
-**Business question:**  
-For each RTH session (09:30–16:00 ET), calculate the Volume Weighted Average Price:
-
-`VWAP = SUM(price * size) / SUM(size)`
-
-Then find the session's closing price (the price of the last tick in that session, ordered by `ts_event`) and calculate how far the close deviated from VWAP, in points and as a percentage.
-
-Filter to RTH only using `ts_event AT TIME ZONE 'America/New_York'` between 09:30 and 16:00. Exclude `side = 'N'` rows.
-
-**Expected output columns:**  
-`trade_date, vwap, session_close, close_vs_vwap_pts, close_vs_vwap_pct`
-
-`vwap` rounded to 2 decimals, `close_vs_vwap_pct` rounded to 3 decimals.
-
-Order by `trade_date`.
-
-
-
-WITH ticks_dates_rth AS (
-SELECT 
-	*,
-	ts_event::date AS trade_date
-FROM nq_data.ticks t
-WHERE t.ts_event::time AT TIME ZONE 'America/New_York' >= '9:30' AND t.ts_event::time AT TIME ZONE 'America/New_York' <= '16:00' 
-AND t.side != 'N'
-),
-dates_vwap_closing_timeS AS (
-SELECT 
-	trade_date,
-	round(SUM(price * size) / SUM(size), 2) AS vwap,
-	max(ts_event) AS closing_time
-FROM ticks_dates_rth
-GROUP BY trade_date
-)
-SELECT 
-	d.trade_date,
-	d.vwap,
-	t.price AS session_close,
-	t.price - d.vwap AS close_vs_vwap_pts,
-	ROUND((t.price - d.vwap) / d.vwap * 100, 3) AS close_vs_vwap_pct
-FROM dates_vwap_closing_times d
-JOIN ticks_dates_rth t ON d.trade_date = t.trade_date AND d.closing_time = t.ts_event
-ORDER BY d.trade_date
-
-
+**Dataset:** transactions / users  
+**Focus:** LATERAL joins · NTILE + conditional aggregation
 
 ---
 
-## Task 2 — Largest Single Prints per Day and Their Aftermath
+## LATERAL — Introduction
+
+A regular subquery in a JOIN cannot reference columns from the table on the left side of the join. `LATERAL` changes that — it lets the subquery reference the outer row's columns, effectively running "for each row on the left, execute this subquery."
+
+**Classic use case: "top N per group".**
+
+Without LATERAL (window function + filter):
+```sql
+SELECT * FROM (
+    SELECT *, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY amount DESC) AS rn
+    FROM transactions
+) t WHERE rn <= 3
+```
+
+With LATERAL (often clearer, sometimes faster since the DB can use an index and stop at LIMIT):
+```sql
+SELECT u.id AS user_id, t.*
+FROM users u
+CROSS JOIN LATERAL (
+    SELECT id, amount, created_at
+    FROM transactions
+    WHERE transactions.user_id = u.id
+    ORDER BY amount DESC
+    LIMIT 3
+) t
+```
+
+The key part: `WHERE transactions.user_id = u.id` inside the subquery references `u.id` from the outer FROM — impossible in a regular JOIN/subquery, only LATERAL allows it.
+
+**Second use case: "find the nearest matching row" (e.g. first tick after a timestamp).**
+```sql
+CROSS JOIN LATERAL (
+    SELECT ts_event, price
+    FROM ticks t
+    WHERE t.trade_date = m.trade_date AND t.ts_event >= m.some_timestamp
+    ORDER BY t.ts_event
+    LIMIT 1
+) later
+```
+
+Use `LEFT JOIN LATERAL ... ON true` instead of `CROSS JOIN LATERAL` when you want to keep the outer row even if the subquery returns nothing.
+
+---
+
+## Task 1 — Top 3 Transactions per User (LATERAL)
 
 **Difficulty: 4/5**
 
 **Business question:**  
-For each RTH session, find the single largest trade (by `size`) of the day. Show its timestamp, price, size, and aggressor side.
+For each user, find their top 3 transactions by `amount` (descending). Use `CROSS JOIN LATERAL` — the subquery should reference the outer user's `id` directly (correlated), ordered and limited inside the LATERAL subquery.
 
-Then, using the price 5 minutes after that print's `ts_event` (the price of the first tick at or after `ts_event + interval '5 minutes'`), calculate the price move in points following the largest print.
-
-Filter to RTH only, exclude `side = 'N'`.
-
-**Hint:** Use `ROW_NUMBER()` or `RANK()` partitioned by trade_date, ordered by size DESC, to isolate the single largest print per day.
+Only include users who have at least 3 transactions.
 
 **Expected output columns:**  
-`trade_date, ts_event, price, size, side, price_5min_later, move_pts`
+`user_id, id, amount, created_at`
 
-Order by `trade_date`.
-
-A very interesting task - it took some time, but I managed to solve it, but the query is going and I'm not sure how long will it take. I tested it on LIMIT 100000 in the first CTE :P.
+Order by `user_id`, `amount DESC`.
 
 
-WITH ticks_dates_rth AS (
+SELECT 
+	u.id AS user_id, t.* AS user_id
+FROM crappy_data_db.users u
+CROSS JOIN LATERAL (
+	SELECT id, amount, created_at
+	FROM crappy_data_db.transactions t 
+	WHERE t.user_id = u.id
+	ORDER BY amount DESC
+	LIMIT 3
+) t
+
+
+---
+
+## Task 2 — Spending Quartiles by City (NTILE + Conditional Aggregation)
+
+**Difficulty: 4/5**
+
+**Business question:**  
+For each user, calculate their total transaction amount and assign them to a spending quartile using `NTILE(4)` (1 = lowest spenders, 4 = highest).
+
+Then, for each city, count how many users fall into each quartile using conditional aggregation (`FILTER` or `CASE WHEN`).
+
+Exclude users with NULL city.
+
+**Expected output columns:**  
+`city, quartile_1_count, quartile_2_count, quartile_3_count, quartile_4_count`
+
+Order by `city`.
+
+WITH user_spendings AS (
+SELECT 
+	user_id,
+	SUM(amount) AS total_spent
+FROM crappy_data_db.transactions t
+GROUP BY user_id
+),
+spending_quartiles AS (
 SELECT 
 	*,
-	ts_event::date AS trade_date
-FROM nq_data.ticks t
-WHERE t.ts_event::time AT TIME ZONE 'America/New_York' >= '9:30' AND t.ts_event::time AT TIME ZONE 'America/New_York' <= '16:00' 
-AND t.side != 'N'
-),
-dates_max_single_prints AS (
-SELECT 
-	trade_date,
-	MAX(size) AS max_single_print
-FROM ticks_dates_rth
-GROUP BY trade_date
-),
-max_prints_timestamps AS (
-SELECT 
-	d.trade_date,
-	t.ts_event,
-	t.price AS event_price,
-	t.ts_event + INTERVAL '5 Minutes' AS ts_5_min_later,
-	t.ts_event + INTERVAL '15 Minutes' AS ts_15_min_later,
-	t.ts_event + INTERVAL '30 Minutes' AS ts_30_min_later,
-	t.side,
-	d.max_single_print
-FROM dates_max_single_prints d
-JOIN ticks_dates_rth t ON d.trade_date = t.trade_date AND d.max_single_print = t.SIZE
-),
-max_prints_first_available_timestamps_5min_after AS (
-SELECT 
-	m.trade_date,
-	m.max_single_print,
-	m.event_price,
-	m.side,
-	MIN(t.ts_event) AS first_available_timestamp_5min_later
-FROM max_prints_timestamps m
-JOIN ticks_dates_rth t ON m.trade_date = t.trade_date AND m.ts_5_min_later < t.ts_event
-GROUP BY m.trade_date, m.max_single_print, m.event_price, m.side
+	ntile(4) OVER (ORDER BY total_spent) AS spending_quartile
+FROM user_spendings
 )
-SELECT 
-	m.trade_date,
-	m.max_single_print,
-	m.event_price,
-	m.side,
-	m.first_available_timestamp_5min_later,
-	t.price
-FROM max_prints_first_available_timestamps_5min_after m
-JOIN ticks_dates_rth t ON m.trade_date = t.trade_date AND m.first_available_timestamp_5min_later = t.ts_event 
-ORDER BY m.trade_date
-
-Tu wklejam też dane, bo mogą być ciekawe
+SELECT
+	city,
+	COUNT(*) FILTER (WHERE spending_quartile = 1) AS quartile_1_count,
+	COUNT(*) FILTER (WHERE spending_quartile = 2) AS quartile_2_count,
+	COUNT(*) FILTER (WHERE spending_quartile = 3) AS quartile_3_count,
+	COUNT(*) FILTER (WHERE spending_quartile = 4) AS quartile_4_count
+FROM spending_quartiles s
+JOIN crappy_data_db.users u ON s.user_id = u.id
+WHERE u.city IS NOT NULL
+GROUP BY city
 
 
-2025-09-15	67	24250.00	B	2025-09-15 15:56:47.416 +0200	24245.25
-2025-09-16	103	24330.75	A	2025-09-16 15:38:55.293 +0200	24318.50
-2025-09-17	27	24255.00	B	2025-09-17 15:54:03.718 +0200	24278.25
-2025-09-18	52	24443.00	B	2025-09-18 15:57:05.165 +0200	24409.75
-2025-09-19	9	24500.25	A	2025-09-19 14:23:11.127 +0200	24497.50
-2025-09-22	42	24788.50	B	2025-09-22 11:02:38.816 +0200	24787.50
-2025-09-23	60	24975.00	A	2025-09-23 15:41:39.211 +0200	24952.50
-2025-09-24	57	24829.00	A	2025-09-24 15:50:52.692 +0200	24800.75
-2025-09-25	155	24569.25	A	2025-09-25 15:30:54.388 +0200	24540.75
-2025-09-26	54	24601.00	A	2025-09-26 10:54:11.618 +0200	24599.75
-2025-09-29	123	24950.00	B	2025-09-29 15:55:00.399 +0200	24951.50
-2025-09-30	128	24831.00	B	2025-09-30 15:35:11.271 +0200	24767.75
-2025-10-01	315	24795.00	B	2025-10-01 14:26:40.274 +0200	24782.75
-2025-10-02	371	25119.00	B	2025-10-02 12:06:33.354 +0200	25107.50
-2025-10-03	39	25140.00	A	2025-10-03 15:46:20.812 +0200	25140.75
-2025-10-06	94	25160.00	B	2025-10-06 12:55:16.528 +0200	25168.75
-2025-10-07	175	25225.00	B	2025-10-07 14:45:49.370 +0200	25230.50
-2025-10-08	94	25090.50	B	2025-10-08 15:25:17.046 +0200	25092.25
-2025-10-09	103	25285.50	B	2025-10-09 15:46:15.293 +0200	25263.25
-2025-10-10	116	25313.50	B	2025-10-10 15:35:37.238 +0200	25334.00
-2025-10-13	79	24793.25	B	2025-10-13 14:28:23.314 +0200	24811.50
-2025-10-14	101	24601.50	A	2025-10-14 15:36:15.210 +0200	24527.00
-2025-10-15	196	24940.00	A	2025-10-15 15:50:00.052 +0200	24921.50
-2025-10-16	102	25110.50	B	2025-10-16 15:51:56.297 +0200	25040.00
-2025-10-17	488	24500.00	A	2025-10-17 12:04:52.765 +0200	24536.50
-2025-10-21	70	25283.25	A	2025-10-21 15:29:21.484 +0200	25299.00
-2025-10-22	82	25184.00	A	2025-10-22 15:39:17.938 +0200	25202.75
-2025-10-23	800	25115.00	B	2025-10-23 15:53:00.361 +0200	25154.50
-2025-10-24	963	25500.00	B	2025-10-24 15:40:11.883 +0200	25517.25
-2025-10-27	98	25847.25	B	2025-10-27 15:22:19.691 +0100	25838.25
-2025-10-28	157	26058.00	B	2025-10-28 15:03:08.082 +0100	26060.50
-2025-10-29	458	26289.00	B	2025-10-29 14:38:00.314 +0100	26258.00
-2025-10-30	401	26115.00	A	2025-10-30 15:08:26.804 +0100	26126.00
-2025-10-30	401	26115.00	A	2025-10-30 15:08:26.804 +0100	26125.75
-2025-10-31	746	26100.00	A	2025-10-31 14:50:58.113 +0100	26102.50
-2025-11-03	159	26148.00	B	2025-11-03 15:59:06.050 +0100	26133.50
-2025-11-04	108	25835.00	B	2025-11-04 15:59:07.355 +0100	25861.50
-2025-11-04	108	25835.00	B	2025-11-04 15:59:07.355 +0100	25861.50
-2025-11-05	90	25449.25	A	2025-11-05 11:59:44.836 +0100	25414.00
-2025-11-06	507	25570.00	A	2025-11-06 15:56:51.007 +0100	25554.00
-2025-11-07	701	25100.00	A	2025-11-07 12:37:24.451 +0100	25109.25
-2025-11-07	701	25100.00	A	2025-11-07 12:37:24.451 +0100	25109.50
-2025-11-07	701	25100.00	A	2025-11-07 12:37:24.451 +0100	25109.00
-2025-11-10	388	25520.25	B	2025-11-10 12:44:38.572 +0100	25525.25
-2025-11-12	81	25706.75	B	2025-11-12 15:38:01.636 +0100	25680.75
-2025-11-13	500	25619.25	A	2025-11-13 11:41:58.800 +0100	25615.00
-2025-11-14	79	24900.00	B	2025-11-14 15:56:50.959 +0100	24961.50
-2025-11-17	193	25198.00	B	2025-11-17 15:48:37.558 +0100	25209.50
-2025-11-18	97	24800.00	B	2025-11-18 11:49:13.064 +0100	24806.00
-2025-11-20	176	25183.00	A	2025-11-20 14:44:51.383 +0100	25197.25
-2025-11-21	97	24038.50	B	2025-11-21 12:55:13.232 +0100	24026.25
-2025-11-24	131	24675.00	B	2025-11-24 15:39:30.589 +0100	24653.50
-2025-11-25	159	24680.50	A	2025-11-25 15:52:57.666 +0100	24727.25
-2025-11-26	135	25221.25	B	2025-11-26 15:47:43.891 +0100	25254.25
-2025-11-27	36	25302.75	A	2025-11-27 15:26:16.561 +0100	25306.75
-2025-11-28	73	25345.25	A	2025-11-28 15:46:02.004 +0100	25357.00
-2025-12-01	45	25283.75	B	2025-12-01 15:36:00.440 +0100	25291.75
-2025-12-02	95	25604.75	B	2025-12-02 15:45:09.830 +0100	25595.50
-2025-12-03	126	25450.00	A	2025-12-03 15:18:39.045 +0100	25476.50
-2025-12-04	78	25608.50	B	2025-12-04 15:39:04.687 +0100	25625.00
-2025-12-08	332	25770.00	A	2025-12-08 15:53:14.590 +0100	25765.00
-2025-12-09	45	25644.50	B	2025-12-09 12:18:35.542 +0100	25638.00
-2025-12-09	45	25630.00	A	2025-12-09 11:44:22.483 +0100	25650.50
-2025-12-10	73	25650.00	A	2025-12-10 11:32:18.745 +0100	25635.25
-2025-12-11	182	25600.00	B	2025-12-11 15:36:51.698 +0100	25597.75
-2025-12-12	205	25572.75	A	2025-12-12 15:39:49.394 +0100	25610.75
-2025-12-15	235	25356.50	B	2025-12-15 14:48:18.950 +0100	25378.75
-2025-12-15	235	25356.50	B	2025-12-15 14:48:18.950 +0100	25379.00
-2025-12-17	87	25229.75	B	2025-12-17 11:15:44.830 +0100	25230.75
-2025-12-17	87	25229.75	B	2025-12-17 11:15:44.830 +0100	25230.50
-2025-12-17	87	25229.75	B	2025-12-17 11:15:44.830 +0100	25230.25
-2025-12-17	87	25229.75	B	2025-12-17 11:15:44.830 +0100	25230.00
-2025-12-18	85	24949.75	B	2025-12-18 14:35:19.419 +0100	24949.25
-2025-12-19	8	25150.00	B	2025-12-19 10:00:05.179 +0100	25136.75
-2025-12-22	90	25704.00	A	2025-12-22 15:40:01.525 +0100	25697.75
-2025-12-23	47	25730.25	B	2025-12-23 15:36:45.298 +0100	25719.00
-2025-12-26	52	25901.25	A	2025-12-26 15:34:57.553 +0100	25902.25
-2025-12-29	101	25715.75	B	2025-12-29 15:56:58.316 +0100	25737.50
-2025-12-30	69	25705.00	B	2025-12-30 15:46:22.641 +0100	25680.50
-2025-12-31	60	25690.25	B	2025-12-31 15:36:15.677 +0100	25663.75
-2026-01-02	515	25720.00	B	2026-01-02 15:52:09.216 +0100	25763.75
-2026-01-05	54	25600.00	B	2026-01-05 15:07:15.709 +0100	25597.25
-2026-01-05	54	25597.75	A	2026-01-05 15:37:41.103 +0100	25587.75
-2026-01-06	536	25650.00	B	2026-01-06 15:49:17.974 +0100	25697.25
-2026-01-07	109	25851.00	B	2026-01-07 15:56:12.107 +0100	25875.50
-2026-01-08	199	25775.00	B	2026-01-08 12:07:33.866 +0100	25775.50
-2026-01-09	79	25707.00	A	2026-01-09 15:55:11.355 +0100	25734.75
-2026-01-12	237	25704.00	A	2026-01-12 12:03:13.366 +0100	25712.00
-2026-01-13	152	26000.00	A	2026-01-13 14:42:29.064 +0100	25992.00
-2026-01-13	152	26000.00	A	2026-01-13 14:42:29.064 +0100	25991.75
-2026-01-14	202	25617.00	B	2026-01-14 15:50:40.223 +0100	25642.25
-2026-01-15	181	25887.25	B	2026-01-15 15:48:18.749 +0100	25897.00
-2026-01-15	181	25887.25	B	2026-01-15 15:48:18.749 +0100	25896.75
-2026-01-16	81	25792.75	B	2026-01-16 15:59:47.536 +0100	25732.75
-2026-01-19	57	25250.00	A	2026-01-19 15:44:08.020 +0100	25245.00
-2026-01-20	107	25250.75	B	2026-01-20 15:46:18.415 +0100	25305.50
-2026-01-21	172	25139.25	B	2026-01-21 15:10:36.247 +0100	25167.50
-2026-01-21	172	25139.25	B	2026-01-21 15:10:36.247 +0100	25167.75
-2026-01-22	126	25730.00	B	2026-01-22 14:52:45.167 +0100	25720.25
-2026-01-23	58	25640.00	B	2026-01-23 12:33:35.259 +0100	25653.00
-2026-01-23	58	25640.00	B	2026-01-23 12:33:35.259 +0100	25653.25
-2026-01-27	247	26034.25	A	2026-01-27 15:59:26.442 +0100	26057.25
-2026-01-28	66	26307.00	B	2026-01-28 11:53:41.801 +0100	26310.00
-2026-01-29	100	26153.50	A	2026-01-29 14:24:30.992 +0100	26165.50
-2026-02-02	494	25503.25	B	2026-02-02 13:28:09.018 +0100	25509.25
-2026-02-04	522	25300.00	A	2026-02-04 15:36:01.303 +0100	25346.75
-2026-02-05	125	24835.00	B	2026-02-05 14:41:27.211 +0100	24823.00
-2026-02-06	198	24860.00	B	2026-02-06 15:41:58.274 +0100	24851.25
-2026-02-09	898	25120.00	B	2026-02-09 15:44:53.639 +0100	25146.00
-2026-02-10	295	25399.75	B	2026-02-10 10:23:00.701 +0100	25399.00
-2026-02-11	140	25200.00	A	2026-02-11 11:05:18.551 +0100	25153.00
-2026-02-13	297	24825.00	B	2026-02-13 15:53:02.731 +0100	24725.00
-2026-02-16	93	24799.50	A	2026-02-16 15:18:32.336 +0100	24781.25
-2026-02-17	290	24571.00	B	2026-02-17 15:56:28.149 +0100	24510.00
-2026-02-20	72	24755.00	A	2026-02-20 14:45:17.773 +0100	24758.25
-2026-02-20	72	24755.00	A	2026-02-20 14:45:17.773 +0100	24758.00
-2026-02-23	193	24885.00	A	2026-02-23 15:54:53.139 +0100	24922.00
-2026-02-24	121	24768.00	A	2026-02-24 15:36:42.419 +0100	24712.50
-2026-02-25	220	25190.00	B	2026-02-25 15:35:14.603 +0100	25231.50
-2026-02-26	135	25200.00	A	2026-02-26 15:57:55.923 +0100	25205.75
-2026-02-27	167	24896.00	B	2026-02-27 15:39:02.359 +0100	24871.25
-2026-03-02	504	24689.00	B	2026-03-02 12:50:54.469 +0100	24719.50
-2026-03-02	504	24689.00	B	2026-03-02 12:50:54.469 +0100	24719.00
-2026-03-02	504	24689.00	B	2026-03-02 12:50:54.469 +0100	24719.25
-2026-03-03	627	24410.00	A	2026-03-03 11:38:56.302 +0100	24408.75
-2026-03-04	174	24874.00	B	2026-03-04 15:48:36.546 +0100	24882.50
-2026-03-05	185	25070.00	B	2026-03-05 15:38:42.773 +0100	25108.75
-2026-03-06	211	24900.00	A	2026-03-06 12:45:41.492 +0100	24874.25
-2026-03-09	232	24450.00	B	2026-03-09 14:35:01.615 +0100	24475.50
-2026-03-10	129	24978.25	B	2026-03-10 15:01:13.668 +0100	24925.25
-2026-03-11	183	25167.00	A	2026-03-11 15:06:01.197 +0100	25142.25
-2026-03-12	355	24600.00	A	2026-03-12 15:42:27.468 +0100	24601.50
-2026-03-13	433	24739.25	B	2026-03-13 15:02:58.804 +0100	24697.50
-2026-03-16	81	24596.50	B	2026-03-16 12:09:18.171 +0100	24594.50
-2026-03-16	81	24596.00	A	2026-03-16 11:55:27.890 +0100	24601.00
-2026-03-17	152	24858.00	B	2026-03-17 14:50:25.492 +0100	24889.75
-2026-03-17	152	24858.00	B	2026-03-17 14:50:25.492 +0100	24890.00
-2026-03-17	152	24858.00	B	2026-03-17 14:50:25.492 +0100	24890.25
-2026-03-17	152	24858.00	B	2026-03-17 14:50:25.492 +0100	24889.00
-2026-03-17	152	24858.00	B	2026-03-17 14:50:25.492 +0100	24890.50
-2026-03-17	152	24858.00	B	2026-03-17 14:50:25.492 +0100	24890.75
-2026-03-17	152	24858.00	B	2026-03-17 14:50:25.492 +0100	24889.25
-2026-03-17	152	24858.00	B	2026-03-17 14:50:25.492 +0100	24889.50
-2026-03-18	177	24970.00	B	2026-03-18 11:25:05.186 +0100	24971.00
-2026-03-19	27	24296.25	B	2026-03-19 15:05:14.955 +0100	24297.00
-2026-03-20	22	24369.00	A	2026-03-20 09:56:30.773 +0100	24346.75
-2026-03-23	196	24400.00	B	2026-03-23 12:11:16.129 +0100	24637.25
-2026-03-23	196	24400.00	B	2026-03-23 12:11:16.129 +0100	24637.00
-2026-03-24	108	24200.00	A	2026-03-24 15:41:27.770 +0100	24221.50
-2026-03-25	91	24448.50	B	2026-03-25 13:22:00.498 +0100	24457.50
-2026-03-26	121	24150.00	B	2026-03-26 14:22:41.486 +0100	24140.75
-2026-03-27	148	23750.00	A	2026-03-27 10:10:42.198 +0100	23719.50
-2026-03-30	71	23450.00	B	2026-03-30 13:23:19.865 +0200	23460.50
-2026-03-31	193	23272.00	B	2026-03-31 12:59:30.899 +0200	23290.00
-2026-04-01	130	24110.50	B	2026-04-01 15:57:43.133 +0200	24120.75
-2026-04-02	100	23676.75	B	2026-04-02 14:06:24.031 +0200	23694.75
-2026-04-02	100	23676.75	B	2026-04-02 14:06:24.031 +0200	23694.50
-2026-04-03	92	24190.00	A	2026-04-03 14:37:14.591 +0200	24141.00
-2026-04-07	501	24350.00	A	2026-04-07 12:30:27.880 +0200	24340.75
-2026-04-08	96	25165.50	A	2026-04-08 09:35:03.063 +0200	25147.25
-2026-04-09	53	25020.75	B	2026-04-09 15:58:33.869 +0200	25024.25
-2026-04-10	105	25348.00	B	2026-04-10 15:37:53.023 +0200	25348.25
-2026-04-13	105	25108.75	B	2026-04-13 10:26:36.886 +0200	25119.25
-2026-04-14	167	25717.25	B	2026-04-14 15:46:06.786 +0200	25760.50
-2026-04-15	100	25991.75	A	2026-04-15 13:45:42.078 +0200	25989.25
-2026-04-16	82	26418.75	B	2026-04-16 14:42:01.422 +0200	26413.75
-2026-04-17	97	26682.75	A	2026-04-17 14:54:01.472 +0200	26712.50
-2026-04-17	97	26682.75	A	2026-04-17 14:54:01.472 +0200	26711.50
-2026-04-20	60	26750.00	A	2026-04-20 15:44:10.476 +0200	26753.00
-2026-04-21	100	26763.00	A	2026-04-21 15:36:27.384 +0200	26762.75
-2026-04-22	69	26857.00	A	2026-04-22 09:50:49.186 +0200	26854.00
-2026-04-23	66	26988.00	A	2026-04-23 09:51:33.968 +0200	26999.75
-2026-04-24	247	27340.00	A	2026-04-24 13:37:59.704 +0200	27312.25
-2026-04-28	95	27259.75	B	2026-04-28 11:55:00.558 +0200	27287.00
-2026-04-29	40	27140.00	A	2026-04-29 15:36:07.392 +0200	27142.25
-2026-04-30	237	27530.00	B	2026-04-30 14:26:14.580 +0200	27521.25
-2026-05-01	156	27602.25	A	2026-05-01 14:24:13.488 +0200	27619.75
+Ogarnięte
 
 ---
 

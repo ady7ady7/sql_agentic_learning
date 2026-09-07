@@ -1,5 +1,15 @@
 
-### Task Archive: 2026-09-04 (Week 36, Day 5) — archived before session start
+### Task Archive: 2026-09-07 (Week 37, Day 1) — archived before session start
+
+---
+
+### Task Archive: 2026-09-04 (Week 36, Day 5) — Score: 19/20
+
+**Task 1 (LATERAL top-3 transactions):** 9/10 — correct correlated subquery pattern, minor `t.* AS user_id` alias typo (harmless), missing HAVING >= 3 transactions filter.
+
+**Task 2 (NTILE quartiles by city):** 10/10 — clean two-CTE chain, NTILE(4) without PARTITION correct for global quartiles, FILTER pivot by quartile clean.
+
+---
 
 ---
 

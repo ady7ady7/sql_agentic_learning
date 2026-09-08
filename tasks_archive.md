@@ -1,5 +1,15 @@
 
-### Task Archive: 2026-09-07 (Week 37, Day 1) — archived before session start
+### Task Archive: 2026-09-08 (Week 37, Day 2) — archived before session start
+
+---
+
+### Task Archive: 2026-09-07 (Week 37, Day 1) — Score: 19/20
+
+**Task 1 (LATERAL 2 most recent transactions):** 9/10 — correct correlated LATERAL pattern, missing HAVING >= 2 transactions filter (CTE/semicolon ordering issue prevented the fix in-session).
+
+**Task 2 (Transaction type pivot by month):** 10/10 — clean FILTER pivot, all 5 types covered.
+
+---
 
 ---
 

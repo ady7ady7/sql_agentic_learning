@@ -1,5 +1,15 @@
 
-### Task Archive: 2026-09-08 (Week 37, Day 2) — archived before session start
+### Task Archive: 2026-09-09 (Week 37, Day 3) — archived before session start
+
+---
+
+### Task Archive: 2026-09-08 (Week 37, Day 2) — Score: 15/20
+
+**Task 1 (LATERAL top spenders per city):** 5/10 — overcomplicated, unnecessary JOIN to cities_filter inside LATERAL, filtering logic muddled. Deferred rework with scaffold.
+
+**Task 2 (Intraday cumulative VWAP):** 10/10 — task wording was self-contradictory (agent error: "running VWAP" vs "aggregate into buckets" read as opposing instructions). Student's per-bucket VWAP with correct session-reset via GROUP BY and correct AT TIME ZONE ordering (caught and fixed the ::time-before-AT-TIME-ZONE bug) fully satisfies what was unambiguously specified. Full marks given, no penalty for agent's ambiguous wording. Still deferred: true cumulative (SUM() OVER PARTITION BY trade_date ORDER BY bucket) on top of the bucket aggregation.
+
+---
 
 ---
 

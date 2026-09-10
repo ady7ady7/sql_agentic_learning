@@ -1,5 +1,15 @@
 
-### Task Archive: 2026-09-09 (Week 37, Day 3) — archived before session start
+### Task Archive: 2026-09-10 (Week 37, Day 4) — archived before session start
+
+---
+
+### Task Archive: 2026-09-09 (Week 37, Day 3) — Score: 20/20
+
+**Task 1 (Transaction type pivot):** 10/10 — standard FILTER pivot, all 5 types, correct GROUP BY.
+
+**Task 2 (Top 5 largest transactions, global RANK):** 10/10 — RANK() PARTITION BY month, WHERE rank <= 5, tie handling automatic via RANK not ROW_NUMBER.
+
+---
 
 ---
 

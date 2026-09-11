@@ -1,216 +1,165 @@
-# SQL Tasks — 2026-09-10 (Week 37, Day 4)
+# SQL Tasks — 2026-09-11 (Week 37, Day 5)
 
-**Dataset:** transactions / users · nq_data.ticks  
-**Focus:** LATERAL top-N-per-group (scaffolded) · True cumulative VWAP · Cohort retention
-
----
-
-## Task 1 — Top 3 Spenders per City (LATERAL, Scaffolded)
-
-**Difficulty: 4/5**
-
-**Business question:**  
-For each city, find the top 3 users by total transaction amount.
-
-**Why LATERAL here, specifically:** You need, for each city, to run a full aggregation (GROUP BY user + SUM + ORDER BY + LIMIT) that's correlated to that city. A plain JOIN can't do this — it can only match rows, not "run this mini-query per outer row." LATERAL is the tool for exactly this shape: "for each X, compute a small ranked/limited result set that depends on X."
-
-**Step-by-step scaffold:**
-
-**Step A — build the filter first, standalone.** Write a CTE `eligible_cities` that lists only cities with >= 3 distinct users who have transactions. This has nothing to do with LATERAL — it's a plain JOIN + GROUP BY + HAVING. Get this right and verify it in isolation before moving on.
-
-**Step B — write the LATERAL subquery standalone, for ONE hardcoded city first.** Before correlating it to anything, write and test:
-```sql
-SELECT t.user_id, SUM(t.amount) AS total_amount
-FROM crappy_data_db.users u
-JOIN crappy_data_db.transactions t ON t.user_id = u.id
-WHERE u.city = 'SomeRealCityFromYourData'
-GROUP BY t.user_id
-ORDER BY total_amount DESC
-LIMIT 3
-```
-Run this with a real city name. Confirm it returns 3 rows with sensible totals.
-
-**Step C — correlate it.** Replace the hardcoded city with a reference to the outer city (`eligible_cities.city`), and wrap it as `CROSS JOIN LATERAL (...) AS top`. The subquery body from Step B barely changes — only the `WHERE u.city = ...` line changes from a literal to a correlated reference.
-
-**Step D — assemble.** `FROM eligible_cities CROSS JOIN LATERAL (...) top`. No extra JOINs inside the LATERAL subquery back to `eligible_cities` — the correlation IS the join, you don't need another one.
-
-**Expected output columns:**  
-`city, user_id, total_amount`
-
-Order by `city`, `total_amount DESC`.
-
-
-WITH eligible_cities AS (
-SELECT
-	city,
-	COUNT(DISTINCT(t.user_id)) AS user_cnt
-FROM crappy_data_db.users u
-JOIN crappy_data_db.transactions t ON u.id = t.user_id
-GROUP BY city
-HAVING COUNT(DISTINCT(t.user_id)) >= 3
-)
-SELECT 
-	e.city,
-	top.*
-FROM eligible_cities e
-CROSS JOIN LATERAL (
-	SELECT 
-	t.user_id,
-	SUM(t.amount) AS total_amount
-	FROM crappy_data_db.users u 
-	JOIN crappy_data_db.transactions t ON u.id = t.user_id
-	WHERE u.city = e.city
-	GROUP BY t.user_id
-	ORDER BY total_amount DESC
-	LIMIT 3
-) AS top
-
-
-I've done it and I've skipped step 2 as it's useless frankly.
-I've used your instructions and it helped today, still not feeling confident about this, but it was a tiny bit better.
-
-
-Some data as example:
-
-Gdańsk	14	7413.84
-Gdańsk	53	5732.65
-Gdańsk	81	4668.82
-Gliwice	82	8240.92
-Gliwice	60	7809.81
-Gliwice	49	7052.53
-Haga	83	6687.47
-Haga	43	4653.65
-Haga	10	4620.41
-Katowice	84	8134.55
+**Dataset:** nq_data.ticks · job_db  
+**Focus:** True cumulative VWAP (fix) · NULLIF for dirty data · Pivot (job_db)
 
 ---
 
-## Task 2 — Intraday Cumulative VWAP (Session-Reset) — True Running Version
+## Task 1 — Intraday Cumulative VWAP (Fix: Bucket-Level Cumulation)
 
 **Difficulty: 5/5**
 
 **Business question:**  
-Continuing from the per-bucket VWAP you already built: now make it a true **running** VWAP that accumulates from 09:30 ET onward within each session, resetting at the start of every new trading day.
+Same goal as before: a true running VWAP that accumulates from 09:30 ET, resetting per session. This time, the cumulation window must operate on the **pre-aggregated bucket sums**, not on raw ticks.
 
-**Two-layer approach:**
-1. You already have (or can rebuild) per-bucket sums: `bucket_usd_volume = SUM(price*size)` and `bucket_volume = SUM(size)`, one row per `(trade_date, bucket_start)`.
-2. On top of that small aggregated result, compute a **cumulative sum** of those two columns using a window function: `SUM(bucket_usd_volume) OVER (PARTITION BY trade_date ORDER BY bucket_start)` and the same for volume. `PARTITION BY trade_date` is what makes it reset every session — this is not optional.
-3. Divide the two cumulative sums to get `running_vwap` as of the end of each bucket.
+**Why yesterday's version was wrong (for reference):**
+- The window was `SUM(price*size) OVER (PARTITION BY trade_date ORDER BY ts_event)` — cumulating tick-by-tick, then extracting the value at the last tick of each bucket via a MAX(ts_event) join. This works in principle but is expensive and error-prone.
+- The "sanity check" computed `SUM(price*size)/SUM(size) GROUP BY bucket_start` — that's a per-bucket VWAP, not cumulative. It was comparing two different things, not verifying the same one.
+
+**Correct two-step shape:**
+1. Aggregate raw ticks into `(trade_date, bucket_start)` rows first: `bucket_usd = SUM(price*size)`, `bucket_size = SUM(size)`.
+2. On that small aggregated table, compute `SUM(bucket_usd) OVER (PARTITION BY trade_date ORDER BY bucket_start)` and same for size — THIS is the cumulative window, ordered by bucket, not by tick.
+3. Divide the two cumulative sums.
 
 **Expected output columns:**  
 `trade_date, bucket_start, running_vwap`
 
 `running_vwap` rounded to 2 decimals. Order by `trade_date`, `bucket_start`.
 
-**Sanity check:** the last bucket of each day's `running_vwap` should equal the full-day VWAP you calculated in the earlier session-close task.
+**Sanity check (do this one correctly this time):** for a single trade_date, the running_vwap at the LAST bucket of the day should exactly equal `SUM(price*size)/SUM(size)` computed directly over all RTH ticks of that day — no window function, just a flat aggregate as the ground truth.
 
 
-This time I simply used proper window functions to calculate running vwap for each day instead of what I did last time. This could be way simpler but I wanted to do the sanity check you've asked for. 
 
-
-WITH ticks_dates_rth AS (
-SELECT
-	*,
-	(ts_event AT TIME ZONE 'America/New_York')::date AS trade_date,
-	(ts_event AT TIME ZONE 'America/New_York')::time AS et_time,
-	DATE_TRUNC('Hour', ts_event AT TIME ZONE 'America/New_York') + (EXTRACT(MINUTE FROM ts_event AT TIME ZONE 'America/New_York')::int / 15 * INTERVAL '15 Minutes') AS bucket_start
-FROM nq_data.ticks t
-WHERE (ts_event AT TIME ZONE 'America/New_York')::time >= '9:30' AND (ts_event AT TIME ZONE 'America/New_York')::time <= '16:00'
-LIMIT 10000
-),
-running_vwap_calc AS (
+WITH ticks_buckets_rth AS (
 SELECT 
 	*,
-	TO_CHAR(bucket_start, 'HH24:MI') AS bucket_window,
-	ROUND(SUM(price * size) OVER (PARTITION BY trade_date ORDER BY ts_event) / SUM(size) OVER (PARTITION BY trade_date ORDER BY ts_event), 2) AS running_vwap
-FROM ticks_dates_rth
+	DATE_TRUNC('Hour', t.ts_event AT TIME ZONE 'America/New_York') + (EXTRACT('Minute' FROM t.ts_event AT TIME ZONE 'America/New_York')::int / 15 * INTERVAL '15 Minutes') AS bucket_start,
+	t.ts_event AT TIME ZONE 'America/New_York' AS et_time,
+	(t.ts_event AT TIME ZONE 'America/New_York')::date AS trade_date
+FROM nq_data.ticks t
+WHERE (t.ts_event AT TIME ZONE 'America/New_York')::time >= '9:30' AND (t.ts_event AT TIME ZONE 'America/New_York')::time <= '16:00'
 ),
-sanity_check_vwaps AS (
-SELECT
+vwap_buckets AS (
+SELECT 
 	bucket_start,
-	ROUND(SUM(price * size) / SUM(size), 2) AS sanity_check_final_vwap
-FROM running_vwap_calc
+	ROUND(SUM(price * size) / SUM(size), 2) AS bucket_vwap
+FROM ticks_buckets_rth
 GROUP BY bucket_start
 ),
-last_timestamp_running_vwaps AS (
+bucketed_vwaps AS (
 SELECT 
-	r.bucket_start,
-	MAX(ts_event) AS last_timestamp
-FROM running_vwap_calc r
-GROUP BY r.bucket_start
+	t.bucket_start,
+	t.trade_date,
+	bucket_vwap
+FROM ticks_buckets_rth t
+JOIN vwap_buckets v ON t.bucket_start = v.bucket_start
+GROUP BY t.bucket_start, t.trade_date, bucket_vwap
+ORDER BY t.trade_date, t.bucket_start
 )
 SELECT 
-	l.bucket_start,
-	r.running_vwap,
-	s.sanity_check_final_vwap
-FROM last_timestamp_running_vwaps l
-JOIN running_vwap_calc r ON l.last_timestamp = r.ts_event
-JOIN sanity_check_vwaps s ON r.bucket_start = s.bucket_start
+	*,
+	sum(bucket_vwap) OVER (PARTITION BY trade_date ORDER BY bucket_start) AS running_vwap
+FROM bucketed_vwaps
 
 
-I could obviously pick the format you wanted, not a big deal, but I ended up with the sanity check :)). There are]some differences between the two (running vwap vs sanity_check_final_vwap which I'm not sure about...)
-
-
-bucket_start	running_vwap	sanity_check_final_vwap
-2025-09-30 10:00:00.000	24,761.37	24,761.37
-2025-09-30 10:15:00.000	24,773.95	24,778.71
-2025-09-30 10:30:00.000	24,777.34	24,781.23
-2025-09-30 10:45:00.000	24,794.95	24,827.85
-2025-09-30 10:45:00.000	24,794.95	24,827.85
-2025-09-30 11:00:00.000	24,806.5	24,848.21
+Fuck the sanity check, it must be correct now.
 
 
 
 
 ---
 
-## Task 3 — Simple Cohort Retention (Month +1)
+## NULLIF — Introduction
+
+`NULLIF(a, b)` returns `NULL` if `a = b`, otherwise returns `a`. That's the entire function — it's a conditional NULL-maker.
+
+**Why this matters:** dirty data often uses a sentinel value instead of NULL — an empty string `''`, a placeholder like `'N/A'` or `'Undisclosed Salary'`, or a zero standing in for "no data." These values are NOT NULL, so `COUNT(column)`, `AVG(column)`, and division all treat them as real data — which skews results.
+
+**Example 1 — safe division (avoid divide-by-zero):**
+```sql
+-- If count can be 0, this crashes:
+SELECT total / count AS avg_value FROM stats
+
+-- NULLIF turns a 0 divisor into NULL, and any_number / NULL = NULL (no crash, no error):
+SELECT total / NULLIF(count, 0) AS avg_value FROM stats
+```
+
+**Example 2 — excluding a placeholder string from a count:**
+```sql
+-- This counts EVERY row, including ones where email is '' (empty but not NULL):
+SELECT COUNT(email) FROM users
+
+-- NULLIF converts '' to NULL first, and COUNT() ignores NULLs — so empty strings are excluded:
+SELECT COUNT(NULLIF(email, '')) FROM users
+```
+
+**Example 3 — combined with COALESCE for a clean default:**
+```sql
+-- Empty string becomes NULL, then COALESCE supplies a fallback:
+SELECT COALESCE(NULLIF(city, ''), 'Unknown') AS city FROM users
+```
+
+In today's task, you'll use it to exclude `'Undisclosed Salary'` (a sentinel string, not a real salary) from a count — the same shape as Example 2, just with a different placeholder value.
+
+---
+
+## Task 2 — Offers with Disclosed Salary per Platform (NULLIF)
 
 **Difficulty: 3/5**
 
 **Business question:**  
-For each user, find their cohort month (the month of their first-ever order). Then check: did that user place at least one more order in the month immediately following their cohort month?
+For each platform, count how many offers have an actual (disclosed) salary value in `zarobki` — excluding both `NULL` and the literal string `'Undisclosed Salary'`.
 
-Show, per cohort month: the number of users in that cohort, and the number/percentage who returned in month +1.
+Use `NULLIF(zarobki, 'Undisclosed Salary')` inside a `COUNT()` so that both NULL and the sentinel string are excluded from the count in one expression.
 
 **Expected output columns:**  
-`cohort_month, cohort_size, returned_next_month, retention_pct`
+`platform_name, disclosed_salary_count, total_offers`
 
-`retention_pct` rounded to 2 decimals. Order by `cohort_month`.
+Only include rows where `platforma_id` IS NOT NULL.
+
+Order by `platform_name`.
 
 
-WITH users_first_orders AS (
 SELECT 
-	user_id,
-	MIN(created_at) AS first_order
-FROM crappy_data_db.orders o
-GROUP BY user_id
-),
-fo_cohorts AS (
-SELECT 
-	*,
-	date_trunc('Month', first_order) AS cohort_month_
-FROM users_first_orders
-),
-cohorts_sizes_returned AS (
-SELECT 
-	f.cohort_month_,
-	COUNT(DISTINCT(f.user_id)) AS cohort_size,
-	COUNT(DISTINCT(f.user_id)) FILTER (WHERE o.id IS NOT NULL) AS returned_next_month
-FROM fo_cohorts f
-LEFT JOIN crappy_data_db.orders o 
-ON o.user_id = f.user_id
-AND date_trunc('Month', o.created_at) = f.cohort_month_ + INTERVAL '1 Month'
-GROUP BY f.cohort_month_
-)
-SELECT 
-	*,
-	ROUND(returned_next_month / cohort_size::NUMERIC * 100, 2) AS retention_pct
-FROM cohorts_sizes_returned
-ORDER BY cohort_month_
+	p.nazwa AS platform_name,
+	COUNT(NULLIF(zarobki, 'Undisclosed Salary')) AS disclosed_salary_count,
+	count(*) AS total_offers
+FROM job_db.oferty o
+JOIN job_db.platforma p ON p.id = o.platforma_id
+GROUP BY p.nazwa
+ORDER BY PLATFORM_NAME
 
 
-Not a big deal, but also a nice task that already feels like a solid Mid+ comprehension elvel
+Interesting, as for excluding platforma_id, the JOIN with platforma p automatically excludes all the NULL platofrms.
+
+---
+
+## Task 3 — Offer Count by Seniority × Contract Type (Pivot)
+
+**Difficulty: 3/5**
+
+**Business question:**  
+For each seniority level, show the count of offers by contract type (`umowa`): `B2B`, `Permanent`, and `Other` (everything else, including NULL). Use conditional aggregation.
+
+Only include rows where `seniority_id` IS NOT NULL.
+
+**Expected output columns:**  
+`seniority_name, b2b_count, permanent_count, other_count`
+
+Order by `seniority_name`.
+
+SELECT 
+	s.nazwa AS seniority_name,
+	COUNT(*) FILTER (WHERE o.umowa = 'B2B') AS b2b_count,
+	COUNT(*) FILTER (WHERE o.umowa = 'Permanent') AS permanent_count,
+	COUNT(*) FILTER (WHERE o.umowa NOT IN ('B2B', 'Permanent')) AS other_count
+FROM job_db.oferty o
+JOIN job_db.seniority s ON o.seniority_id = s.id
+GROUP BY s.nazwa
+ORDER BY seniority_name
+
+Again, no need to filter out NULL seniority_id when we use INNER JOIN with NON-NULL seniority table :)).
+
 
 ---
 

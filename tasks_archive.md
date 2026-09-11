@@ -1,5 +1,17 @@
 
-### Task Archive: 2026-09-10 (Week 37, Day 4) — archived before session start
+### Task Archive: 2026-09-11 (Week 37, Day 5) — archived before session start
+
+---
+
+### Task Archive: 2026-09-10 (Week 37, Day 4) — Score: 27/30
+
+**Task 1 (LATERAL top-3 spenders per city, scaffolded):** 10/10 — correlation directly via WHERE u.city = e.city, no redundant JOIN back to eligible_cities. Scaffold worked — student understood WHY correlation replaces JOIN, not just the syntax.
+
+**Task 2 (Cumulative VWAP, true running):** 7/10 — good instinct to add a sanity check, which correctly caught a real bug. Cumulative window was PARTITION BY trade_date ORDER BY ts_event (tick-level) instead of ORDER BY bucket_start (bucket-level), and the "sanity check" itself wasn't actually cumulative (just per-bucket VWAP without the running window) — so both columns were wrong in different ways. Deferred fix to next session: cumulate SUM(bucket_usd)/SUM(bucket_size) OVER (PARTITION BY trade_date ORDER BY bucket_start) on top of pre-aggregated bucket sums.
+
+**Task 3 (Cohort retention month+1):** 10/10 — LEFT JOIN with next-month condition inside ON clause, FILTER + COUNT DISTINCT for returned users, correct retention formula.
+
+---
 
 ---
 

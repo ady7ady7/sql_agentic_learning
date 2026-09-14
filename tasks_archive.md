@@ -1,5 +1,17 @@
 
-### Task Archive: 2026-09-11 (Week 37, Day 5) — archived before session start
+### Task Archive: 2026-09-14 (Week 38, Day 1) — archived before session start
+
+---
+
+### Task Archive: 2026-09-11 (Week 37, Day 5) — Score: 25/30
+
+**Task 1 (Cumulative VWAP, second attempt):** 5/10 — averaging-of-averages bug: summed already-divided per-bucket VWAPs via SUM() OVER instead of cumulating raw numerator/denominator sums separately. Deferred again with explicit numeric example for W38 D1.
+
+**Task 2 (NULLIF disclosed salary):** 10/10 — correct COUNT(NULLIF(...)) pattern, good observation about INNER JOIN implicitly excluding NULL platforma_id.
+
+**Task 3 (Seniority × contract type pivot):** 10/10 — clean FILTER pivot, correct observation about INNER JOIN excluding NULL seniority_id.
+
+---
 
 ---
 

@@ -1,164 +1,168 @@
-# SQL Tasks — 2026-09-11 (Week 37, Day 5)
+# SQL Tasks — 2026-09-14 (Week 38, Day 1)
 
-**Dataset:** nq_data.ticks · job_db  
-**Focus:** True cumulative VWAP (fix) · NULLIF for dirty data · Pivot (job_db)
+**Dataset:** nq_data.ticks · crappy_data_db  
+**Focus:** True cumulative VWAP (third attempt) · Self-join on dominant type · LAG (no offset)
 
 ---
 
-## Task 1 — Intraday Cumulative VWAP (Fix: Bucket-Level Cumulation)
+## Task 1 — Intraday Cumulative VWAP (Third Attempt: Weighted Cumulation)
 
 **Difficulty: 5/5**
 
 **Business question:**  
-Same goal as before: a true running VWAP that accumulates from 09:30 ET, resetting per session. This time, the cumulation window must operate on the **pre-aggregated bucket sums**, not on raw ticks.
+Same goal: running VWAP from 09:30 ET, resetting per session.
 
-**Why yesterday's version was wrong (for reference):**
-- The window was `SUM(price*size) OVER (PARTITION BY trade_date ORDER BY ts_event)` — cumulating tick-by-tick, then extracting the value at the last tick of each bucket via a MAX(ts_event) join. This works in principle but is expensive and error-prone.
-- The "sanity check" computed `SUM(price*size)/SUM(size) GROUP BY bucket_start` — that's a per-bucket VWAP, not cumulative. It was comparing two different things, not verifying the same one.
+**The rule that was missing last time:** never cumulate or average an already-divided ratio (like a per-bucket VWAP) when the groups behind it have different weights (volume). Always cumulate the raw numerator and denominator separately, and divide only once, at the very end.
 
-**Correct two-step shape:**
-1. Aggregate raw ticks into `(trade_date, bucket_start)` rows first: `bucket_usd = SUM(price*size)`, `bucket_size = SUM(size)`.
-2. On that small aggregated table, compute `SUM(bucket_usd) OVER (PARTITION BY trade_date ORDER BY bucket_start)` and same for size — THIS is the cumulative window, ordered by bucket, not by tick.
-3. Divide the two cumulative sums.
+**Correct shape:**
+```sql
+bucket_sums AS (
+    SELECT trade_date, bucket_start,
+        SUM(price * size) AS bucket_usd,
+        SUM(size) AS bucket_size
+    FROM ticks_buckets_rth
+    GROUP BY trade_date, bucket_start
+),
+running AS (
+    SELECT *,
+        SUM(bucket_usd) OVER (PARTITION BY trade_date ORDER BY bucket_start) AS cum_usd,
+        SUM(bucket_size) OVER (PARTITION BY trade_date ORDER BY bucket_start) AS cum_size
+    FROM bucket_sums
+)
+SELECT trade_date, bucket_start,
+    ROUND(cum_usd / cum_size, 2) AS running_vwap
+FROM running
+ORDER BY trade_date, bucket_start
+```
+
+Note there is no `bucket_vwap` (divided value) anywhere in the window functions — only raw sums get cumulated. The division happens exactly once, in the final SELECT.
 
 **Expected output columns:**  
 `trade_date, bucket_start, running_vwap`
 
 `running_vwap` rounded to 2 decimals. Order by `trade_date`, `bucket_start`.
 
-**Sanity check (do this one correctly this time):** for a single trade_date, the running_vwap at the LAST bucket of the day should exactly equal `SUM(price*size)/SUM(size)` computed directly over all RTH ticks of that day — no window function, just a flat aggregate as the ground truth.
+**Sanity check:** for one trade_date, the running_vwap at the last bucket of the day should exactly equal a flat `SUM(price*size)/SUM(size)` over all RTH ticks of that day (no window function — direct aggregate as ground truth).
 
-
-
-WITH ticks_buckets_rth AS (
+WITH rth_ticks_dates AS (
 SELECT 
 	*,
-	DATE_TRUNC('Hour', t.ts_event AT TIME ZONE 'America/New_York') + (EXTRACT('Minute' FROM t.ts_event AT TIME ZONE 'America/New_York')::int / 15 * INTERVAL '15 Minutes') AS bucket_start,
-	t.ts_event AT TIME ZONE 'America/New_York' AS et_time,
-	(t.ts_event AT TIME ZONE 'America/New_York')::date AS trade_date
+	DATE_TRUNC('Hour', ts_event AT TIME ZONE 'America/New_York') + (EXTRACT('Minute' FROM ts_event AT TIME ZONE 'America/New_York')::int/30 * INTERVAL '30 Minutes') AS bucket_start,
+	(ts_event AT TIME ZONE 'America/New_York')::time AS et_time,
+	(ts_event AT TIME ZONE 'America/New_York')::date AS trade_date
 FROM nq_data.ticks t
-WHERE (t.ts_event AT TIME ZONE 'America/New_York')::time >= '9:30' AND (t.ts_event AT TIME ZONE 'America/New_York')::time <= '16:00'
+WHERE (ts_event AT TIME ZONE 'America/New_York')::time >= '9:30' AND (ts_event AT TIME ZONE 'America/New_York')::time <= '16:00'
+LIMIT 150000
 ),
-vwap_buckets AS (
+bucket_windows AS (
 SELECT 
+	*,
+	TO_CHAR(bucket_start, 'HH24:MI') AS bucket_window
+FROM rth_ticks_dates
+),
+buckets_cum_size_usd AS (
+SELECT 
+	trade_date,
 	bucket_start,
-	ROUND(SUM(price * size) / SUM(size), 2) AS bucket_vwap
-FROM ticks_buckets_rth
-GROUP BY bucket_start
+	bucket_window,
+	SUM(size) AS bucket_size,
+	SUM(price * size) AS bucket_total_usd
+FROM bucket_windows
+GROUP BY trade_date, bucket_start, bucket_window
 ),
-bucketed_vwaps AS (
+running_sums AS (
 SELECT 
-	t.bucket_start,
-	t.trade_date,
-	bucket_vwap
-FROM ticks_buckets_rth t
-JOIN vwap_buckets v ON t.bucket_start = v.bucket_start
-GROUP BY t.bucket_start, t.trade_date, bucket_vwap
-ORDER BY t.trade_date, t.bucket_start
+	*,
+	sum(bucket_total_usd) OVER (PARTITION BY trade_date ORDER BY bucket_start) AS running_usd,
+	sum(bucket_size) OVER (PARTITION BY trade_date ORDER BY bucket_start) AS running_volume
+FROM buckets_cum_size_usd
+),
+running_vwaps AS (
+SELECT 
+	*,
+	ROUND(running_usd / running_volume, 2) AS running_vwap
+FROM running_sums
 )
 SELECT 
+	* 
+FROM running_vwaps
+
+
+I've done it correctly this time and I don't think we need the sanity check.
+
+
+
+
+---
+
+## Task 2 — City Pairs Sharing the Same Dominant Transaction Type (Self-Join)
+
+**Difficulty: 3/5**
+
+**Business question:**  
+For each city, determine its dominant transaction type (the type with the highest transaction count among users from that city). Then find pairs of cities that share the same dominant type.
+
+Exclude NULL cities. Avoid duplicate pairs (`city_a < city_b`).
+
+**Expected output columns:**  
+`city_a, city_b, dominant_type`
+
+Order by `dominant_type`, `city_a`.
+
+
+
+WITH cities_types_amounts AS (
+SELECT
+	u.city,
+	t.TYPE,
+	COUNT(t.amount) AS transactions_cnt
+FROM crappy_data_db.users u
+JOIN crappy_data_db.transactions t ON u.id = t.user_id 
+WHERE u.city IS NOT NULL
+GROUP BY u.city, t.TYPE
+),
+cities_type_ranks AS (
+SELECT 
 	*,
-	sum(bucket_vwap) OVER (PARTITION BY trade_date ORDER BY bucket_start) AS running_vwap
-FROM bucketed_vwaps
+	Row_number() OVER (PARTITION BY city ORDER BY transactions_cnt DESC) AS city_type_rank
+FROM cities_types_amounts
+)
+SELECT 
+	c1.city AS city_a,
+	c2.city AS city_b,
+	c1.TYPE AS dominant_type
+FROM cities_type_ranks c1
+JOIN cities_type_ranks c2 ON c1.TYPE = c2.TYPE AND c1.city > c2.city
+WHERE c1.city_type_rank = 1 AND c2.city_type_rank = 1
 
 
-Fuck the sanity check, it must be correct now.
-
-
-
-
----
-
-## NULLIF — Introduction
-
-`NULLIF(a, b)` returns `NULL` if `a = b`, otherwise returns `a`. That's the entire function — it's a conditional NULL-maker.
-
-**Why this matters:** dirty data often uses a sentinel value instead of NULL — an empty string `''`, a placeholder like `'N/A'` or `'Undisclosed Salary'`, or a zero standing in for "no data." These values are NOT NULL, so `COUNT(column)`, `AVG(column)`, and division all treat them as real data — which skews results.
-
-**Example 1 — safe division (avoid divide-by-zero):**
-```sql
--- If count can be 0, this crashes:
-SELECT total / count AS avg_value FROM stats
-
--- NULLIF turns a 0 divisor into NULL, and any_number / NULL = NULL (no crash, no error):
-SELECT total / NULLIF(count, 0) AS avg_value FROM stats
-```
-
-**Example 2 — excluding a placeholder string from a count:**
-```sql
--- This counts EVERY row, including ones where email is '' (empty but not NULL):
-SELECT COUNT(email) FROM users
-
--- NULLIF converts '' to NULL first, and COUNT() ignores NULLs — so empty strings are excluded:
-SELECT COUNT(NULLIF(email, '')) FROM users
-```
-
-**Example 3 — combined with COALESCE for a clean default:**
-```sql
--- Empty string becomes NULL, then COALESCE supplies a fallback:
-SELECT COALESCE(NULLIF(city, ''), 'Unknown') AS city FROM users
-```
-
-In today's task, you'll use it to exclude `'Undisclosed Salary'` (a sentinel string, not a real salary) from a count — the same shape as Example 2, just with a different placeholder value.
 
 ---
 
-## Task 2 — Offers with Disclosed Salary per Platform (NULLIF)
+## Task 3 — Amount Change Between Consecutive Transactions (LAG)
 
 **Difficulty: 3/5**
 
 **Business question:**  
-For each platform, count how many offers have an actual (disclosed) salary value in `zarobki` — excluding both `NULL` and the literal string `'Undisclosed Salary'`.
-
-Use `NULLIF(zarobki, 'Undisclosed Salary')` inside a `COUNT()` so that both NULL and the sentinel string are excluded from the count in one expression.
+For each user, show every transaction alongside the amount of their previous transaction and the difference (`amount - previous_amount`).
 
 **Expected output columns:**  
-`platform_name, disclosed_salary_count, total_offers`
+`user_id, id, created_at, amount, prev_amount, amount_diff`
 
-Only include rows where `platforma_id` IS NOT NULL.
-
-Order by `platform_name`.
+Order by `user_id`, `created_at`.
 
 
 SELECT 
-	p.nazwa AS platform_name,
-	COUNT(NULLIF(zarobki, 'Undisclosed Salary')) AS disclosed_salary_count,
-	count(*) AS total_offers
-FROM job_db.oferty o
-JOIN job_db.platforma p ON p.id = o.platforma_id
-GROUP BY p.nazwa
-ORDER BY PLATFORM_NAME
+	user_id,
+	id,
+	created_at,
+	amount,
+	lag(AMOUNT) OVER (PARTITION BY user_id ORDER BY created_at) AS prev_amount,
+	amount - lag(AMOUNT) OVER (PARTITION BY user_id ORDER BY created_at) AS amount_diff
+FROM crappy_data_db.transactions t
 
 
-Interesting, as for excluding platforma_id, the JOIN with platforma p automatically excludes all the NULL platofrms.
-
----
-
-## Task 3 — Offer Count by Seniority × Contract Type (Pivot)
-
-**Difficulty: 3/5**
-
-**Business question:**  
-For each seniority level, show the count of offers by contract type (`umowa`): `B2B`, `Permanent`, and `Other` (everything else, including NULL). Use conditional aggregation.
-
-Only include rows where `seniority_id` IS NOT NULL.
-
-**Expected output columns:**  
-`seniority_name, b2b_count, permanent_count, other_count`
-
-Order by `seniority_name`.
-
-SELECT 
-	s.nazwa AS seniority_name,
-	COUNT(*) FILTER (WHERE o.umowa = 'B2B') AS b2b_count,
-	COUNT(*) FILTER (WHERE o.umowa = 'Permanent') AS permanent_count,
-	COUNT(*) FILTER (WHERE o.umowa NOT IN ('B2B', 'Permanent')) AS other_count
-FROM job_db.oferty o
-JOIN job_db.seniority s ON o.seniority_id = s.id
-GROUP BY s.nazwa
-ORDER BY seniority_name
-
-Again, no need to filter out NULL seniority_id when we use INNER JOIN with NON-NULL seniority table :)).
+Super easy.
 
 
 ---

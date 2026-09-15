@@ -1,5 +1,17 @@
 
-### Task Archive: 2026-09-14 (Week 38, Day 1) — archived before session start
+### Task Archive: 2026-09-15 (Week 38, Day 2) — archived before session start
+
+---
+
+### Task Archive: 2026-09-14 (Week 38, Day 1) — Score: 30/30
+
+**Task 1 (Cumulative VWAP, third attempt):** 10/10 — correctly cumulated raw numerator/denominator sums separately via window functions, divided only once at the end. Averaging-of-averages bug finally resolved.
+
+**Task 2 (City pairs by dominant type self-join):** 10/10 (after fix) — initial version missing DESC in ROW_NUMBER, caught least-common type instead of dominant. Fixed correctly.
+
+**Task 3 (LAG amount diff):** 10/10 — simple, correct, no offset needed.
+
+---
 
 ---
 

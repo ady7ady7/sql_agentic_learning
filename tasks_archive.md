@@ -1,5 +1,15 @@
 
-### Task Archive: 2026-09-15 (Week 38, Day 2) — archived before session start
+### Task Archive: 2026-09-16 (Week 38, Day 3) — archived before session start
+
+---
+
+### Task Archive: 2026-09-15 (Week 38, Day 2) — Score: 20/20
+
+**Task 1 (NOT EXISTS anti-join, no late ticks):** 10/10 (after removing debug LIMIT 100) — logic correct throughout, student caught the LIMIT-inside-anti-join distortion themselves and asked genuinely good questions about the surprising result (holiday/early-close sessions), rather than accepting an empty result blindly.
+
+**Task 2 (STDDEV spending variability by city):** 10/10 — correct two-layer aggregation, SUM per user then STDDEV across per-user totals, HAVING >= 5 users applied correctly.
+
+---
 
 ---
 

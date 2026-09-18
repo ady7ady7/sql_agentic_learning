@@ -1,5 +1,17 @@
 
-### Task Archive: 2026-09-17 (Week 38, Day 4) — archived before session start
+### Task Archive: 2026-09-18 (Week 38, Day 5) — archived before session start
+
+---
+
+### Task Archive: 2026-09-17 (Week 38, Day 4) — Score: 27/30
+
+**Task 1 (Cohort retention rework):** 9/10 — correct first-order cohort definition finally applied, cohort_size correctly scoped. Duplicate column alias (both named retention_month1_pct) — cosmetic, doesn't affect computed values.
+
+**Task 2 (EXCLUDE CURRENT ROW neighbor average):** 8/10 — correct use of the new frame clause, but missing HAVING >= 5 transactions filter from the spec.
+
+**Task 3 (INTERSECT/EXCEPT set operators):** 10/10 — correct use of both operators, UNION ALL to combine, CASE WHEN for labeling. Slightly more JOINs than necessary but logically sound and self-derived.
+
+---
 
 ---
 

@@ -1,5 +1,15 @@
 
-### Task Archive: 2026-09-18 (Week 38, Day 5) — archived before session start
+### Task Archive: 2026-09-21 (Week 39, Day 1) — archived before session start
+
+---
+
+### Task Archive: 2026-09-18 (Week 38, Day 5) — Score: 20/20
+
+**Task 1 (Median spending per city, PERCENTILE_CONT):** 10/10 — clean two-layer aggregation, WHERE and HAVING correctly placed.
+
+**Task 2 (First transaction per type per user, DISTINCT ON):** 10/10 — correct ORDER BY starting with the same columns as DISTINCT ON plus created_at as tiebreaker. Student found this genuinely non-obvious despite looking simple — flagged as a pattern to feature more often ([[feedback_distinct_on_more]]).
+
+---
 
 ---
 

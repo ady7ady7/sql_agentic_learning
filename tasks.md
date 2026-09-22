@@ -1,111 +1,81 @@
-# SQL Tasks — 2026-09-21 (Week 39, Day 1)
+# SQL Tasks — 2026-09-22 (Week 39, Day 2)
 
-**Dataset:** crappy_data_db · job_db  
-**Focus:** DISTINCT ON — three levels of difficulty, easiest to hardest
+**Dataset:** nq_data.ticks · crappy_data_db  
+**Focus:** DISTINCT ON (new dataset) · NTH_VALUE
 
 ---
 
-## Task 1 — Top Spender per City (DISTINCT ON)
+## Task 1 — Largest Single Print per RTH Session (DISTINCT ON)
 
 **Difficulty: 4/5**
 
 **Business question:**  
-For each city, find the single user with the highest total transaction amount (one total per user, same aggregate-first shape as before). Use `DISTINCT ON (city)`.
+For each RTH trading day, find the single tick with the largest `size` (the biggest single print of the session). Use `DISTINCT ON`.
 
-Only include cities with at least 3 users who have transactions.
+Filter to RTH only, exclude `side = 'N'`.
 
 **Expected output columns:**  
-`city, user_id, total_amount`
+`trade_date, ts_event, price, size, side`
 
-Order by `city`.
+Order by `trade_date`.
 
+
+SELECT DISTINCT ON ((ts_event AT TIME ZONE 'America/New_York')::date)
+	(ts_event AT TIME ZONE 'America/New_York')::date AS trade_date,
+	ts_event AT TIME ZONE 'America/New_York' AS et_time,
+	price,
+	SIZE,
+	side
+FROM nq_data.ticks t
+WHERE side != 'N'
+ORDER BY trade_date, size DESC
+
+
+
+---
+
+## NTH_VALUE — Introduction
+
+`NTH_VALUE(column, n) OVER (...)` returns the value of `column` at the N-th row of the window frame, according to the frame's `ORDER BY`. It's a generalization of `FIRST_VALUE` (which is just `NTH_VALUE(column, 1)`).
+
+By default, the frame only extends up to the current row, so `NTH_VALUE` often needs an explicit frame (e.g. `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`) to "see" the whole partition, the same way `LAST_VALUE` does.
+
+Use case: finding the 2nd-highest, 3rd-highest, etc. value within a group — without a separate RANK + filter step.
+
+
+
+
+---
+
+## Task 2 — Second-Largest Transaction per User (NTH_VALUE)
+
+**Difficulty: 4/5**
+
+**Business question:**  
+For each user, find the amount of their second-largest transaction (by `amount`). Use `NTH_VALUE`, not `RANK`/`ROW_NUMBER`.
+
+Only include users with at least 2 transactions.
+
+**Expected output columns:**  
+`user_id, second_largest_amount`
+
+One row per user. Order by `user_id`.
 
 WITH users_transactions AS (
 SELECT 
-	user_id,
-	SUM(amount) AS total_amount
+	*,
+	nth_value(amount, 2) OVER (PARTITION BY user_id ORDER BY amount DESC) AS second_largest_t
 FROM crappy_data_db.transactions t
-GROUP BY user_id
 )
-SELECT DISTINCT ON (u.city)
-	u.city,
-	t.user_id,
-	t.total_amount
-FROM crappy_data_db.users u
-JOIN users_transactions t ON u.id = t.user_id
-WHERE u.city IS NOT NULL
-ORDER BY city, total_amount DESC
+SELECT 
+	user_id,
+	second_largest_t
+FROM users_transactions
+WHERE second_largest_t IS NOT NULL
+GROUP BY user_id, second_largest_t
+ORDER BY user_id
 
-
-
-
----
-
-## Task 2 — Most Recent Job Offer per City (DISTINCT ON)
-
-**Difficulty: 3/5**
-
-**Business question:**  
-For each city in `job_db.oferty`, find the most recently listed offer (by `data_wystawienia`).
-
-Only include rows where `data_wystawienia` IS NOT NULL and `miasto` IS NOT NULL.
-
-**Expected output columns:**  
-`miasto, pozycja, data_wystawienia`
-
-Order by `miasto`.
-
-
-SELECT DISTINCT ON (miasto)
-	miasto,
-	pozycja,
-	data_wystawienia
-FROM job_db.oferty o
-WHERE data_wystawienia IS NOT NULL AND miasto IS NOT NULL
-ORDER BY miasto, data_wystawienia
-
----
-
-## Task 3 — Last Transaction Before Each Order (DISTINCT ON, Cross-Table)
-
-**Difficulty: 5/5**
-
-**Business question:**  
-For each order, find that user's most recent transaction that happened strictly BEFORE the order's `created_at`. Use `DISTINCT ON (order_id)`.
-
-**Why this is harder than Task 1/2:** the DISTINCT ON key (`order_id`) comes from one table, but the row you're selecting FROM and the tiebreaker column (`transaction.created_at`) come from a different table, joined with a condition that isn't just equality (`transaction.created_at < order.created_at`). You need the JOIN to happen first, producing (order, transaction) candidate pairs, and only then apply DISTINCT ON to pick the closest-preceding one per order.
-
-**Suggested shape:**
-```sql
-SELECT DISTINCT ON (o.id)
-    o.id AS order_id, o.created_at AS order_time,
-    t.id AS transaction_id, t.created_at AS transaction_time, t.amount
-FROM crappy_data_db.orders o
-JOIN crappy_data_db.transactions t
-    ON t.user_id = o.user_id AND t.created_at < o.created_at
-ORDER BY o.id, t.created_at DESC
-```
-
-Orders with no prior transaction simply won't appear (JOIN excludes them) — that's expected, not a bug.
-
-**Expected output columns:**  
-`order_id, order_time, transaction_id, transaction_time, amount`
-
-Order by `order_id`.
-
-
-SELECT DISTINCT ON (o.id)
-	o.id AS order_id,
-	t.id AS transaction_id,
-	o.created_at AS order_time,
-	t.created_at AS transaction_time,
-	t.amount AS transaction_amount,
-	o.user_id AS user_id
-FROM crappy_data_db.orders o
-JOIN crappy_data_db.transactions t 
-	ON o.user_id = t.user_id
-	AND o.created_at > t.created_at
-ORDER BY o.id, t.created_at DESC
+The WHERE filter automatically deletes users with less than 2 transactions.
 
 
 

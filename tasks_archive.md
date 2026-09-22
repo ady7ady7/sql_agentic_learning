@@ -1,5 +1,17 @@
 
-### Task Archive: 2026-09-21 (Week 39, Day 1) — archived before session start
+### Task Archive: 2026-09-22 (Week 39, Day 2) — archived before session start
+
+---
+
+### Task Archive: 2026-09-21 (Week 39, Day 1) — Score: 29/30
+
+**Task 1 (Top spender per city, DISTINCT ON):** 9/10 — correct DISTINCT ON usage, missing HAVING >= 3 users filter.
+
+**Task 2 (Most recent job offer per city, DISTINCT ON):** 10/10 — clean, correct.
+
+**Task 3 (Last transaction before each order, cross-table DISTINCT ON):** 10/10 — correctly understood that the JOIN with inequality condition must produce candidate pairs first, then DISTINCT ON picks the closest one. Student was nervous about this one going in and nailed it — the hardest task of the trio was the best-executed.
+
+---
 
 ---
 

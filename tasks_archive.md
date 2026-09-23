@@ -1,5 +1,15 @@
 
-### Task Archive: 2026-09-22 (Week 39, Day 2) — archived before session start
+### Task Archive: 2026-09-23 (Week 39, Day 3) — archived before session start
+
+---
+
+### Task Archive: 2026-09-22 (Week 39, Day 2) — Score: 19/20
+
+**Task 1 (Largest RTH print, DISTINCT ON):** 5/10 initially, 10/10 after fix — missing RTH time filter caught the largest print across the full day (incl. Globex) instead of RTH only. Fixed correctly with proper AT TIME ZONE ordering.
+
+**Task 2 (NTH_VALUE second-largest, no explicit frame):** Initially misjudged as broken by agent (6/10) — agent claimed missing explicit frame caused wrong results, but student correctly pushed back. Verified: default frame (RANGE UNBOUNDED PRECEDING TO CURRENT ROW) does produce NULL only on the very first row (highest amount) for N=2, and the WHERE IS NOT NULL + GROUP BY correctly filters/collapses to the right answer. Corrected to 9/10 — works correctly for N=2 specifically, though relying on default frame behavior is fragile style, not wrong logic. Student's instinct to question the assistant's grading was correct and should be reinforced.
+
+---
 
 ---
 

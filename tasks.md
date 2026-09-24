@@ -1,77 +1,82 @@
-# SQL Tasks — 2026-09-23 (Week 39, Day 3)
+# SQL Tasks — 2026-09-24 (Week 39, Day 4)
 
-**Dataset:** job_db · crappy_data_db  
-**Focus:** DISTINCT ON with dirty-data parsing · NTH_VALUE with explicit frame
+**Dataset:** nq_data.ticks · crappy_data_db  
+**Focus:** DISTINCT ON (hourly extremes) · LAG + LEAD combined
 
 ---
 
-## Task 1 — Highest-Paying Offer per Platform (DISTINCT ON + Salary Parsing)
+## Task 1 — Extreme Price per RTH Hour (DISTINCT ON)
 
 **Difficulty: 4/5**
 
 **Business question:**  
-The `zarobki` column is text, e.g. `"14 400 - 17 600 PLN/month"` or `"Undisclosed Salary"`. For each platform, find the single offer with the highest MAXIMUM salary value in its range.
+For each RTH trading hour (grouping by trade_date and the hour portion of ET time, e.g. 10:00, 11:00, ...), find the tick with the highest price of that hour. Use `DISTINCT ON`.
 
-You'll need to extract a numeric value from `zarobki` before you can compare or order by it — think about which part of the string is usable (the upper bound of the range) and how to strip out spaces, currency text, and the sentinel value.
-
-Exclude offers where `zarobki` has no usable numeric value.
+Filter to RTH only, exclude `side = 'N'`.
 
 **Expected output columns:**  
-`platform_name, pozycja, zarobki, max_salary`
+`trade_date, hour_bucket, ts_event, price, size`
 
-Order by `platform_name`.
+Order by `trade_date`, `hour_bucket`.
 
 
-WITH oferty_zarobki AS (
+SELECT DISTINCT ON ((ts_event AT TIME ZONE 'America/New_York')::date, DATE_TRUNC('Hour', ts_event AT TIME ZONE 'America/New_York'))
+	(ts_event AT TIME ZONE 'America/New_York')::date AS trade_date,
+	ts_event AT TIME ZONE 'America/New_York' AS et_time,
+	DATE_TRUNC('Hour', ts_event AT TIME ZONE 'America/New_York') AS HOUR,
+	price,
+	SIZE,
+	side
+FROM nq_data.ticks t
+WHERE side != 'N' 
+AND (ts_event AT TIME ZONE 'America/New_York')::TIME >= '9:30'
+AND (ts_event AT TIME ZONE 'America/New_York')::TIME < '16:00'
+ORDER BY trade_date, HOUR, price DESC
+
+No need to do anything else with hour, as it's still tied to it's date every time
+
+
+
+
+
+
+---
+
+## Task 2 — Local Peak Transactions (LAG + LEAD)
+
+**Difficulty: 4/5**
+
+**Business question:**  
+For each user, identify transactions that are a "local peak" — meaning the transaction's `amount` is strictly greater than both the immediately preceding and immediately following transaction (by `created_at`) for that same user.
+
+Only include users with at least 3 transactions (so a peak comparison is meaningful).
+
+**Expected output columns:**  
+`user_id, id, created_at, amount, is_local_peak`
+
+`is_local_peak` is boolean. Order by `user_id`, `created_at`.
+
+
+
+
+WITH users_local_transactions AS (
 SELECT 
 	*,
-	replace(substring(zarobki FROM '[\-\–\—]\s*([\d\s]+?)\s*(?=[a-zA-Z]|$)'), ' ', '') AS druga_kwota
-FROM job_db.oferty o
-)
-SELECT DISTINCT ON (platform_name)
-	p.nazwa AS platform_name,
-	o.pozycja,
-	o.zarobki,
-	o.druga_kwota AS max_salary
-FROM oferty_zarobki o
-JOIN job_db.platforma p ON o.platforma_id = p.id
-WHERE o.zarobki IS NOT NULL AND o.druga_kwota IS NOT NULL
-ORDER BY platform_name, max_salary DESC, zarobki
-
-
----
-
-## Task 2 — Third-Largest Transaction per User (NTH_VALUE, Explicit Frame)
-
-**Difficulty: 4/5**
-
-**Business question:**  
-For each user, find the amount of their third-largest transaction. Use `NTH_VALUE` with an explicit frame that makes the window function see the entire partition for every row (not just rows up to the current one).
-
-Only include users with at least 3 transactions.
-
-**Expected output columns:**  
-`user_id, third_largest_amount`
-
-One row per user. Order by `user_id`.
-
-
-
-WITH users_thirds AS (
-SELECT 
-	user_id,
-	NTH_VALUE(amount, 3) OVER (PARTITION BY user_id ORDER BY amount DESC) AS third_largest_amount
+	LAG(amount) OVER (PARTITION BY user_id ORDER BY created_at) AS prev_t,
+	LEAD(amount) OVER (PARTITION BY user_id ORDER BY created_at) AS next_t
 FROM crappy_data_db.transactions t
 )
 SELECT 
 	user_id,
-	third_largest_amount 
-FROM users_thirds
-WHERE third_largest_amount IS NOT NULL
-GROUP BY user_id, third_largest_amount
-ORDER BY user_id
+	id,
+	created_at,
+	amount,
+	(amount > prev_t) AND (amount > next_t) AS is_local_peak
+FROM users_local_transactions
+WHERE prev_t IS NOT NULL AND next_t IS NOT NULL
+ORDER BY user_id, created_at
 
-excluding nulls autofilters users below 3 transactions
+tHE 3 TRANSACTIONS factor is sorted by IS NOT NULL, no need to do any more checks
 
 
 

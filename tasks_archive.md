@@ -1,5 +1,15 @@
 
-### Task Archive: 2026-09-23 (Week 39, Day 3) — archived before session start
+### Task Archive: 2026-09-24 (Week 39, Day 4) — archived before session start
+
+---
+
+### Task Archive: 2026-09-23 (Week 39, Day 3) — Score: 20/20
+
+**Task 1 (DISTINCT ON highest-paying offer per platform):** 7/10 initially, 10/10 after fix — max_salary extracted as text sorted lexicographically not numerically; fixed with ::NUMERIC cast.
+
+**Task 2 (NTH_VALUE third-largest, explicit frame):** 5/10 initially, 10/10 after fix — missing explicit ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING frame, task specifically required it this time (unlike W39 D2 where default frame happened to work for N=2). Student initially pushed back ("efekt ten sam, więcej pisania") — agent explained why default-frame reliance breaks down in future compound-window scenarios, not just this query.
+
+---
 
 ---
 

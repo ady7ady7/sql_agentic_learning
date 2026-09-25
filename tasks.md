@@ -1,88 +1,94 @@
-# SQL Tasks — 2026-09-24 (Week 39, Day 4)
+# SQL Tasks — 2026-09-25 (Week 39, Day 5)
 
-**Dataset:** nq_data.ticks · crappy_data_db  
-**Focus:** DISTINCT ON (hourly extremes) · LAG + LEAD combined
+**Dataset:** job_db  
+**Focus:** Pivot (conditional aggregation) · Recursive CTE (Type A, fixed 3-level hierarchy)
 
 ---
 
-## Task 1 — Extreme Price per RTH Hour (DISTINCT ON)
+## Task 1 — Offer Count by Platform × Seniority (Pivot)
+
+**Difficulty: 3/5**
+
+**Business question:**  
+For each platform, show the count of offers broken down by seniority level — one column per seniority. Use conditional aggregation.
+
+Only include rows where `platforma_id` IS NOT NULL and `seniority_id` IS NOT NULL.
+
+**Expected output columns:**  
+`platform_name` plus one count column per seniority level (Senior, Expert, Mid, Lead/Principal, Manager/C-level, Junior, Staż)
+
+Order by `platform_name`.
+
+SELECT 
+	p.nazwa AS platform_name,
+	COUNT(*) FILTER (WHERE s.nazwa = 'Senior') AS senior_cnt,
+	COUNT(*) FILTER (WHERE s.nazwa = 'Expert') AS expert_cnt,
+	COUNT(*) FILTER (WHERE s.nazwa = 'Mid') AS mid_cnt,
+	COUNT(*) FILTER (WHERE s.nazwa in ('Lead', 'Principal')) AS lead_principal_cnt,
+	COUNT(*) FILTER (WHERE s.nazwa in ('Manager', 'C-level')) AS mg_c_cnt,
+	COUNT(*) FILTER (WHERE s.nazwa = 'Junior') AS junior_cnt,
+	COUNT(*) FILTER (WHERE s.nazwa = 'Staż') AS intern_cnt
+FROM job_db.oferty o
+JOIN job_db.platforma p ON o.platforma_id = p.id
+JOIN job_db.seniority s ON o.seniority_id = s.id
+GROUP BY p.nazwa
+
+---
+
+## Task 2 — Three-Level Rollup: Platform → Seniority → Offer Stats (Recursive CTE, Type A)
 
 **Difficulty: 4/5**
 
 **Business question:**  
-For each RTH trading hour (grouping by trade_date and the hour portion of ET time, e.g. 10:00, 11:00, ...), find the tick with the highest price of that hour. Use `DISTINCT ON`.
+Build a 3-level hierarchical rollup using a recursive CTE:
+- Level 1: overall totals (all platforms, all seniority levels combined)
+- Level 2: totals per platform
+- Level 3: totals per platform × seniority combination
 
-Filter to RTH only, exclude `side = 'N'`.
+Each level should show: the grouping level (1, 2, or 3), platform name (NULL at level 1), seniority name (NULL at levels 1 and 2), offer count, and average max salary (using whatever salary-parsing approach you used earlier this week, or skip salary if you'd rather keep this focused on the CTE structure).
+
+Only include rows where `platforma_id` IS NOT NULL and `seniority_id` IS NOT NULL.
 
 **Expected output columns:**  
-`trade_date, hour_bucket, ts_event, price, size`
+`level, platform_name, seniority_name, offer_count`
 
-Order by `trade_date`, `hour_bucket`.
-
-
-SELECT DISTINCT ON ((ts_event AT TIME ZONE 'America/New_York')::date, DATE_TRUNC('Hour', ts_event AT TIME ZONE 'America/New_York'))
-	(ts_event AT TIME ZONE 'America/New_York')::date AS trade_date,
-	ts_event AT TIME ZONE 'America/New_York' AS et_time,
-	DATE_TRUNC('Hour', ts_event AT TIME ZONE 'America/New_York') AS HOUR,
-	price,
-	SIZE,
-	side
-FROM nq_data.ticks t
-WHERE side != 'N' 
-AND (ts_event AT TIME ZONE 'America/New_York')::TIME >= '9:30'
-AND (ts_event AT TIME ZONE 'America/New_York')::TIME < '16:00'
-ORDER BY trade_date, HOUR, price DESC
-
-No need to do anything else with hour, as it's still tied to it's date every time
-
-
-
-
-
+Order by `level`, `platform_name`, `seniority_name`.
 
 ---
 
-## Task 2 — Local Peak Transactions (LAG + LEAD)
-
-**Difficulty: 4/5**
-
-**Business question:**  
-For each user, identify transactions that are a "local peak" — meaning the transaction's `amount` is strictly greater than both the immediately preceding and immediately following transaction (by `created_at`) for that same user.
-
-Only include users with at least 3 transactions (so a peak comparison is meaningful).
-
-**Expected output columns:**  
-`user_id, id, created_at, amount, is_local_peak`
-
-`is_local_peak` is boolean. Order by `user_id`, `created_at`.
-
-
-
-
-WITH users_local_transactions AS (
 SELECT 
-	*,
-	LAG(amount) OVER (PARTITION BY user_id ORDER BY created_at) AS prev_t,
-	LEAD(amount) OVER (PARTITION BY user_id ORDER BY created_at) AS next_t
-FROM crappy_data_db.transactions t
-)
+	1 AS LEVEL,
+	'All platforms' AS platform_name,
+	'All seniorities' AS seniority_name,
+	COUNT(*) AS offer_count
+FROM job_db.oferty o
+JOIN job_db.platforma p ON o.platforma_id = p.id
+JOIN job_db.seniority s ON o.seniority_id = s.id
+WHERE o.platforma_id IS NOT NULL AND o.seniority_id IS NOT NULL
+UNION ALL
 SELECT 
-	user_id,
-	id,
-	created_at,
-	amount,
-	(amount > prev_t) AND (amount > next_t) AS is_local_peak
-FROM users_local_transactions
-WHERE prev_t IS NOT NULL AND next_t IS NOT NULL
-ORDER BY user_id, created_at
+	2 AS LEVEL,
+	p.nazwa AS platform_name,
+	'All seniorities' AS seniority_name,
+	COUNT(*) AS offer_count
+FROM job_db.oferty o
+JOIN job_db.platforma p ON o.platforma_id = p.id
+JOIN job_db.seniority s ON o.seniority_id = s.id
+WHERE o.platforma_id IS NOT NULL AND o.seniority_id IS NOT NULL
+GROUP BY p.nazwa
+UNION ALL
+SELECT 
+	3 AS LEVEL,
+	p.nazwa AS platform_name,
+	s.nazwa AS seniority_name,
+	COUNT(*) AS offer_count
+FROM job_db.oferty o
+JOIN job_db.platforma p ON o.platforma_id = p.id
+JOIN job_db.seniority s ON o.seniority_id = s.id
+GROUP BY p.nazwa, s.nazwa
 
-tHE 3 TRANSACTIONS factor is sorted by IS NOT NULL, no need to do any more checks
 
 
-
-
-
----
 
 ## Submission Instructions
 

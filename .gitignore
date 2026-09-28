@@ -1,2 +1,6 @@
 CLAUDE.md
 market_prep.md
+.env
+pyspark_env/
+spark_intro/
+certs/

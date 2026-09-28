@@ -1,5 +1,25 @@
 
-### Task Archive: 2026-09-25 (Week 39, Day 5) — archived before session start
+### Task Archive: 2026-09-28 (Week 40, Day 1) — Branching out: PySpark environment setup + first script
+
+**Context:** Student reached a point where the core SQL curriculum feels essentially complete (remaining small gap: SUM FILTER emphasis; query optimization/indexes still fully open). Decided to branch into PySpark in parallel with continued light SQL practice, motivated by CV/job-market relevance and wanting real big-data-shaped tooling experience.
+
+**Environment setup (not a scored task — infra day):**
+- Installed OpenJDK 17 (Eclipse Temurin) system-wide — required by Spark's JVM runtime, can't be venv-isolated the way Python packages can.
+- Created isolated venv at `pyspark_env/` (gitignored) with pyspark, pandas, pyarrow, psycopg2-binary, python-dotenv.
+- Discovered an existing DigitalOcean-managed Postgres DB (separate from crappy_data_db/job_db) containing multi-instrument OHLCV candle data (crypto, forex, indices, commodities/metals, M1/M5/H1 timeframes) — connection via `.env` (DATABASE_URL + CA cert, both gitignored).
+- Exported all 37 OHLCV tables to local Parquet files under `spark_intro/data/` (gitignored) for offline PySpark practice — several hundred thousand rows per M1 table (e.g. usatechidxusd_m1: 577,967 rows).
+- Wrote `spark_intro/environment.md` documenting the setup.
+- First script (`spark_intro/01_first_look.py`): SparkSession creation, reading Parquet, printSchema, .count() as an action vs lazy transformations, createOrReplaceTempView + spark.sql() as the SQL-in-PySpark bridge, DataFrame API equivalent of the same query. Ran successfully after fixing JAVA_HOME not being picked up in the shell session.
+
+**Note:** Spark SQL syntax is nearly identical to what the student already knows — the new material is the execution model (lazy evaluation, transformations vs actions, distributed/local[*] execution) and the DataFrame API as an alternative way to express the same logic programmatically.
+
+---
+
+### Task Archive: 2026-09-25 (Week 39, Day 5) — Score: 15/20
+
+**Task 1 (Platform × seniority pivot):** 9/10 — all 7 seniority categories correctly mapped via FILTER, sensible grouping of Lead/Principal and Manager/C-level pairs.
+
+**Task 2 (3-level rollup, "Recursive CTE Type A"):** 6/10 — logically correct 3-way UNION ALL with manual level numbers, but not actually WITH RECURSIVE (no self-reference). Noted as a structural mismatch: fixed 3-level rollups don't need recursion — UNION ALL is the natural tool. True WITH RECURSIVE practice deferred to a future Type B (unbounded-depth) task where it's structurally necessary. Student wants to revisit real WITH RECURSIVE syntax later.
 
 ---
 

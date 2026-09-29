@@ -1,4 +1,8 @@
 
+### Task Archive: 2026-09-29 (Week 40, Day 2) — archived before session start
+
+---
+
 ### Task Archive: 2026-09-28 (Week 40, Day 1) — Branching out: PySpark environment setup + first script
 
 **Context:** Student reached a point where the core SQL curriculum feels essentially complete (remaining small gap: SUM FILTER emphasis; query optimization/indexes still fully open). Decided to branch into PySpark in parallel with continued light SQL practice, motivated by CV/job-market relevance and wanting real big-data-shaped tooling experience.

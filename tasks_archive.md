@@ -1,5 +1,19 @@
 
-### Task Archive: 2026-09-29 (Week 40, Day 2) — archived before session start
+### Task Archive: 2026-09-30 (Week 40, Day 3) — PySpark fundamentals, slow-paced restart
+
+**Context:** Yesterday's first real PySpark exercise (daily OHLC rollup with Window functions, dual SQL/DataFrame API) was too advanced for a first contact — student correctly pushed back. Today restarted from true basics per [[feedback_pyspark_pacing]], one small scaffolded step at a time in `spark_intro/practice_spark.py`.
+
+**What was covered (not scored, exploratory):**
+1. **Immutability** — demonstrated live that `.select()` without reassignment leaves the original `df` untouched; every transformation returns a new object, nothing mutates in place (the core SQL/pandas mental-model gap that caused yesterday's confusion with `df['trade_date'] = ...` pandas syntax on a PySpark object).
+2. **`.filter()`** — `df.filter(df.close > df.open)` for bullish/bearish candle counts. Caught a naming/logic mismatch (student named a `open > close` filter result "bullish" when it was actually bearish) — good catch-your-own-mistake moment, not corrected by the agent first.
+3. Verified doji candles (open == close) explain the gap between bearish+bullish counts and total count (7,716 rows) — good independent reasoning from the student.
+4. **`.head()`** returns a single `Row` object, not a mini-DataFrame like pandas does.
+5. **`.show()`** prints and returns `None` — caught a real mistake where student chained `.count().show()` into an assignment, silently capturing `None` instead of a usable DataFrame. Fixed by separating the assignment from the `.show()` call.
+6. **`.groupBy().count()` + `.orderBy(..., ascending=False)`** — full GROUP BY + ORDER BY DESC equivalent, executed correctly on first real attempt. Found Sunday has ~9.3k candles vs ~120k for weekdays — sensible (forex/CFD Sunday evening open).
+
+**Next session:** `.agg()` with multiple aggregate functions in one groupBy (MIN/MAX/AVG together) — natural next step before revisiting the original daily OHLC goal.
+
+---
 
 ---
 

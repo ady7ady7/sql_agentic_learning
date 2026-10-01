@@ -1,4 +1,16 @@
 
+### Task Archive: 2026-10-01 (Week 40, Day 4) — Score: 29/30
+
+**Exercise 1 (Min/Max per day_of_week, .agg()):** 10/10 — clean, correct.
+
+**Exercise 2 (Named aggregates with .alias()):** 9/10 — correct output, minor: left variable name as min_max_by_dow after adding avg_volume to it.
+
+**Exercise 3 (Filter before groupBy + conceptual question):** 10/10 — correct filter → groupBy → agg → orderBy chain. Student correctly intuited the WHERE-vs-HAVING distinction when asked whether .filter() works post-aggregation; agent refined the mechanism: .filter() works fine after groupBy().agg(), the real issue is that the original column (volume) no longer exists post-aggregation (replaced by avg_vol) — filtering on the aggregated column itself (.filter(result.avg_vol > x)) works and IS the PySpark equivalent of HAVING.
+
+**Context:** full day of PySpark, student explicitly asked for all exercises up front instead of one-at-a-time drip-feed, after D3's slower single-step pacing — agent gave 3 progressively-building exercises at once. Session confirms the pacing fix from [[feedback_pyspark_pacing]] worked; student moved through all three cleanly in one sitting.
+
+---
+
 ### Task Archive: 2026-09-30 (Week 40, Day 3) — PySpark fundamentals, slow-paced restart
 
 **Context:** Yesterday's first real PySpark exercise (daily OHLC rollup with Window functions, dual SQL/DataFrame API) was too advanced for a first contact — student correctly pushed back. Today restarted from true basics per [[feedback_pyspark_pacing]], one small scaffolded step at a time in `spark_intro/practice_spark.py`.

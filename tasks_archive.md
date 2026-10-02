@@ -1,4 +1,18 @@
 
+### Task Archive: 2026-10-02 (Week 40, Day 5) — Score: 20/20 (+ real-world infra debugging)
+
+**Exercise 1 (Daily OHLC with F.first/F.last, sorted by timestamp):** 10/10 — correct withColumn + orderBy + groupBy().agg() chain, daily_open/daily_close values sanity-checked and look right.
+
+**Exercise 2 (Write to Parquet + read back):** 10/10 after debugging — initial `.write.parquet()` failed with a Hadoop `winutils.exe`/HADOOP_HOME error (Windows-only: local filesystem writes through Spark's Hadoop layer need winutils.exe for setPermission calls; reads don't need it, which is why this never showed up before today).
+
+**Debugging detour (the real work of the session):** student was accidentally running scripts from a DIFFERENT venv (`career-log\.venv`) because their terminal started in that repo and `cd`-ing into `sql_agentic_learning` doesn't switch the active Python interpreter — a good lesson in its own right. After activating the correct `pyspark_env`, hit the real Hadoop/winutils issue. Fixed by downloading winutils.exe + hadoop.dll (Hadoop 3.3.5 build, matches the bundled hadoop-client 3.5.0 closely enough) from the well-known cdarlint/winutils GitHub mirror into `spark_intro/hadoop/bin/`, and setting `HADOOP_HOME`/`PATH` at the top of `practice_spark.py` itself (before SparkSession creation) so it's automatic on every run regardless of which terminal/venv-activation state the student is in.
+
+**Full cycle closed:** read Parquet → transform (filter/groupBy/agg/withColumn) → write Parquet → read back → verified identical data. This was the original goal set all the way back on Day 1.
+
+---
+
+---
+
 ### Task Archive: 2026-10-01 (Week 40, Day 4) — Score: 29/30
 
 **Exercise 1 (Min/Max per day_of_week, .agg()):** 10/10 — clean, correct.

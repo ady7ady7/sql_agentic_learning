@@ -1,83 +1,83 @@
-# PySpark Exercises — 2026-10-01 (Week 40, Day 4)
+# PySpark Exercises — 2026-10-02 (Week 40, Day 5)
 
-**Focus:** `.agg()` with multiple aggregate functions in one `groupBy`
+**Focus:** `F.first()` / `F.last()` with ordering · closing the original daily-OHLC goal · writing output back to Parquet
 
 ---
 
-## Exercise 1 — Min/Max per Day of Week
+## Exercise 1 — First and Last Price of the Day
 
-**Goal:** translate this SQL shape into PySpark DataFrame API:
-```sql
-SELECT day_of_week, MIN(low), MAX(high)
-FROM candles
-GROUP BY day_of_week
-```
+**Goal:** get `open` (price at the first minute of the day) and `close` (price at the last minute of the day) inside a `groupBy().agg()`.
+
+**The problem:** `F.first("open")` / `F.last("close")` only give you a deterministic answer if the rows within each group are sorted first — otherwise Spark may pick an arbitrary row. You need to sort the DataFrame by `timestamp` BEFORE grouping, so that "first" and "last" actually mean "earliest" and "latest" in time.
 
 **Steps:**
-1. Add `from pyspark.sql import functions as F` at the top of `practice_spark.py`.
-2. Group by `day_of_week`, and in one `.agg(...)` call compute `F.min("low")` and `F.max("high")`.
-3. Save the result to a variable, print it with `.show()`.
+1. Add a `trade_date` column to `df` using `F.to_date("timestamp")` (new function — look up its signature, it's a one-argument call like `F.min`/`F.max`), via `.withColumn("trade_date", F.to_date("timestamp"))`. `.withColumn()` is how you add/replace a single column in PySpark — think of it as the DataFrame-API equivalent of adding an expression to a SELECT list. Remember: like everything else, it returns a NEW DataFrame — save it.
+2. Sort that DataFrame by `timestamp` ascending (`.orderBy("timestamp")`).
+3. Group by `trade_date`, and in `.agg()` compute:
+   - `F.first("open").alias("day_open")`
+   - `F.last("close").alias("day_close")`
+   - `F.min("low").alias("day_low")`
+   - `F.max("high").alias("day_high")`
+   - `F.sum("volume").alias("day_volume")`
+4. Order the final result by `trade_date`.
+5. `.show(10)` it.
 
-Don't worry about renaming the output columns yet — `.agg()` will give them default names like `min(low)`. That's expected for now.
+**Sanity check:** pick one date from the output and sanity-check `day_open`/`day_close` against what you'd expect — does `day_open` look like a 00:00-ish price and `day_close` like a 23:59-ish price for that date? (Remember Sunday is thin — maybe pick a Tuesday.)
 
 
-min_max_by_dow = df.groupBy('day_of_week').agg(
-    F.min('low'),
-    F.max('high')
-    )
-min_max_by_dow.show()
 
+
+df = df.withColumn('trade_date', F.to_date('timestamp')).orderBy('timestamp')
+aggregated_df = df.groupBy('trade_date').agg(
+    F.first('open').alias('daily_open'),
+    F.last('close').alias('daily_close'),
+    F.min('low').alias('daily_low'),
+    F.max('high').alias('daily_high'),
+    F.sum('volume').alias('daily_volume')
+).orderBy('trade_date')
+aggregated_df.show(10)
+
+
++----------+----------+-----------+---------+----------+------------------+     
+|trade_date|daily_open|daily_close|daily_low|daily_high|      daily_volume|
++----------+----------+-----------+---------+----------+------------------+
+|2024-01-10|  2030.674|   2026.695| 2020.395|  2040.135|25.370000000000093|
+|2024-01-11|  2026.735|   2035.125| 2013.225|  2043.864| 38.21999999999991|
+|2024-01-12|  2035.055|   2048.675| 2029.975|  2062.145| 31.62000000000005|
+|2024-01-14|  2048.498|   2047.505| 2046.235|  2048.605|0.5300000000000002|
+|2024-01-15|  2047.525|   2053.895| 2045.675|  2058.505| 17.60999999999989|
+|2024-01-16|  2054.025|   2028.045| 2024.165|  2054.435| 36.02999999999978|
+|2024-01-17|  2028.055|   2009.465| 2001.755|  2032.815| 34.69999999999991|
+|2024-01-18|  2009.505|   2023.675| 2005.705|  2024.555| 23.63000000000021|
+|2024-01-19|  2023.675|   2029.375| 2020.325|  2039.278|25.110000000000205|
+|2024-01-21|  2029.715|   2027.535| 2026.848|  2029.715|0.3800000000000001|
++----------+----------+-----------+---------+----------+------------------+
+
+
+Yeah, it looks alright
 
 ---
 
----
+## Exercise 2 — Write the Result to Parquet
 
-## Exercise 2 — Naming the Output Columns
-
-**Goal:** `.agg()` gave you ugly default names like `min(low)`. Fix that.
-
-In PySpark, you can rename the result of any function call with `.alias("new_name")` — e.g. `F.min("low").alias("day_low")`.
+**Goal:** close the full cycle — read → transform → write — which is the shape of every real PySpark job.
 
 **Steps:**
-1. Repeat Exercise 1, but alias `F.min("low")` as `day_low` and `F.max("high")` as `day_high`.
-2. Add a third aggregate to the same `.agg()` call: `F.avg("volume")`, aliased as `avg_volume`.
-3. `.show()` the result — column names should now read cleanly.
+1. Take the daily OHLC DataFrame from Exercise 1.
+2. Write it to a new file with `.write.mode("overwrite").parquet("./data/xauusd_daily_ohlc.parquet")`.
+3. In a separate block (or just after), read it back with `spark.read.parquet(...)` into a new variable, and `.show(5)` it — to confirm the round-trip actually worked.
 
-
-min_max_by_dow = df.groupBy('day_of_week').agg(
-    F.min('low').alias('lowest_price'),
-    F.max('high').alias('highest_price'),
-    F.avg('volume').alias('avg_volume')
-)
-min_max_by_dow.show()
-
-
----
-
-## Exercise 3 — Filter Before Grouping
-
-**Goal:** combine what you already know (`.filter()` from Day 3) with `.groupBy().agg()` from today — the PySpark equivalent of `WHERE ... GROUP BY ...` (filter happens before aggregation, same as SQL).
-
-**Steps:**
-1. Start from `df`, filter to only `timeframe == 'm1'` rows (check first whether this filters anything — the file may already be all `m1`).
-2. On the filtered result, group by `day_of_week` and compute `day_low`, `day_high`, `avg_volume` same as Exercise 2.
-3. Order the result by `avg_volume` descending.
-4. `.show()` it.
-
-**Think about order of operations:** does it matter whether you `.filter()` before or after `.groupBy()`? What would happen if you tried to filter on `volume` AFTER grouping — would `df.filter(df.volume > ...)` even work on a grouped/aggregated result? (You don't need to test this — just think about it, we'll cover `HAVING`-equivalent filtering on aggregated results another day.)
+**Note on `.mode("overwrite")`:** by default, `.write.parquet()` refuses to run if the target already exists (safety net against accidentally destroying data). `"overwrite"` disables that — useful while iterating, risky on anything you care about keeping. Worth noticing, not worth overthinking today.
 
 
 
-filtered_df = df.filter(df.timeframe == 'm1')
-filtered_df = filtered_df.groupBy('day_of_week').agg(
-    F.min('low').alias('day_low'),
-    F.max('high').alias('day_high'),
-    F.avg('volume').alias('avg_vol')
-).orderBy('avg_vol', ascending = False)
-filtered_df.show()
+aggregated_df.write.mode('overwrite').parquet('./data/xauusd_daily_ohlc.parquet')
+read_df = spark.read_parquet('./data/xauusd_daily_ohlc.parquet')
+read_df.show(5)
+print('Reading successful')
 
-I think it wouldn't work properly, as I guess filter is the equivalent of WHERE, which works on unaggregated data.
 
+spark.stop()
 
 
 

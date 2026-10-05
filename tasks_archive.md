@@ -1,4 +1,16 @@
 
+### Task Archive: 2026-10-05 (Week 41, Day 1) — Score: 19/20
+
+**Context:** Original exercise (joining two unrelated instruments by date) was scrapped mid-session as a contrived, low-value example — pivoted to Window functions in the DataFrame API instead, a better fit given student's existing SQL window-function strength.
+
+**Exercise 1 (LAG previous close, no partitionBy):** 10/10 — correct `Window.orderBy()` with no partition, first row correctly shows NULL prev_close/close_change, matching SQL LAG's first-row boundary behavior exactly.
+
+**Exercise 2 (RANK by volume descending, filter to top 5):** 9/10 — correct logic and result, built on top of the already-enriched `aggregated_df` from Exercise 1 rather than a fresh copy (harmless here, but worth noticing that repeatedly reassigning the same variable name accumulates all prior columns, not a reset).
+
+---
+
+---
+
 ### Task Archive: 2026-10-02 (Week 40, Day 5) — Score: 20/20 (+ real-world infra debugging)
 
 **Exercise 1 (Daily OHLC with F.first/F.last, sorted by timestamp):** 10/10 — correct withColumn + orderBy + groupBy().agg() chain, daily_open/daily_close values sanity-checked and look right.

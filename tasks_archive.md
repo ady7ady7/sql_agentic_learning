@@ -1,4 +1,16 @@
 
+### Task Archive: 2026-10-06 (Week 41, Day 2) — Score: 20/20
+
+**Note:** planned exercise was JDBC connection to local crappy_data_db Postgres — derailed because the local Postgres password is unknown, DBeaver has it saved but hidden (dotted field, no reveal option), common defaults (empty, 'postgres', 'admin', 'password') all failed, and student declined a pg_hba.conf trust-auth reset (didn't want to risk the local DB). Pivoted to JDBC against the already-working DigitalOcean OHLCV database instead — same JDBC mechanism, different data. Local crappy_data_db JDBC access remains unresolved for a future session if the student finds/resets the password.
+
+**Exercise 1 (First JDBC read):** 10/10 — hit two classic relative-path bugs along the way (jar path and cert path both resolved relative to CWD instead of the script's location, same root cause as the HADOOP_HOME fix from Friday) — both self-corrected using the same `PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))` pattern already used for `.env`. Final JDBC URL + SSL + driver config all correct, schema and data confirmed via printSchema/show.
+
+**Exercise 2 (Query pushdown via subquery-as-table):** 10/10 — correct `(SELECT ... GROUP BY ...) AS subquery` pattern, confirmed the GROUP BY actually executed on the Postgres side (result only had the aggregated columns, not the raw table's full schema).
+
+**Noise cleanup:** added `spark.sparkContext.setLogLevel("ERROR")` to quiet a harmless-but-noisy Windows-specific WARN/ERROR at `spark.stop()` time (JVM file lock preventing immediate deletion of the copied jar from Spark's temp dir) — doesn't suppress real Python exceptions, only Spark/JVM-side log verbosity.
+
+---
+
 ### Task Archive: 2026-10-05 (Week 41, Day 1) — Score: 19/20
 
 **Context:** Original exercise (joining two unrelated instruments by date) was scrapped mid-session as a contrived, low-value example — pivoted to Window functions in the DataFrame API instead, a better fit given student's existing SQL window-function strength.

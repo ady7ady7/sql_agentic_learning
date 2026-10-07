@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-10-07 (Week 41, Day 3) — Score: 19/20 + real infra fix
+
+**Mini-project (gap-up/gap-down daily pipeline):** 9/10 — full read → daily rollup → LAG → gap_pts → F.when() chain → groupBy().count() → write.parquet() pipeline assembled correctly in one go, all from previously-learned pieces. One real bug found: the first row (no prev_close, gap_pts = NULL) incorrectly fell into "gap_up" via `.otherwise()`, because `NULL < 0` evaluates to NULL (not true/false) in Spark's three-valued logic — same NULL-handling trap as SQL's WHERE/CASE WHEN. Noted for future reference, not fixed in-session (`.when(F.col("gap_pts").isNull(), None)` as the first branch would fix it).
+
+**UDF exercise:** hit a real infra bug — `SocketTimeoutException: Timed out while waiting for the Python worker to connect back`. Root cause: UDFs spawn a separate Python worker process that the JVM communicates with over a local socket, and without `PYSPARK_PYTHON`/`PYSPARK_DRIVER_PYTHON` set explicitly, Spark didn't reliably pick the venv's own python.exe for that worker on this Windows setup. Fixed by setting both env vars to `sys.executable` at the top of `practice_spark.py`, before SparkSession creation. Confirmed working after the fix.
+
+---
+
+---
+
 ### Task Archive: 2026-10-06 (Week 41, Day 2) — Score: 20/20
 
 **Note:** planned exercise was JDBC connection to local crappy_data_db Postgres — derailed because the local Postgres password is unknown, DBeaver has it saved but hidden (dotted field, no reveal option), common defaults (empty, 'postgres', 'admin', 'password') all failed, and student declined a pg_hba.conf trust-auth reset (didn't want to risk the local DB). Pivoted to JDBC against the already-working DigitalOcean OHLCV database instead — same JDBC mechanism, different data. Local crappy_data_db JDBC access remains unresolved for a future session if the student finds/resets the password.

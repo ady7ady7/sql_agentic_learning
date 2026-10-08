@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-10-08 (Week 41, Day 4) — Score: 20/20
+
+**Task 1 (SUM FILTER conditional sums):** 10/10 — correct SUM(amount) FILTER (WHERE...) pattern with COALESCE, closing the last gap from the SQL curriculum. Agent initially flagged the `total_deposited > 0` filter as fragile (assumes positive amounts) vs COUNT(*) FILTER > 0 (doesn't depend on amount sign) — student confirmed amounts are always positive in this dataset, so the filter is correct as written. Data-aware adaptation, not a bug.
+
+**Task 2 (Highest-value order per city, DISTINCT ON):** 10/10 — clean, correct, another solid DISTINCT ON rep.
+
+---
+
+---
+
 ### Task Archive: 2026-10-07 (Week 41, Day 3) — Score: 19/20 + real infra fix
 
 **Mini-project (gap-up/gap-down daily pipeline):** 9/10 — full read → daily rollup → LAG → gap_pts → F.when() chain → groupBy().count() → write.parquet() pipeline assembled correctly in one go, all from previously-learned pieces. One real bug found: the first row (no prev_close, gap_pts = NULL) incorrectly fell into "gap_up" via `.otherwise()`, because `NULL < 0` evaluates to NULL (not true/false) in Spark's three-valued logic — same NULL-handling trap as SQL's WHERE/CASE WHEN. Noted for future reference, not fixed in-session (`.when(F.col("gap_pts").isNull(), None)` as the first branch would fix it).

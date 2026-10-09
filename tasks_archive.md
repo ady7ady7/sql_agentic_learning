@@ -1,4 +1,16 @@
 
+### Task Archive: 2026-10-09 (Week 41, Day 5) — Score: 28/30
+
+**Task 1 (EXPLAIN ANALYZE, query optimization intro):** 9/10 — correctly identified Seq Scan (13.7s, 28M rows) vs Index Scan (1.7ms) and connected it to selectivity, plus a good independent observation about indexes not being free (write overhead, storage cost). Minor note: the high-selectivity test actually matched 0 rows (index scan was fast because it quickly determined "nothing here", not because it found a small matching set) — doesn't change the conclusion but worth noting precisely what was measured. Closes the last major curriculum gap (query optimization/indexes).
+
+**Task 2 (Most recent offer per platform, DISTINCT ON):** 10/10 — clean, correct.
+
+**Task 3 (Seniority × work type pivot):** 9/10 — correct FILTER pivot shape, but didn't actually check `typ`'s distinct values first as the task asked (risk: case sensitivity or Polish-language values could silently miscategorize). Also the recurring NULL-in-inequality trap: `typ != 'Remote' AND typ != 'Hybrid'` excludes NULL rows from `other_offers` despite the task asking for "everything else including NULL" — needs `typ IS NULL OR (...)`.
+
+---
+
+---
+
 ### Task Archive: 2026-10-08 (Week 41, Day 4) — Score: 20/20
 
 **Task 1 (SUM FILTER conditional sums):** 10/10 — correct SUM(amount) FILTER (WHERE...) pattern with COALESCE, closing the last gap from the SQL curriculum. Agent initially flagged the `total_deposited > 0` filter as fragile (assumes positive amounts) vs COUNT(*) FILTER > 0 (doesn't depend on amount sign) — student confirmed amounts are always positive in this dataset, so the filter is correct as written. Data-aware adaptation, not a bug.

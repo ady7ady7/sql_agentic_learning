@@ -1,4 +1,18 @@
 
+### Task Archive: 2026-10-12 (Week 42, Day 1) — Score: 30/30
+
+**Query optimization, part 2 — CREATE INDEX before/after:**
+
+**price (high cardinality, ~13,685 of 56M rows match):** Seq Scan baseline 9938ms → after `CREATE INDEX idx_ticks_price` the same query used Bitmap Heap Scan + Bitmap Index Scan, 6.4ms. ~1500x speedup.
+
+**side (low cardinality, ~28M of 56M rows match 'B'):** Seq Scan baseline 5736ms → after `CREATE INDEX idx_ticks_side`, EXPLAIN ANALYZE still showed Seq Scan, 5699ms — essentially no change, the planner didn't use the new index at all. Correctly interpreted: at ~50% selectivity, random I/O via the index would cost more than just reading the whole table sequentially, so Postgres's planner ignored the index entirely — a textbook demonstration that an index existing doesn't guarantee it gets used, and low-selectivity predicates often don't benefit from indexing regardless of cardinality theory.
+
+Both indexes dropped afterward (confirmed). This closes the query optimization thread from the original curriculum list — selectivity-aware indexing now demonstrated empirically, not just explained.
+
+---
+
+---
+
 ### Task Archive: 2026-10-09 (Week 41, Day 5) — Score: 28/30
 
 **Task 1 (EXPLAIN ANALYZE, query optimization intro):** 9/10 — correctly identified Seq Scan (13.7s, 28M rows) vs Index Scan (1.7ms) and connected it to selectivity, plus a good independent observation about indexes not being free (write overhead, storage cost). Minor note: the high-selectivity test actually matched 0 rows (index scan was fast because it quickly determined "nothing here", not because it found a small matching set) — doesn't change the conclusion but worth noting precisely what was measured. Closes the last major curriculum gap (query optimization/indexes).

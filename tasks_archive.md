@@ -1,4 +1,18 @@
 
+### Task Archive: 2026-10-13 (Week 42, Day 2) — Score: 30/30
+
+**Note:** Recursive CTE Type B dropped from the curriculum — student explicitly doesn't like it and it's rarely used in practice. Not forcing it just to check a box.
+
+**PySpark Exercise (.union() combining 3 instruments):** 10/10 — hit a real bug first (tried assigning to a tuple index, `df[0] = ...`, which fails since tuples are immutable), self-diagnosed as "file not detected" but actual cause was explained (TypeError on tuple item assignment, nothing to do with file reading). Fixed cleanly with tuple-unpacking in the for loop (`for df, name in dfs`) and a fresh `labeled_dfs` list. Final union + groupBy().count() + groupBy().agg(F.avg) both correct, interesting cross-instrument volume convention difference surfaced in the data (not a bug). Didn't explicitly verify schemas via printSchema() before unioning as the exercise prompted, but result was correct since export used identical structure for all files.
+
+**SQL Task 1 (Most recent transaction per user, DISTINCT ON):** 10/10 — clean.
+
+**SQL Task 2 (Transaction count by type per year, pivot):** 10/10 — clean, all 5 types covered.
+
+---
+
+---
+
 ### Task Archive: 2026-10-12 (Week 42, Day 1) — Score: 30/30
 
 **Query optimization, part 2 — CREATE INDEX before/after:**

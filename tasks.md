@@ -1,3 +1,3 @@
-# Tasks
+# SQL Tasks
 
-**Note:** 2026-10-13 session complete — PySpark .union() combining instruments + SQL DISTINCT ON + pivot, 30/30. See `tasks_archive.md` for details.
+**Note:** 2026-10-14 session complete — worst YoY month + Q2 VIP customer list, 20/20. See `tasks_archive.md` for details.

@@ -1,4 +1,16 @@
 
+### Task Archive: 2026-10-14 (Week 42, Day 3) — Score: 20/20
+
+**Note:** student asked for tasks framed as realistic business questions/requests from a boss/stakeholder, not as "practice pattern X" exercises — felt too repetitive. Going forward, phrase task business questions as a stakeholder would actually ask them, with the underlying SQL concept left implicit rather than named upfront (see [[feedback_business_framing]]).
+
+**Task 1 ("worst month" YoY decline):** 10/10 — correctly identified this needed LAG(12) without being told, correct (current-prev)/prev formula, WHERE + ORDER BY + LIMIT 1 cleanly isolates the single worst month.
+
+**Task 2 (Q2 VIP list):** 10/10 after a false-alarm correction — agent initially flagged the date range filter as fragile, but student correctly pushed back: filtering on `month_` (already DATE_TRUNC'd to exactly '2025-04-01'/'05-01'/'06-01') with `>=`/`<=` is NOT the same risk as filtering raw `created_at` with `<=` a month boundary — the three discrete truncated values are being compared, not a continuous date range, so there's no day-boundary edge case at all. Agent's generic "always use half-open interval" advice didn't apply here and was retracted. Good instance of the student correctly defending verified-working logic against an overly generic correction.
+
+---
+
+---
+
 ### Task Archive: 2026-10-13 (Week 42, Day 2) — Score: 30/30
 
 **Note:** Recursive CTE Type B dropped from the curriculum — student explicitly doesn't like it and it's rarely used in practice. Not forcing it just to check a box.

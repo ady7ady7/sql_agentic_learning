@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-10-15 (Week 42, Day 4) — Score: 20/20
+
+**Task 1 ("quiet customers"):** 4/10 initially, 10/10 after two rounds of fixes. First attempt used an uncorrelated NOT EXISTS subquery that didn't reference the outer user at all — a global, user-independent check that produced nonsensical results. Simplified correctly to a per-user date comparison, but the second attempt put the recency condition in WHERE, which filters rows BEFORE aggregation — a user with both old and recent orders would have their recent orders silently excluded before MAX()/COUNT() ran, risking false positives on the "quiet" list. Final fix moved the condition to HAVING, operating on the aggregated MAX(created_at) across ALL of a user's orders. Good iterative debugging — WHERE-vs-HAVING-timing is a recurring, important distinction (filter-before-vs-after-aggregation).
+
+**Task 2 (revenue concentration, top 10%):** 10/10 — PERCENT_RANK() + FILTER (WHERE pct_rank <= 0.1) in a single pass, clean and correct on first attempt.
+
+---
+
+---
+
 ### Task Archive: 2026-10-14 (Week 42, Day 3) — Score: 20/20
 
 **Note:** student asked for tasks framed as realistic business questions/requests from a boss/stakeholder, not as "practice pattern X" exercises — felt too repetitive. Going forward, phrase task business questions as a stakeholder would actually ask them, with the underlying SQL concept left implicit rather than named upfront (see [[feedback_business_framing]]).

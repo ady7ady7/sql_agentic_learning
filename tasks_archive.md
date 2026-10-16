@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-10-16 (Week 42, Day 5) — Score: 19/20
+
+**Task 1 (busiest city):** 9/10 — correct COUNT(DISTINCT user_id) + COUNT(order id) in one GROUP BY, but used INNER JOIN instead of LEFT JOIN — cities with users but zero orders would be silently excluded from user_count too, not just total_orders, since INNER JOIN drops unmatched users entirely before either count runs.
+
+**Task 2 (transaction type pivot by year):** 10/10 — clean, standard FILTER pivot.
+
+---
+
+---
+
 ### Task Archive: 2026-10-15 (Week 42, Day 4) — Score: 20/20
 
 **Task 1 ("quiet customers"):** 4/10 initially, 10/10 after two rounds of fixes. First attempt used an uncorrelated NOT EXISTS subquery that didn't reference the outer user at all — a global, user-independent check that produced nonsensical results. Simplified correctly to a per-user date comparison, but the second attempt put the recency condition in WHERE, which filters rows BEFORE aggregation — a user with both old and recent orders would have their recent orders silently excluded before MAX()/COUNT() ran, risking false positives on the "quiet" list. Final fix moved the condition to HAVING, operating on the aggregated MAX(created_at) across ALL of a user's orders. Good iterative debugging — WHERE-vs-HAVING-timing is a recurring, important distinction (filter-before-vs-after-aggregation).

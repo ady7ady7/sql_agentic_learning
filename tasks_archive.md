@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-10-19 (Week 43, Day 1) — Score: 16/20
+
+**Task 1 (YoY revenue by city):** 9/10 — correct LAG PARTITION BY city, growth formula correct. Minor: ORDER BY inside CTE without LIMIT is a no-op in Postgres, harmless but unnecessary.
+
+**Task 2 (salary transparency by platform):** 7/10 — handled NULL and 'Undisclosed Salary' sentinel correctly, but missed empty string ('') as a third dirty-data case the task explicitly mentioned ("leaving it blank") — an offer with `zarobki = ''` would be incorrectly counted as transparent. Needed `AND zarobki != ''` or NULLIF chaining. Not fixed in-session (student moved to commit without applying the fix).
+
+---
+
+---
+
 ### Task Archive: 2026-10-16 (Week 42, Day 5) — Score: 19/20
 
 **Task 1 (busiest city):** 9/10 — correct COUNT(DISTINCT user_id) + COUNT(order id) in one GROUP BY, but used INNER JOIN instead of LEFT JOIN — cities with users but zero orders would be silently excluded from user_count too, not just total_orders, since INNER JOIN drops unmatched users entirely before either count runs.

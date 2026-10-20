@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-10-20 (Week 43, Day 2) — Score: 19/20
+
+**Task 1 (time to second order):** 10/10 — elegant single-pass FIRST_VALUE + ROW_NUMBER, filtered to order_number=2 to get first_order and second-order gap without a second join. Clean.
+
+**Task 2 (first-week conversion rate):** 9/10 — correct LEFT JOIN + MIN(order_date) to find first order including users with none, correctly relies on NULL comparison (NULL < 7 → NULL, not TRUE) to exclude non-purchasers via FILTER. Minor interpretation gap: used `< 7` instead of `<= 7` for "within 7 days" — excludes day-7 orders from the "within first week" bucket.
+
+---
+
+---
+
 ### Task Archive: 2026-10-19 (Week 43, Day 1) — Score: 16/20
 
 **Task 1 (YoY revenue by city):** 9/10 — correct LAG PARTITION BY city, growth formula correct. Minor: ORDER BY inside CTE without LIMIT is a no-op in Postgres, harmless but unnecessary.

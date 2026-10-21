@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-10-21 (Week 43, Day 3) — Score: 20/20
+
+**Task 1 (YoY by transaction type):** 10/10 — clean LAG PARTITION BY type, correct growth formula.
+
+**Task 2 (longest monthly order streak per customer):** 10/10 after one fix — gaps-and-islands logic correct throughout (31-day gap threshold, cumulative SUM as streak_id). Correctly chose not to apply the "3+ month" filter when data didn't support it (data-aware adaptation, not a shortcut). Final step needed DISTINCT ON (user_id) to collapse all-streaks-per-user down to longest-streak-per-user — first attempt had `DISTINCT ON (user_id)` paired with `ORDER BY streak_length DESC` (missing user_id in the ORDER BY), which doesn't guarantee picking each user's own longest streak since DISTINCT ON's selection depends on ORDER BY starting with the DISTINCT ON column(s). Fixed to `ORDER BY user_id, streak_length DESC`.
+
+---
+
+---
+
 ### Task Archive: 2026-10-20 (Week 43, Day 2) — Score: 19/20
 
 **Task 1 (time to second order):** 10/10 — elegant single-pass FIRST_VALUE + ROW_NUMBER, filtered to order_number=2 to get first_order and second-order gap without a second join. Clean.

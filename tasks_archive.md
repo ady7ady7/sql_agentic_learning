@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-10-22 (Week 43, Day 4) — Score: 20/20
+
+**Task 1 (city ranking by avg order value):** 10/10 — clean GROUP BY + AVG + HAVING, correct NULL city exclusion.
+
+**Task 2 (one-time customer percentage):** 10/10 — simple two-layer approach, COUNT per user then FILTER on the aggregate, no unnecessary complexity.
+
+---
+
+---
+
 ### Task Archive: 2026-10-21 (Week 43, Day 3) — Score: 20/20
 
 **Task 1 (YoY by transaction type):** 10/10 — clean LAG PARTITION BY type, correct growth formula.

@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-10-23 (Week 43, Day 5) — Score: 20/20
+
+**Task 1 (z-score transaction anomalies):** 6/10 initially, 10/10 after fix — correct window-function z-score formula with ABS() from the start, but missing both the >2 threshold filter and the <3-transactions exclusion on first pass (query returned a ranked list of ALL transactions instead of flagged anomalies only). Fixed with COUNT(id) OVER (PARTITION BY user_id) for the transaction-count guard and WHERE z_score > 2 AND user_t_count >= 3.
+
+**Task 2 (new signups per month):** 10/10 — simple, correct.
+
+---
+
+---
+
 ### Task Archive: 2026-10-22 (Week 43, Day 4) — Score: 20/20
 
 **Task 1 (city ranking by avg order value):** 10/10 — clean GROUP BY + AVG + HAVING, correct NULL city exclusion.

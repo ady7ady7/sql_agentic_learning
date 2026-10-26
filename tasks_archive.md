@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-10-26 (Week 44, Day 1) — Score: 19/20
+
+**Task 1 (revenue by day of week):** 10/10 — TRIM(TO_CHAR(..., 'Day')) for a clean day name, correct GROUP BY + SUM + COUNT.
+
+**Task 2 (QoQ basket size):** 9/10 — correct DATE_TRUNC('quarter', ...) grouping, LAG(1) default offset (sibling quarter, not year-ago), correct (current-prev)/prev formula. Minor style: LAG expression repeated twice in the same SELECT instead of computed once in an earlier CTE (same pattern noted back in W35 D2).
+
+---
+
 ### Task Archive: 2026-10-23 (Week 43, Day 5) — Score: 20/20
 
 **Task 1 (z-score transaction anomalies):** 6/10 initially, 10/10 after fix — correct window-function z-score formula with ABS() from the start, but missing both the >2 threshold filter and the <3-transactions exclusion on first pass (query returned a ranked list of ALL transactions instead of flagged anomalies only). Fixed with COUNT(id) OVER (PARTITION BY user_id) for the transaction-count guard and WHERE z_score > 2 AND user_t_count >= 3.

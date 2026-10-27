@@ -1,5 +1,22 @@
 
-### Task Archive: 2026-10-26 (Week 44, Day 1) — Score: 19/20
+### Task Archive: 2026-10-27 (Week 44, Day 2) — PySpark: simulated multi-source ETL + partitioned write
+
+**Context:** Student asked a genuinely important question — "what is Spark actually FOR, beyond rewriting SQL functions I already know?" This reframed the session away from syntax drills toward a realistic scenario: simulating a multi-source ETL pipeline, the kind of job Spark actually exists for (data too large/distributed for a single Postgres instance or pandas in memory).
+
+**What got built in `practice_spark.py`:**
+- Programmatic file discovery (`os.listdir` + filter for `_m1_` files) instead of hardcoded filenames — simulates not knowing in advance what sources will show up.
+- Read each file, tag with a `symbol` column (derived from filename — simulating real pipelines where raw sources often don't self-describe).
+- Union all of them into one combined DataFrame.
+- Roll up to daily OHLC (F.first/F.last/F.min/F.max/F.sum per trade_date × symbol).
+- Write the result **partitioned by symbol** (`.write.partitionBy('symbol').parquet(...)`) — framed explicitly as the Spark/data-lake equivalent of a Postgres index: lets future reads skip data they don't need via partition pruning, same underlying idea as the CREATE INDEX experiment from a few weeks back, different mechanism (filesystem layout vs B-tree).
+
+**Bugs hit and fixed (good independent debugging):**
+- `os.chdir('./data')` broke all subsequent relative paths — replaced with absolute `DATA_DIR` built from `os.path.dirname(os.path.abspath(__file__))`, the same stable-path pattern used for HADOOP_HOME/.env/JAR_PATH in prior sessions.
+- Starting the union loop from a 0-column empty DataFrame (`StructType([])`) failed with NUM_COLUMNS_MISMATCH — `.union()` matches by position and requires equal column counts. Fixed with `df = None` + assign-on-first-iteration instead of a dummy empty starting DataFrame.
+
+**Deferred/unresolved:** student verified the partition write succeeded (confirmed symbol=X subfolders on disk) but the `.explain()` partition-pruning check was done on an already-specific `symbol=deuidxeur` subpath rather than the parent `partitioned/` folder + `.filter()` — so PartitionFilters showed empty correctly (nothing to prune), not because pruning failed. Correct verification deferred to next Spark session (see [[project_partition_pruning_followup]]). Also flagged: Windows Spark console noise (warnings, recurring harmless jar-deletion error) is genuinely annoying to read, not just a quirk to tolerate indefinitely — worth revisiting log suppression.
+
+---
 
 **Task 1 (revenue by day of week):** 10/10 — TRIM(TO_CHAR(..., 'Day')) for a clean day name, correct GROUP BY + SUM + COUNT.
 

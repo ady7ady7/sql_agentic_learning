@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-10-28 (Week 44, Day 3) — Score: 18/20
+
+**Task 1 (median days between orders):** 8/10 — correct LAG + EXTRACT(EPOCH)/86400 + PERCENTILE_CONT(0.5) approach. Result was correct but the `user_filter` CTE + JOIN with `order_cnt >= 2` was redundant — `orders_days_diff` already only contains users with >=2 orders, since the first order per user always has prev_order_date = NULL and gets filtered out in that same CTE. Simpler version would skip user_filter entirely.
+
+**Task 2 (H1 vs H2 revenue by year):** 10/10 — caught and correctly fixed the earlier h2_vs_h1_pct denominator question (base-period denominator, not end-period), wrote both a CTE-split and a FILTER-pivot version, both correct and matching.
+
+---
+
+---
+
 ### Task Archive: 2026-10-27 (Week 44, Day 2) — PySpark: simulated multi-source ETL + partitioned write
 
 **Context:** Student asked a genuinely important question — "what is Spark actually FOR, beyond rewriting SQL functions I already know?" This reframed the session away from syntax drills toward a realistic scenario: simulating a multi-source ETL pipeline, the kind of job Spark actually exists for (data too large/distributed for a single Postgres instance or pandas in memory).

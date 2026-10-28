@@ -1,3 +1,3 @@
-# PySpark
+# SQL Tasks
 
-**Note:** 2026-10-27 session complete — simulated multi-source ETL + partitioned write by symbol (fixed os.chdir and union-column-mismatch bugs); partition pruning .explain() verification deferred to next session. See `tasks_archive.md` for details.
+**Note:** 2026-10-28 session complete — median days between orders + H1 vs H2 revenue by year (two equivalent approaches), 18/20. See `tasks_archive.md` for details.

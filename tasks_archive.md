@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-10-29 (Week 44, Day 4) — Score: 19/20
+
+**Task 1 (cities with most senior offers):** 9/10 — correct FILTER + JOIN + WHERE. Didn't account for city name inconsistency (Warszawa vs Warsaw, per schema notes) splitting the same city's count across two rows in the top 10 — not explicitly required by the task, but worth noticing/flagging in real work even when not asked.
+
+**Task 2 (best QoQ revenue jump):** 10/10 — clean 3-CTE chain, LAG(1) correct offset, (current-prev)/prev formula correct, ORDER BY DESC LIMIT 1 isolates the single best quarter.
+
+---
+
+---
+
 ### Task Archive: 2026-10-28 (Week 44, Day 3) — Score: 18/20
 
 **Task 1 (median days between orders):** 8/10 — correct LAG + EXTRACT(EPOCH)/86400 + PERCENTILE_CONT(0.5) approach. Result was correct but the `user_filter` CTE + JOIN with `order_cnt >= 2` was redundant — `orders_days_diff` already only contains users with >=2 orders, since the first order per user always has prev_order_date = NULL and gets filtered out in that same CTE. Simpler version would skip user_filter entirely.

@@ -1,3 +1,3 @@
 # SQL Tasks
 
-**Note:** 2026-10-28 session complete — median days between orders + H1 vs H2 revenue by year (two equivalent approaches), 18/20. See `tasks_archive.md` for details.
+**Note:** 2026-10-29 session complete — cities with most senior offers + best QoQ revenue jump, 19/20. See `tasks_archive.md` for details.

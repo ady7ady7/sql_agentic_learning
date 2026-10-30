@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-10-30 (Week 44, Day 5) — Score: 20/20
+
+**Task 1 (most recent month orders + revenue):** 10/10 — clean MAX(month) + JOIN + COUNT/SUM.
+
+**Task 2 (transaction type ranking by volume):** 10/10 — simple, correct RANK() on aggregated CTE.
+
+---
+
+---
+
 ### Task Archive: 2026-10-29 (Week 44, Day 4) — Score: 19/20
 
 **Task 1 (cities with most senior offers):** 9/10 — correct FILTER + JOIN + WHERE. Didn't account for city name inconsistency (Warszawa vs Warsaw, per schema notes) splitting the same city's count across two rows in the top 10 — not explicitly required by the task, but worth noticing/flagging in real work even when not asked.

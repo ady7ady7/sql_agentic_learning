@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-11-02 (Week 45, Day 1) — Score: 20/20
+
+**Task 1 (customers using multiple transaction types):** 10/10 — correct two-layer aggregation, COUNT(DISTINCT type) per user then GROUP BY on that count.
+
+**Task 2 (order size distribution):** 10/10 after discussion — student used NTILE(3) for relative, data-driven buckets instead of the task's literal $50/$200 CASE WHEN thresholds, arguing fixed dollar cutoffs are arbitrary and don't reflect real spending distribution. Agent initially pushed back (treating the task's stated thresholds as a real business requirement to implement literally), but correctly reversed after student's pushback: the $50/$200 values were invented by the agent writing the task prompt, not an externally-grounded convention like an age-18 cutoff — so there was no real "business requirement" being overridden. Student's NTILE-based relative segmentation is a legitimate, arguably better answer to "how does our order-size distribution look." Good instance of the student correctly rejecting an over-literal reading of a task's invented specifics.
+
+---
+
+---
+
 ### Task Archive: 2026-10-30 (Week 44, Day 5) — Score: 20/20
 
 **Task 1 (most recent month orders + revenue):** 10/10 — clean MAX(month) + JOIN + COUNT/SUM.

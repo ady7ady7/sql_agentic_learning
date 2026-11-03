@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-11-03 (Week 45, Day 2) — Score: 20/20
+
+**Task 1 (tech co-occurrence pairs, job_db.oferty.technologie):** 10/10 (after one revision). First attempt used `regexp_split_to_table` correctly but self-joined on `pozycja = pozycja AND zarobki = zarobki AND data_wystawienia = data_wystawienia` as a pseudo-key — a real bug, since `oferty` has no PK and two genuinely different offers could share all three attributes, causing cross-contamination between unrelated postings' tech lists. Student fixed it cleanly by adding `ROW_NUMBER() OVER (ORDER BY data_wystawienia) AS offer_number` as a surrogate key in a preceding CTE, then joining on `t1.offer_number = t2.offer_number AND t1.split_tech > t2.split_tech` — correct identity join plus correct duplicate-pair elimination in one condition. General pattern worth reinforcing: when a table has no PK, self-joins for co-occurrence/pairing need a `ROW_NUMBER()` surrogate rather than joining on a set of business attributes that might not be unique.
+
+**Task 2 (transaction type ranking by avg amount):** 10/10 — clean CTE aggregation (GROUP BY + ROUND(AVG())) followed by RANK() in the outer SELECT over the already-aggregated result. Correct application of aggregate-then-rank sequencing.
+
+---
+
 ### Task Archive: 2026-11-02 (Week 45, Day 1) — Score: 20/20
 
 **Task 1 (customers using multiple transaction types):** 10/10 — correct two-layer aggregation, COUNT(DISTINCT type) per user then GROUP BY on that count.

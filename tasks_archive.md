@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-11-04 (Week 45, Day 3) — Score: 9/10
+
+**Task 1 (Python vs other postings — B2B/contract-type mix, conditional aggregation):** 9/10 — clean CASE WHEN LIKE '%Python%' flag in a CTE, correct conditional aggregation via GROUP BY on (is_python, umowa). `WHERE technologie IS NOT NULL` was necessary and correctly included — without it, NULL technologie rows would fall under `is_python = FALSE` and get conflated with real non-Python postings. Minor stylistic note: filter could live inside the CTE next to the CASE WHEN logic for readability. Not a correctness issue.
+
+**Task 2 (city pairs with shared seniority profile — self-join set overlap):** DROPPED mid-session. Student flagged the task itself as unnatural and hard to map to a real business question ("ciężko mi sobie wyobrazić taką agregację w prawdziwym życiu"). Agent agreed and retracted the task rather than asking for a fix. First attempt had used `COUNT(*)` over the self-join instead of `COUNT(DISTINCT seniority_id)` (counting offer-pair volume instead of number of shared seniority levels) — a real bug, but moot since the task itself was dropped as a bad fit for the curriculum. See `feedback_city_pair_aggregation_bad` memory: don't propose "pairs of X sharing Y" / set-overlap-between-groups tasks again.
+
+---
+
 ### Task Archive: 2026-11-03 (Week 45, Day 2) — Score: 20/20
 
 **Task 1 (tech co-occurrence pairs, job_db.oferty.technologie):** 10/10 (after one revision). First attempt used `regexp_split_to_table` correctly but self-joined on `pozycja = pozycja AND zarobki = zarobki AND data_wystawienia = data_wystawienia` as a pseudo-key — a real bug, since `oferty` has no PK and two genuinely different offers could share all three attributes, causing cross-contamination between unrelated postings' tech lists. Student fixed it cleanly by adding `ROW_NUMBER() OVER (ORDER BY data_wystawienia) AS offer_number` as a surrogate key in a preceding CTE, then joining on `t1.offer_number = t2.offer_number AND t1.split_tech > t2.split_tech` — correct identity join plus correct duplicate-pair elimination in one condition. General pattern worth reinforcing: when a table has no PK, self-joins for co-occurrence/pairing need a `ROW_NUMBER()` surrogate rather than joining on a set of business attributes that might not be unique.

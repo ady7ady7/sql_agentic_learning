@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-11-05 (Week 45, Day 4) — Score: 17/20
+
+**Task 1 (Senior-vs-Junior monthly crossover, PIVOT + LAG on sign):** 8/10 — correct pivot via COUNT(*) FILTER per month, correct LAG-based sign-change detection for crossover months. Real edge case flagged: `diff = 0` is classified as 'positive' in the CASE WHEN (since `< 0` is false), so a positive→zero→negative sequence would misplace the detected crossover month by one period. Not triggered by this dataset but not verified either — a DATA-AWARE ADAPTATION check that wasn't done. `WHERE prev_month_diff IS NOT NULL` correctly handled the first-month edge case.
+
+**Task 2 (longest unbroken monthly transaction streak per customer, gaps-and-islands):** 9/10 — correct island-detection pattern: `streak_key` flags island starts (gap > 31 days via LAG), `SUM(streak_key) OVER (...)` builds a running island id, `MAX(next_month_after_streak)` via LEAD correctly surfaces the month after the streak ends (pointing into the next island). `INTERVAL '31 Days'` threshold on DATE_TRUNC'd months is a sound adaptation — safely distinguishes consecutive months from skipped ones despite variable month length. Student noted the data didn't produce dramatic streaks ("nie było takich streaków za bardzo") — correct query, just a quiet dataset for this pattern.
+
+---
+
 ### Task Archive: 2026-11-04 (Week 45, Day 3) — Score: 9/10
 
 **Task 1 (Python vs other postings — B2B/contract-type mix, conditional aggregation):** 9/10 — clean CASE WHEN LIKE '%Python%' flag in a CTE, correct conditional aggregation via GROUP BY on (is_python, umowa). `WHERE technologie IS NOT NULL` was necessary and correctly included — without it, NULL technologie rows would fall under `is_python = FALSE` and get conflated with real non-Python postings. Minor stylistic note: filter could live inside the CTE next to the CASE WHEN logic for readability. Not a correctness issue.

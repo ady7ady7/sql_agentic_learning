@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-11-06 (Week 45, Day 5) — Score: 19/20
+
+**Task 1 (platform quarterly share, light conditional aggregation):** 9/10 — correct DATE_TRUNC to quarter, subquery for MAX(quarter_), COUNT(*) FILTER for numerator/denominator with correct numeric cast before division. Noted: INNER JOIN to platforma would silently drop any platform with zero offers — not a bug for this task's scope, but a LEFT JOIN would be the safer default for "show all platforms" framing.
+
+**Task 2 (first transaction in registration month, DISTINCT-style aggregate check):** 10/10 — student independently simplified a CASE WHEN + GROUP BY approach down to plain COUNT(*) FILTER (WHERE ...) without GROUP BY, correctly reasoning it was cleaner/faster since no grouping column was actually needed. Good self-driven readability/efficiency improvement, agent agreed.
+
+---
+
 ### Task Archive: 2026-11-05 (Week 45, Day 4) — Score: 17/20
 
 **Task 1 (Senior-vs-Junior monthly crossover, PIVOT + LAG on sign):** 8/10 — correct pivot via COUNT(*) FILTER per month, correct LAG-based sign-change detection for crossover months. Real edge case flagged: `diff = 0` is classified as 'positive' in the CASE WHEN (since `< 0` is false), so a positive→zero→negative sequence would misplace the detected crossover month by one period. Not triggered by this dataset but not verified either — a DATA-AWARE ADAPTATION check that wasn't done. `WHERE prev_month_diff IS NOT NULL` correctly handled the first-month edge case.

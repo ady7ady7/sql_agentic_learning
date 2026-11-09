@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-11-09 (Week 46, Day 1) — Score: 15/20
+
+**Task 1 (first-half vs second-half avg transaction value, pct_change):** 9/10 — clever approach: split history by time (first_transaction + half of total duration elapsed), not by transaction count — correctly answers "first half of history" as a time-based question rather than an event-count one. `pct_change` denominator correctly uses first_half_avg (base period). Missing: no minimum-transaction-count filter/HAVING, despite the task explicitly asking to state and apply a cutoff — low-transaction customers (e.g. single-transaction) produce NULL pct_change rather than being excluded as specified.
+
+**Task 2 (lifetime quintiles vs transactions-per-day, proportionality check):** 6/10 — real bug: `avg_transactions_per_day` computed as transactions-per-*active*-day (COUNT(*) over unique active days with transactions), not transactions-per-day-of-*lifetime* as the task asked. This answers "how big are transaction bursts on active days" rather than "how spread out is activity over the customer's full lifespan" — the opposite of what distinguishes proportional vs non-proportional engagement. First fix attempt kept the same underlying bug (GROUP BY still partitioned by day_, so COUNT(DISTINCT day_) within each group was always 1). Final correct version was supplied directly by the agent (per-user ratio `transaction_cnt / lifetime_days`, averaged per quintile — avoiding the average-of-ratios trap) and the student transcribed it rather than deriving the fix independently; student explicitly asked to not receive credit for a copied solution. Score reflects the state before the agent-supplied fix, not the final pasted query.
+
+---
+
 ### Task Archive: 2026-11-06 (Week 45, Day 5) — Score: 19/20
 
 **Task 1 (platform quarterly share, light conditional aggregation):** 9/10 — correct DATE_TRUNC to quarter, subquery for MAX(quarter_), COUNT(*) FILTER for numerator/denominator with correct numeric cast before division. Noted: INNER JOIN to platforma would silently drop any platform with zero offers — not a bug for this task's scope, but a LEFT JOIN would be the safer default for "show all platforms" framing.

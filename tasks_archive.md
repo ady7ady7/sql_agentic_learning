@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-11-10 (Week 46, Day 2) — Score: 18/20
+
+**Task 1 (city+platform B2B share, conditional aggregation + HAVING):** 9/10 — correct conditional aggregation and HAVING-based volume filter. Student used `HAVING COUNT(*) >= 15` instead of the task's suggested `>= 10` without stating the reasoning — likely a reasonable data-aware adaptation, but the task explicitly asked to state the cutoff and why; not penalized for correctness, just missing justification.
+
+**Task 2 (new-customer-count vs first-transaction-value dilution signal, cohort + LAG):** 9/10 — well-constructed: cohort defined by MIN(DATE_TRUNC('Month', created_at)) per user (correctly following the first-ORDER/TRANSACTION cohort rule, not registration date), join-back to transactions on (user_id, created_at = first_transaction_time) to isolate the exact first-transaction value rather than averaging the whole cohort's history, LAG on both metrics, correct AND-combined CASE WHEN for the dilution signal (new customers up AND avg value down vs previous month). Minor theoretical note: a join-back keyed on exact timestamp match carries latent risk of duplicate rows if two transactions for the same user share an identical created_at — not observed as an actual bug in this data, just a pattern to watch.
+
+---
+
 ### Task Archive: 2026-11-09 (Week 46, Day 1) — Score: 15/20
 
 **Task 1 (first-half vs second-half avg transaction value, pct_change):** 9/10 — clever approach: split history by time (first_transaction + half of total duration elapsed), not by transaction count — correctly answers "first half of history" as a time-based question rather than an event-count one. `pct_change` denominator correctly uses first_half_avg (base period). Missing: no minimum-transaction-count filter/HAVING, despite the task explicitly asking to state and apply a cutoff — low-transaction customers (e.g. single-transaction) produce NULL pct_change rather than being excluded as specified.

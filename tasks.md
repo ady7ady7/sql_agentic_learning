@@ -1,3 +1,3 @@
 # SQL Tasks
 
-**Note:** 2026-11-09 session complete — first/second-half transaction value comparison + lifetime-quintile proportionality check, 15/20 (Task 2 fix was agent-supplied, not self-derived — score reflects pre-fix state per student request). See `tasks_archive.md` for details.
+**Note:** 2026-11-10 session complete — city+platform B2B share (conditional aggregation + HAVING) + new-customer-count vs first-transaction-value dilution signal (cohort + LAG), 18/20. See `tasks_archive.md` for details.

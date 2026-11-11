@@ -1,3 +1,3 @@
 # SQL Tasks
 
-**Note:** 2026-11-10 session complete — city+platform B2B share (conditional aggregation + HAVING) + new-customer-count vs first-transaction-value dilution signal (cohort + LAG), 18/20. See `tasks_archive.md` for details.
+**Note:** 2026-11-11 session complete — BigQuery on 56M NQ tick trades: columnar scan costs per column + day-partitioned table (one-week query 1.83 GB -> 78.7 MB), 15/20. See `tasks_archive.md` for details.

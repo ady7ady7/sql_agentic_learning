@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-11-11 (Week 46, Day 3) — Score: 15/20
+
+**Session context:** BigQuery (columnar warehouse) instead of local Postgres, interview prep for "largest dataset queried + columnar optimization". Data: NQ tick trades Sep 2025 - May 2026, 56,010,146 rows, loaded CSV -> Parquet (265 MB) -> Cloud Storage bucket -> BigQuery table `nq_ticks.trades_raw`.
+
+**Task 1 (columnar storage - bytes scanned per column):** 9/10 — all dry-run estimates recorded and consistent with columnar storage: `SELECT * LIMIT 10` = 1.83 GB (LIMIT doesn't cut the scan), one column `price` = 427 MB, `price, size` = 854 MB, `COUNT(*)` = 0 B (answered from table metadata - student's guess "precalculated" is correct). Daily NY-time stats query (DATE(ts_event, 'America/New_York'), trades, contracts, VWAP) = 1.25 GB = exactly the 3 columns it reads; WHERE on a non-partitioned table didn't change the estimate - correctly observed.
+
+**Task 2 (partitioning + clustering):** 6/10 — partitioned table `trades_day_chunks` created and pruning demonstrated: `SELECT *` for one week = 78.7 MB vs 1.83 GB on the raw table. Two gaps: (1) reported as "80% cut" - it's ~96% (~23x less); (2) skipped 2b (same stats query on both tables), 2c (filter through NY-date conversion - the pruning trap) and 2d (clustering filter on `side`), so the clustering effect and the trap were not tested hands-on.
+
+---
+
 ### Task Archive: 2026-11-10 (Week 46, Day 2) — Score: 18/20
 
 **Task 1 (city+platform B2B share, conditional aggregation + HAVING):** 9/10 — correct conditional aggregation and HAVING-based volume filter. Student used `HAVING COUNT(*) >= 15` instead of the task's suggested `>= 10` without stating the reasoning — likely a reasonable data-aware adaptation, but the task explicitly asked to state the cutoff and why; not penalized for correctness, just missing justification.

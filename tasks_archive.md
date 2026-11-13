@@ -9,6 +9,193 @@
 
 ---
 
+<details>
+<summary>Full task sheet with student answers (Week 46, Day 3)</summary>
+
+# Tasks - ML Phase Week 12 Day 4 - SQL on a columnar database (BigQuery)
+
+**Time:** ~80 min (setup ~15 of it). Interview question this answers:
+*"What is the largest dataset you have queried using SQL, and how did you optimize your
+queries for a columnar database like BigQuery or ClickHouse?"*
+
+**Data:** your NQ tick trades (Databento, Sep 2025 - May 2026), **56,010,146 rows**. The 7.6 GB
+CSV was converted to `q-trading/data/NQ_trades.parquet` (zstd-compressed, typed) with 5 columns:
+
+| column | type | meaning |
+|---|---|---|
+| `ts_event` | TIMESTAMP (UTC) | exchange time of the trade, microseconds |
+| `price` | FLOAT | trade price |
+| `size` | INT | contracts |
+| `side` | STRING | `A` / `B` - aggressor side (A = buyer hit the ask, B = seller hit the bid) |
+| `instrument_id` | INT | contract id - changes at each quarterly roll |
+
+Two new concepts today: **columnar storage** and **partitioning/clustering**. Everything else
+is SQL you know.
+
+---
+
+## Warm-up (5 min)
+
+```python
+scans = [
+    {'query': 'select_star_limit', 'gb': 2.6},
+    {'query': 'one_column', 'gb': 0.45},
+    {'query': 'count_rows', 'gb': 0.0},
+]
+```
+- W1. One dict `{query: gb}`.
+- W2. Same, but values in MB as `int` (`int(gb * 1024)`).
+- W3. Only queries that scanned more than 0.1 GB.
+
+---
+
+## Setup (15 min) - Google Cloud console only, no CLI
+
+Use the Google Cloud project you already have for Cloud Run. BigQuery's free tier applies
+there too: **1 TB of queries + 10 GB of storage per month**. Today uses a few GB of queries.
+
+1. **Safety first:** BigQuery -> query editor -> *More* -> *Query settings* -> *Advanced* ->
+   **Maximum bytes billed** = `10000000000` (10 GB). A query that would scan more fails
+   instead of costing money.
+2. **Cloud Storage** -> *Create bucket* -> name e.g. `adrian-nq-data`, location type
+   **Region**, `us-central1` (inside the free 5 GB tier). Upload `NQ_trades.parquet`.
+   (The console's direct upload into BigQuery is capped at 100 MB - that's why the file goes
+   through a bucket.)
+3. **BigQuery** -> your project -> *Create dataset* -> id `nq`, location **US** (multi-region -
+   it can load from a `us-central1` bucket).
+4. Dataset `nq` -> *Create table* -> source **Google Cloud Storage**, pick the file, format
+   **Parquet**, table name `trades_raw`. The schema comes from the Parquet file itself.
+5. Check: `SELECT COUNT(*) FROM nq.trades_raw` -> 56,010,146.
+
+
+Done, liczba Count SIĘ ZGADZA.
+
+---
+
+## Task 1 - Columnar storage: you pay for the columns you read (20 min)
+
+**Concept.** Postgres stores data **row by row** - to read one column it still reads whole
+rows from disk. BigQuery (and ClickHouse, Snowflake, Redshift) store each **column
+separately**. A query reads only the columns it mentions - and BigQuery charges by bytes
+read. So the column list is the first optimization, and `LIMIT` is NOT one:
+
+```sql
+SELECT * FROM nq.trades_raw LIMIT 10;   -- reads EVERY column of EVERY row, then keeps 10
+```
+
+`LIMIT` cuts the output, not the scan. Before running anything, the editor shows
+*"This query will process X GB"* in the top right - that's a free estimate (a "dry run").
+
+
+- 1a. Write down the estimate (don't run!) for each:
+  - `SELECT * FROM nq.trades_raw LIMIT 10`
+  - `SELECT price FROM nq.trades_raw LIMIT 10`
+  - `SELECT price, size FROM nq.trades_raw`
+  - `SELECT COUNT(*) FROM nq.trades_raw`
+- 1b. **In a comment:** why is the last one 0 B? (Hint: does BigQuery need to read any data
+  to know how many rows a table has?)
+- 1c. Daily stats in New York time - run it:
+  ```sql
+  SELECT
+    DATE(ts_event, 'America/New_York') AS trade_date,   -- UTC timestamp -> NY calendar date
+    COUNT(*) AS trades,
+    SUM(size) AS contracts,
+    ROUND(SUM(price * size) / SUM(size), 2) AS vwap      -- volume-weighted average price
+  FROM nq.trades_raw
+  GROUP BY trade_date
+  ORDER BY trade_date
+  ```
+  Then add `WHERE ts_event BETWEEN '2026-03-02' AND '2026-03-07'` (one week). Write down the
+  estimate. It's the same as without the filter - remember this number for Task 2.
+
+
+
+
+  1.That's right, LIMIT 10 shows 1.83 GB for all 56M rows query, which is unusual compared to standard PostgreSQL.
+  price shows 427MB, oruce, size without LIMIT shows the same value as with LIMIT, as I've tested - 854 MB; COUNT is 0b, interestingly. I guess it's precalculated before, as we've already loaded data.
+  1b. COUNT is 0b, interestingly. I guess it's precalculated before, as we've already loaded data.
+  1c.
+
+    SELECT
+    DATE(ts_event, 'America/New_York') AS trade_date,
+    COUNT(*) AS trades,
+    SUM(size) AS contracts,
+    ROUND(SUM(price * size) / SUM(size), 2) AS vwap 
+  FROM `nq_ticks.trades_raw`
+  GROUP BY trade_date
+  ORDER BY trade_date
+
+  I've also checked and ts_event:;date doesn'tw ork.
+  The scan shows 1.25 GB resources, not that small :P
+
+Adding WHERE doesn't cahnge the scan estimate cost, 1.25GB - interesting.
+
+
+---
+
+## Task 2 - Partitioning and clustering: skip whole chunks of the table (25 min)
+
+**Concept - partitioning.** A partitioned table is split into separate chunks, e.g. one per
+day. If the `WHERE` filters on the partition column, BigQuery opens only the matching
+chunks - a one-week query on 8 months of data reads ~1/35 of the table.
+
+**Concept - clustering.** Inside each partition, rows are sorted by the cluster columns and
+stored in blocks. A filter on a cluster column skips blocks that can't contain the value.
+Partition = by time (the big cut), cluster = by what you filter on most (the fine cut).
+
+```sql
+CREATE TABLE nq.trades
+PARTITION BY DATE(ts_event)        -- one chunk per (UTC) day
+CLUSTER BY side                    -- sorted by side inside each day
+AS SELECT * FROM nq.trades_raw;
+```
+
+(This reads the whole raw table once, ~2-3 GB.)
+
+- 2a. Run the CREATE TABLE. In the table's *Details* tab check "Partitioned by" and "Clustered by".
+- 2b. Run the one-week daily-stats query from 1c on `nq.trades` instead of `nq.trades_raw`.
+  Write down the bytes processed (after running: *Job information* tab). Raw vs partitioned
+  - how many times less?
+- 2c. The trap: change the filter to `WHERE DATE(ts_event, 'America/New_York') BETWEEN ...`.
+  Estimate? Pruning (skipping partitions) only works when BigQuery can map the filter onto the
+  partition column - the NY-date conversion hides that. Write down which filter prunes.
+- 2d. Clustering: on `nq.trades`, one week, `WHERE side = 'A'`, `SUM(size)`. Compare the
+  bytes processed with and without the `side` filter.
+
+**In a comment - your interview answer in numbers:** "56M rows of tick data; partitioned by
+day and clustered by side; a one-week query went from X GB to Y MB". Plus one sentence on
+the trap from 2c.
+
+
+I've created table trades_day_chunks and then ran the query with WHERE
+
+SELECT 
+  * 
+FROM `nq_ticks.trades_day_chunks`
+WHERE ts_event BETWEEN '2026-03-02' AND '2026-03-07'
+
+It only requires 78.7 MB, which means partitioning/clustering allows to cut 80% of the cost, amazing shit.
+Although I don't really understand it, why that's the case? How does BigQuery work, why is that so different from standard PostgreSQL? This feels like an entirely new dimension, how to learn it?
+
+
+---
+
+## Optional (10 min) - finish yesterday's retry
+
+- `except` catches only `requests.ConnectionError` / `requests.Timeout` (no response at all);
+  status codes are checked with `if` in `else`, as in the example in yesterday's commit.
+- `load_dotenv()` before `os.getenv(...)`.
+- Test with a wrong API key: must fail at once.
+
+---
+
+**Total: ~80 min.** Clean-up after: delete `NQ_trades.parquet` from the bucket (the tables
+keep their own copy). Next: automated Python -> BigQuery load + dashboard (question 4).
+
+</details>
+
+---
+
 ### Task Archive: 2026-11-10 (Week 46, Day 2) — Score: 18/20
 
 **Task 1 (city+platform B2B share, conditional aggregation + HAVING):** 9/10 — correct conditional aggregation and HAVING-based volume filter. Student used `HAVING COUNT(*) >= 15` instead of the task's suggested `>= 10` without stating the reasoning — likely a reasonable data-aware adaptation, but the task explicitly asked to state the cutoff and why; not penalized for correctness, just missing justification.

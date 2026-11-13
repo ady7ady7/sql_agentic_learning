@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-11-13 (Week 46, Day 4) — Score: 18/20
+
+**Task 1 (platform × top weekday for new offers, EXTRACT(DOW) + RANK):** 9/10 (after one revision). First attempt had `RANK() OVER (PARTITION BY platform_name ORDER BY total_weekday_count)` missing `DESC`, so RANK = 1 picked the *lowest*-volume weekday instead of the highest — a real logic-inverting bug, fixed immediately once flagged. Minor style note: platforma JOIN was carried through every CTE instead of applied once near the end; output column names (`weekday`, `total_weekday_count`) didn't exactly match the spec's (`top_weekday`, `top_weekday_count`) but are clear, so not penalized per column-naming policy.
+
+**Task 2 (fully non-decreasing transaction history per customer, LAG + running-sum streak check):** 9/10 — clever construction: LAG + CASE WHEN flags each transaction as non-decreasing vs previous, SUM() OVER as a running total, then compares total comparisons (`user_t_number - 1`) against the running non-decreasing count to detect customers where every single comparison held. No customers qualified in this dataset — confirmed as a property of the data, not the query. Missing: no explicit minimum-transaction-count filter despite the task asking to state and apply one (same gap as a prior session's Task 1) — didn't affect the result here since the answer set was empty either way.
+
+---
+
 ### Task Archive: 2026-11-11 (Week 46, Day 3) — Score: 15/20
 
 **Session context:** BigQuery (columnar warehouse) instead of local Postgres, interview prep for "largest dataset queried + columnar optimization". Data: NQ tick trades Sep 2025 - May 2026, 56,010,146 rows, loaded CSV -> Parquet (265 MB) -> Cloud Storage bucket -> BigQuery table `nq_ticks.trades_raw`.

@@ -1,3 +1,3 @@
 # SQL Tasks
 
-**Note:** 2026-11-11 session complete — BigQuery on 56M NQ tick trades: columnar scan costs per column + day-partitioned table (one-week query 1.83 GB -> 78.7 MB), 15/20. See `tasks_archive.md` for details.
+**Note:** 2026-11-13 session complete — platform × top weekday for new offers (EXTRACT(DOW) + RANK) + fully non-decreasing transaction history per customer (LAG + running-sum streak check), 18/20. See `tasks_archive.md` for details.

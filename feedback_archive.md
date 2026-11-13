@@ -4,6 +4,53 @@ This file contains the permanent history of all daily and weekly feedback exchan
 
 ---
 
+### Feedback Archive: Week 46 (2026-11-09 to 2026-11-13)
+
+## Weekly Summary — Week 46 (2026-11-09 to 2026-11-13)
+
+### Scores
+
+| Day | Focus | Score |
+|---|---|---|
+| Day 1 | First/second-half transaction value comparison + lifetime-quintile proportionality check | 15/20 |
+| Day 2 | City+platform B2B share + new-customer-count vs first-transaction-value dilution signal | 18/20 |
+| Day 3 | BigQuery on 56M NQ ticks — columnar scan costs + day partitioning | 15/20 |
+| Day 4 | Platform top weekday for new offers + fully non-decreasing transaction history per customer | 18/20 |
+
+**Week total: 66/80** (Day 3 graded out of 15 as two tasks, not 20 — BigQuery session).
+
+### Progress Bar
+
+Student remains at HackerRank Advanced+ depth, now routinely combining 2 concepts per hard task (window functions + cohort logic, gaps-and-islands + streak detection) without being asked to. First real exposure to a columnar warehouse (BigQuery) and physical query optimization (partitioning/clustering) this week — a genuinely new skill category beyond the Postgres curriculum, directly interview-relevant.
+
+### Key Wins
+
+- **Time-based (not count-based) history splitting** — Day 1 Task 1 split "first half vs second half of history" by elapsed time rather than transaction count, a more correct interpretation than the obvious ROW_NUMBER/NTILE(2) approach.
+- **Cohort-by-first-transaction done right** — Day 2 Task 2 correctly defined cohort month by MIN(transaction date), not registration date, and joined back on (user_id, exact timestamp) to isolate the true first-transaction value instead of averaging the whole cohort.
+- **Novel LAG-based streak construction** — Day 4 Task 2 built a non-obvious running-sum pattern (SUM of non-decreasing flags vs total comparison count) to detect fully monotonic transaction histories per customer — more inventive than the standard template.
+- **Self-caught, no-ego correction** — on Day 1 Task 2, student explicitly refused credit for a fix that was agent-supplied rather than self-derived, asking for the lower pre-fix score instead. Also independently flagged the Day 4/Day 2 (city-pairs) tasks as poorly framed and had them dropped rather than forcing through a bad fit.
+- **BigQuery fundamentals landed in one session** — columnar bytes-scanned behavior (full column scan regardless of LIMIT, COUNT(*) from metadata = 0 bytes) understood and correctly predicted/verified; first hands-on partitioning win (1.83 GB → 78.7 MB on a 1-week filter).
+
+### Focus Areas
+
+- **Average-of-ratios / per-group-ratio trap** — recurred explicitly on Day 1 Task 2 (transactions-per-day computed over active days instead of full lifetime days) and is the same family of bug as the earlier VWAP "average of averages" trap. This is now a 2x-repeated mistake pattern — worth a short dedicated check-in next time a per-entity rate needs averaging across groups.
+- **Window function direction (ASC vs DESC) under RANK/NTILE** — Day 4 Task 1 shipped with RANK() missing DESC (picked the lowest-volume weekday instead of highest); Day 1 Task 2 had a related NTILE(5) DESC ordering choice that inverted the natural quintile-labeling convention. Not a conceptual gap — happens under time pressure on multi-CTE queries. Worth a quick "read your ORDER BY direction out loud before running" habit.
+- **Stated-but-skipped task requirements** — "state your minimum-count cutoff" was asked explicitly in three tasks this week (Day 1 Task 1, Day 4 Task 2, and partially Day 2 Task 1) and the cutoff was either omitted or applied without justification each time. Minor individually, but a consistent small gap worth calling out as a pattern.
+- **BigQuery Task 2 sub-steps skipped** — 2b/2c/2d (clustering filter test, the NY-timezone-conversion pruning trap) weren't run hands-on, so the "pruning can silently break" lesson wasn't fully absorbed yet — good candidate to revisit before moving on from BigQuery.
+
+### Next Week's Plan
+
+- Revisit BigQuery Task 2's skipped sub-steps (clustering on `side`, the timezone-conversion pruning trap) in a short follow-up if BigQuery comes up again.
+- Rotate back toward NULLIF/dirty-data and query-optimization-on-Postgres (EXPLAIN ANALYZE) — underrepresented this week, both named in the curriculum's new-concepts list.
+- Keep featuring DISTINCT ON and advanced window functions (STDDEV, PERCENT_RANK) — didn't appear this week, overdue for rotation.
+- No new business-question framing changes needed — the format is working well and producing genuine 40+ minute engagement (student's own words, Day 1).
+
+## Student Feedback on Questions
+
+Week complete — no separate end-of-day feedback collected this week (format has been grading-notes-in-tasks_archive.md only); recap written directly from tasks_archive.md.
+
+---
+
 ### Feedback Archive: Week 29 (2026-07-07 to 2026-07-11)
 
 ## Weekly Summary — Week 29

@@ -1,3 +1,3 @@
 # SQL Tasks
 
-**Note:** 2026-11-13 session complete — platform × top weekday for new offers (EXTRACT(DOW) + RANK) + fully non-decreasing transaction history per customer (LAG + running-sum streak check), 18/20. See `tasks_archive.md` for details.
+**Note:** 2026-11-16 session complete — offers per seniority level (pct_of_total) + widest range of transaction types per customer with most-recent-per-type (top-10 scope not applied), 19/20. See `tasks_archive.md` for details.

@@ -1,5 +1,9 @@
 
-### Task Archive: 2026-11-13 (Week 46, Day 4) — Score: 18/20
+### Task Archive: 2026-11-16 (Week 47, Day 1) — Score: 19/20
+
+**Task 1 (offers per seniority level, pct_of_total):** 10/10 — clean JOIN to seniority, subquery denominator correctly repeats the `seniority_id IS NOT NULL` filter, numeric cast before division. No issues.
+
+**Task 2 (widest range of transaction types per customer + most recent per type):** 9/10 — correct two-CTE structure: per-(user, type) MAX(created_at), then COUNT(*) as a valid distinct-type-count proxy since the first CTE already collapses to one row per unique type. Gap: task asked to scope the output to "the top 10 such customers" — the final query returns all customers' full type breakdowns with no LIMIT/rank-based cutoff, so the scope requirement wasn't applied. Student explicitly declined to fix this and asked to grade as-is.
 
 **Task 1 (platform × top weekday for new offers, EXTRACT(DOW) + RANK):** 9/10 (after one revision). First attempt had `RANK() OVER (PARTITION BY platform_name ORDER BY total_weekday_count)` missing `DESC`, so RANK = 1 picked the *lowest*-volume weekday instead of the highest — a real logic-inverting bug, fixed immediately once flagged. Minor style note: platforma JOIN was carried through every CTE instead of applied once near the end; output column names (`weekday`, `total_weekday_count`) didn't exactly match the spec's (`top_weekday`, `top_weekday_count`) but are clear, so not penalized per column-naming policy.
 

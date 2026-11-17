@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-11-17 (Week 47, Day 2) — Score: 20/20
+
+**Task 1 (offers per work type, pct_of_total):** 10/10 (after one revision). First attempt had the denominator subquery count all offers instead of only `typ IS NOT NULL` ones — same pattern as the correct version from the previous day's seniority task, missed here. Fixed immediately once flagged.
+
+**Task 2 (transactions per month, count + sum):** 10/10 — correct DATE_TRUNC + GROUP BY + COUNT/SUM. Task wording asked to scope to "the current year," but the dataset's most recent data is from 2025 — an unrealistic constraint given the data, correctly not worth enforcing. Agent's own task-wording mistake, not a student gap.
+
+---
+
 ### Task Archive: 2026-11-16 (Week 47, Day 1) — Score: 19/20
 
 **Task 1 (offers per seniority level, pct_of_total):** 10/10 — clean JOIN to seniority, subquery denominator correctly repeats the `seniority_id IS NOT NULL` filter, numeric cast before division. No issues.

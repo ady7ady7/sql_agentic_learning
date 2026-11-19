@@ -1,3 +1,3 @@
 # SQL Tasks
 
-**Note:** 2026-11-17 session complete — offers per work type (pct_of_total) + transactions per month (count + sum), 20/20. See `tasks_archive.md` for details.
+**Note:** 2026-11-18/19 sessions complete — offers w/ salary but no seniority (per platform) + anti-join for customers without 'refund' transactions (fixed uncorrelated subquery) + most-even Junior/Senior platform split + most-recent-transaction-vs-own-historical-average, 36/40. See `tasks_archive.md` for details.

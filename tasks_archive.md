@@ -1,4 +1,16 @@
 
+### Task Archive: 2026-11-18 to 2026-11-19 (Week 47, Day 3-4) — Score: 9+9+9+9 = 36/40
+
+**Day 3 Task 1 (offers with stated salary but no seniority, per platform):** 9/10 — correct filter logic (`zarobki IS NOT NULL AND zarobki NOT LIKE '%Salary%'` to exclude the "Undisclosed Salary" sentinel, `seniority_id IS NULL`), clean JOIN + GROUP BY. Minor note: the LIKE wildcard is a bit loose (matches any "Salary" substring, not just the specific sentinel) — worked fine for this data, but a precise `!= 'Undisclosed Salary'` would be the more robust default.
+
+**Day 3 Task 2 (customers with no 'refund' transactions, anti-join):** Initially a real bug — `NOT EXISTS` subquery wasn't correlated to the outer customer (`WHERE t.TYPE = 'refund'` with no `user_id` link), so it checked "does a refund exist anywhere in the table" rather than per-customer, returning an empty result for everyone. Same bug class as the Week 42 Day 4 "quiet customers" uncorrelated-subquery mistake. Session paused there ("wracamy do tematu jutro"); fixed the next day by adding `t2.user_id = t.user_id` inside the subquery. Final score: 9/10 (minor: `DISTINCT(t.user_id)` parens suggest a function call — DISTINCT is a clause, not a function).
+
+**Day 4 Task 1 (platform with most even Junior/Senior split):** 9/10 — correct conditional aggregation on seniority shares, correct `ORDER BY pct_diff LIMIT 1` to find the most balanced platform. Minor: joined to `job_db.seniority` for `nazwa` when filtering directly on `seniority_id` IN (1, 6) from schema.md would have avoided the extra join — not a correctness issue.
+
+**Day 4 Task 2 (most recent transaction vs own historical average, per customer):** 9/10 — correct use of `FIRST_VALUE(... ORDER BY created_at DESC)` to get the most recent transaction amount per customer, then `(SUM(amount) - last_transaction_amount) / (count - 1)` to get the average excluding exactly that one transaction — mathematically sound even when transaction amounts repeat, since it subtracts one single scalar value, not all matching rows. Minor style note: the historical-average expression is duplicated inline in the pct_diff calculation instead of being computed once in an earlier CTE — readability only, not a bug.
+
+---
+
 ### Task Archive: 2026-11-17 (Week 47, Day 2) — Score: 20/20
 
 **Task 1 (offers per work type, pct_of_total):** 10/10 (after one revision). First attempt had the denominator subquery count all offers instead of only `typ IS NOT NULL` ones — same pattern as the correct version from the previous day's seniority task, missed here. Fixed immediately once flagged.

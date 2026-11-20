@@ -1,4 +1,14 @@
 
+### Task Archive: 2026-11-20 (Week 47, Day 5) — Score: 18/20
+
+**Task 1 (median + STDDEV monthly salary per seniority, regex parsing + time-unit normalization):** 9/10 — regex-based extraction of low/high salary bounds and pay interval (`/month`, `/h`, `/year`, `/day`), midpoint calculation, and normalization to a monthly figure (×20 days, ÷12 months, ×160 hours). Didn't use an explicit sentinel-value filter for "Undisclosed Salary" — instead let non-matching regexes produce NULL and filtered those out, which is a cleaner and more general approach (catches any unparseable format, not just the one known sentinel). Real issue surfaced in the output: Senior-level `stddev_salary` = 123,592.19, wildly higher than Manager (12.7k), Mid (5.4k), Junior (3.3k) — strong signal that at least one malformed/misparsed salary value is contaminating the Senior group. SQL logic itself is correct; the anomaly is a data-parsing edge case not yet investigated. Student agreed a sanity-check on raw `zarobki` values for outlier Senior rows is the right next step (deferred, not required to fix this session).
+
+**Task 2 (longest gap since last transaction of each type, per customer):** 9/10 — correct DISTINCT ON (user_id, type) + ORDER BY (user_id, type, created_at DESC) to get latest-per-type, then ROW_NUMBER() PARTITION BY type to find the max-gap customer per type. Good re-use of DISTINCT ON in a new context. Minor inefficiency: `(SELECT MAX(created_at) FROM transactions)` computed twice inline instead of once in a CTE/CROSS JOIN — not a correctness issue.
+
+**Follow-up for next session:** investigate the Senior salary STDDEV outlier from Task 1 — run `SELECT zarobki, midpoint_salary FROM ... WHERE seniority_name = 'Senior' ORDER BY midpoint_salary DESC LIMIT 10` to find the misparsed row(s).
+
+---
+
 ### Task Archive: 2026-11-18 to 2026-11-19 (Week 47, Day 3-4) — Score: 9+9+9+9 = 36/40
 
 **Day 3 Task 1 (offers with stated salary but no seniority, per platform):** 9/10 — correct filter logic (`zarobki IS NOT NULL AND zarobki NOT LIKE '%Salary%'` to exclude the "Undisclosed Salary" sentinel, `seniority_id IS NULL`), clean JOIN + GROUP BY. Minor note: the LIKE wildcard is a bit loose (matches any "Salary" substring, not just the specific sentinel) — worked fine for this data, but a precise `!= 'Undisclosed Salary'` would be the more robust default.

@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-11-23 (Week 48, Day 1) — Score: 20/20
+
+**Task 1 (transaction count + total amount per customer, RANK):** 10/10 — clean GROUP BY aggregation followed by RANK() in the outer query. No issues.
+
+**Task 2 (cumulative offer count over time per platform):** 10/10 — correct SUM() OVER (PARTITION BY platform_name ORDER BY date) with the implicit RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW frame, exactly right for a running total. Light session, requested as a quick evening warm-up.
+
+---
+
 ### Task Archive: 2026-11-20 (Week 47, Day 5) — Score: 18/20
 
 **Task 1 (median + STDDEV monthly salary per seniority, regex parsing + time-unit normalization):** 9/10 — regex-based extraction of low/high salary bounds and pay interval (`/month`, `/h`, `/year`, `/day`), midpoint calculation, and normalization to a monthly figure (×20 days, ÷12 months, ×160 hours). Didn't use an explicit sentinel-value filter for "Undisclosed Salary" — instead let non-matching regexes produce NULL and filtered those out, which is a cleaner and more general approach (catches any unparseable format, not just the one known sentinel). Real issue surfaced in the output: Senior-level `stddev_salary` = 123,592.19, wildly higher than Manager (12.7k), Mid (5.4k), Junior (3.3k) — strong signal that at least one malformed/misparsed salary value is contaminating the Senior group. SQL logic itself is correct; the anomaly is a data-parsing edge case not yet investigated. Student agreed a sanity-check on raw `zarobki` values for outlier Senior rows is the right next step (deferred, not required to fix this session).

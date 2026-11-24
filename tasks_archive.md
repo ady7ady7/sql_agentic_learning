@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-11-24 (Week 48, Day 2) — Score: 17/20
+
+**Task 1 (YoY monthly spend comparison per customer, LAG(12)):** 9/10 — correct LAG(spend, 12) OVER (PARTITION BY user_id ORDER BY month_) pattern, pct_change correctly denominated on prior_period_spend. Task explicitly asked to first check the actual date range in `transactions.created_at` and adapt granularity if the data didn't support a true 12-month-back comparison — this diagnostic step was skipped; student wanted to drill the LAG(12) pattern specifically. Not verified whether the result is a real YoY comparison or an empty set from insufficient date range — logic itself stands either way.
+
+**Task 2 (duplicate-charge detection, same customer/amount within 5 min):** 8/10 — pragmatic LAG-based approach (compare each transaction to the immediately preceding one per customer) correctly avoids double-counting pairs in both directions. Doesn't fully implement the asked-for self-join pattern — would miss a same-amount pair more than one row apart but still within 5 minutes of each other (e.g. three same-amount transactions where only the two end ones are >5 min from their immediate neighbor but <5 min from each other) — an edge case, not triggered by this dataset (zero duplicates found).
+
+---
+
 ### Task Archive: 2026-11-23 (Week 48, Day 1) — Score: 20/20
 
 **Task 1 (transaction count + total amount per customer, RANK):** 10/10 — clean GROUP BY aggregation followed by RANK() in the outer query. No issues.

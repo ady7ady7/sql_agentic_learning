@@ -1,4 +1,10 @@
 
+### Task Archive: 2026-11-25 (Week 48, Day 3) — Score: 17/20
+
+**Task 1 (city+platform undisclosed-salary share, HAVING cutoff):** 8/10 — `COUNT(*) FILTER (WHERE zarobki IS NULL OR zarobki LIKE '%Undisclosed%') / COUNT(*)` correctly computes the percentage, FILTER clause used cleanly. Missing the explicit `HAVING COUNT(*) >= 10` the task required — without it, small-volume city+platform combos (e.g. 1/1 = 100%) dominate the ranking, which was the core point of the volume-cutoff requirement. Left unfixed per student request.
+
+**Task 2 (month-to-month spending volatility, >50% swing count):** 9/10 — clean CTE chain (monthly spend → LAG → CASE swing flag), `COUNT(*) OVER (PARTITION BY user_id)` for months_with_data avoids a second pass, dual-threshold CASE correctly catches both swing directions. First month per user has `prev_month_spend = NULL`, so the division silently returns NULL and CASE falls to ELSE (is_swing=0) — correct outcome, but incidental rather than an explicit guard; worth noting for future NULL-from-LAG scenarios.
+
 ### Task Archive: 2026-11-24 (Week 48, Day 2) — Score: 17/20
 
 **Task 1 (YoY monthly spend comparison per customer, LAG(12)):** 9/10 — correct LAG(spend, 12) OVER (PARTITION BY user_id ORDER BY month_) pattern, pct_change correctly denominated on prior_period_spend. Task explicitly asked to first check the actual date range in `transactions.created_at` and adapt granularity if the data didn't support a true 12-month-back comparison — this diagnostic step was skipped; student wanted to drill the LAG(12) pattern specifically. Not verified whether the result is a real YoY comparison or an empty set from insufficient date range — logic itself stands either way.

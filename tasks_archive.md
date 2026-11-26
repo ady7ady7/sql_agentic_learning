@@ -1,4 +1,10 @@
 
+### Task Archive: 2026-11-26 (Week 48, Day 4) — Score: 19/20
+
+**Task 1 (customers with withdrawal + purchase>200 in same month):** 9/10 — multi-condition self-join (user_id + month_ in ON), GROUP BY correctly collapses multiple qualifying pairs per customer+month to one row. First attempt had two real bugs (wrong type 'payment' instead of 'purchase', `>=` instead of `>`) and an incorrectly-reasoned time-ordering guard (`t1.created_at > t2.created_at`) meant to prevent duplicates — the actual dedup already comes from the final GROUP BY, so the ordering condition only wrongly excluded valid pairs where withdrawal preceded purchase in the month. All three fixed. Minor style note: `SELECT *` in the CTE pulls unused columns through the join.
+
+**Task 2 (platform offer-count STDDEV across seniority):** 10/10 — clean two-level aggregation: first CTE counts offers per platform+seniority, second aggregates STDDEV of those counts per platform. `WHERE seniority_id IS NOT NULL` correctly filters dirty data before aggregating.
+
 ### Task Archive: 2026-11-25 (Week 48, Day 3) — Score: 17/20
 
 **Task 1 (city+platform undisclosed-salary share, HAVING cutoff):** 8/10 — `COUNT(*) FILTER (WHERE zarobki IS NULL OR zarobki LIKE '%Undisclosed%') / COUNT(*)` correctly computes the percentage, FILTER clause used cleanly. Missing the explicit `HAVING COUNT(*) >= 10` the task required — without it, small-volume city+platform combos (e.g. 1/1 = 100%) dominate the ranking, which was the core point of the volume-cutoff requirement. Left unfixed per student request.

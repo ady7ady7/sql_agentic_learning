@@ -2,6 +2,34 @@
 
 This file contains the permanent history of all daily and weekly feedback exchanges.
 
+### Feedback Archive: Week 48 (2026-11-23 to 2026-11-27)
+
+## Weekly Summary — Week 48 (2026-11-23 to 2026-11-27)
+
+**Scores:** Day1 20/20 · Day2 17/20 · Day3 17/20 · Day4 19/20 · Day5 29/30 — **102/110 (92.7%)**
+
+### Progress Bar — Mastery Level
+HackerRank Advanced, continuing to deepen post-program. This week's rotation hit: window functions (RANK, cumulative SUM, NTILE, PERCENT_RANK, FIRST_VALUE reversed-order), LAG-based patterns (YoY LAG(12), month-over-month swing detection, duplicate-charge proximity), conditional aggregation (PIVOT-style FILTER), multi-condition self-joins, STDDEV two-level aggregation, and a first real 5/5 gaps-and-islands task built from unaggregated rows (longest consecutive-month streak).
+
+### Key Wins
+- **Gaps-and-islands, from scratch, at 5/5**: Day 5 Task 2 (longest consecutive-activity-month streak) was the first time this pattern was built unscaffolded, straight from raw rows — LAG + CASE flag + running SUM streak_id — and nailed on the first real attempt (only cosmetic bugs: alias typo, `DISTINCT()` parens).
+- **FIRST_VALUE reversed-order convention is now internalized** — correctly applied for "last transaction" without being told, consistent with the established house style (never LAST_VALUE without explicit frame).
+- **DISTINCT ON preferred over GROUP BY-as-dedup** — Day 5 Task 3 spontaneously swapped a workable-but-clunky GROUP BY dedup for `DISTINCT ON (user_id)`, recognizing it as the cleaner tool once pointed out.
+- **Multi-condition self-joins hold up under pressure** — Day 4 Task 1's join structure (user_id + month_ in ON) was correct from the start; the bugs were in filter values (wrong type, wrong operator), not join mechanics.
+- **STDDEV two-level aggregation (count-then-stddev-of-counts) was clean both times it appeared** (Day 3 Task 1-adjacent concept, Day 4 Task 2) — no confusion about the two aggregation passes once explained once.
+
+### Focus Areas
+- **`DISTINCT(x)` vs `DISTINCT x`** — recurring syntax habit (parens making DISTINCT look like a function call). Surfaced again this week on Day 5 Task 2; flagged as something to keep correcting until it sticks, per explicit student request ("przypominaj mi o tym").
+- **Copy-paste bugs when extending a pattern to a mirrored case** — Day 5 Task 3 (`last_transaction_amount` kept the ASC order from the "first" block instead of being flipped to DESC) and Day 4 Task 1 (an unnecessary, incorrectly-reasoned ordering guard copied in from habit) — both times the first block was correct and the second, structurally-similar block wasn't updated to match. Worth a beat of "did I actually change what needed changing" when duplicating a window/join clause for a mirrored condition.
+- **HAVING / volume-cutoff requirements get dropped under time pressure** — Day 3 Task 1 shipped without the required `HAVING COUNT(*) >= 10`, left unfixed by choice. Not a comprehension gap (the concept is well understood elsewhere), more an execution-checklist slip on a task that had several explicit sub-requirements.
+- **Diagnostic/pre-check instructions embedded in task wording continue to be the first thing dropped** (Day 2 Task 1 skipped the date-range check) when the student is deliberately prioritizing drilling a specific pattern (LAG(12)) over following every procedural instruction literally — a known, accepted tradeoff rather than a true gap.
+
+### Next Week's Plan (Week 49)
+- Keep gaps-and-islands in rotation at varying grain (day-level, session-proximity) now that the unscaffolded 5/5 version has landed well.
+- Rotate back toward underrepresented GROUP BY/HAVING complexity (multi-condition HAVING, GROUP BY with CASE expressions) per the CLAUDE.md ongoing-reinforcement goal — hasn't shown up much in recent sessions.
+- Introduce query optimization (EXPLAIN ANALYZE reading, seq scan vs index scan) — next item in the curriculum expansion list, not yet touched.
+- Revisit the still-unresolved Senior-salary STDDEV outlier from Week 47 Day 5 (123,592.19) if a natural opening comes up — flagged twice now, still not investigated.
+
 ---
 
 ### Feedback Archive: Week 46 (2026-11-09 to 2026-11-13)

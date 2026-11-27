@@ -1,4 +1,12 @@
 
+### Task Archive: 2026-11-27 (Week 48, Day 5) — Score: 29/30
+
+**Task 1 (spending quintile + percentile per customer):** 10/10 — clean two-level aggregation (SUM per user → NTILE + PERCENT_RANK over total_spend). No issues.
+
+**Task 2 (longest consecutive-month activity streak, gaps-and-islands):** 10/10 — correct islands pattern: LAG(month_) + CASE flag on gap + SUM() OVER running streak_id, GROUP BY user_id+streak_id, COUNT(DISTINCT month_) for length. First pass had a copy-paste alias bug (`streak_end_month` duplicated as `streak_start_month`) and `COUNT(DISTINCT(month_))` with parens — both fixed. First real 5/5 exposure to the unaggregated-rows-first islands pattern, handled well once the small bugs were caught.
+
+**Task 3 (first vs last transaction per customer, FIRST_VALUE reversed-order pattern):** 9/10 — correct FIRST_VALUE/reversed-DESC pattern for "last" per the established convention, DISTINCT ON (user_id) used cleanly for dedup instead of GROUP BY. First pass had a copy-paste bug (`last_transaction_amount` kept ASC order instead of DESC, mismatching the correctly-reversed `last_transaction_type`) — fixed. Missing final `ORDER BY user_id` the task asked for — minor, not rescored.
+
 ### Task Archive: 2026-11-26 (Week 48, Day 4) — Score: 19/20
 
 **Task 1 (customers with withdrawal + purchase>200 in same month):** 9/10 — multi-condition self-join (user_id + month_ in ON), GROUP BY correctly collapses multiple qualifying pairs per customer+month to one row. First attempt had two real bugs (wrong type 'payment' instead of 'purchase', `>=` instead of `>`) and an incorrectly-reasoned time-ordering guard (`t1.created_at > t2.created_at`) meant to prevent duplicates — the actual dedup already comes from the final GROUP BY, so the ordering condition only wrongly excluded valid pairs where withdrawal preceded purchase in the month. All three fixed. Minor style note: `SELECT *` in the CTE pulls unused columns through the join.
